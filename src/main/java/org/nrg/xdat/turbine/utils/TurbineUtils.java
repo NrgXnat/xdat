@@ -1111,13 +1111,11 @@ public class TurbineUtils {
                             logger.error("", e);
                         }
                     }
-                }
+                } // If you find the template in the previous block, cache and return that.
                 if (exists.size() > 0) {
                     return screens;
                 }
-
-                // TODO: If you find the template in the previous block, cache and return that.
-                // TODO: If not, proceed to try the file.
+                // If not, proceed to try the file.
                 for (File screensFolder : screensFolders) {
                     if (screensFolder.exists()) {
                         File subFile = new File(screensFolder, subFolder);
