@@ -68,9 +68,10 @@ public class XDATServlet extends HttpServlet {
 
             //store some  more convenience paths
             XDAT.setScreenTemplatesFolder(getWebAppPath("templates", "screens"));
-            XDAT.addScreenTemplatesFolder(getWebAppPath("templates", "screens"));
+            XDAT.addScreenTemplatesFolder(getWebAppPath("module-templates", "screens"));
             XDAT.addScreenTemplatesFolder(getWebAppPath("xnat-templates", "screens"));
             XDAT.addScreenTemplatesFolder(getWebAppPath("xdat-templates", "screens"));
+            XDAT.addScreenTemplatesFolder(getWebAppPath("base-templates", "screens"));
 
             //call the logic to check if the database is up to date.
             if (updateDatabase(getWebAppPath("resources", "default-sql"))) {
