@@ -1089,7 +1089,7 @@ public class TurbineUtils {
         //first see if the props have been cached.
         List<Properties> screens = cachedVMS.get(subFolder);
         List<String> _defaultScreens = new ArrayList<>();
-        if (screens == null) {
+        if (screens == null || screens.size() == 0) {
             synchronized (this) {
                 //synchronized so that two calls don't overwrite eachother.  I only synchronized this chunk in hopes that when the screens list is cached, the block woudn't occur.
                 //need to build the list of props.
@@ -1097,9 +1097,7 @@ public class TurbineUtils {
                 List<String> exists = new ArrayList<>();
                 List<File> screensFolders = XDAT.getScreenTemplateFolders();
                 List<URL> uris = CustomClasspathResourceLoader.findVMsByClasspathDirectory(Paths.get("screens", subFolder).toString());
-
-                for (int index = 0; index < uris.size(); index++) {
-                    final URL url = uris.get(index);
+                for (URL url : uris) {
                     String fileName = FilenameUtils.getBaseName(url.toString()) + "." + FilenameUtils.getExtension(url.toString());
                     String resolved = CustomClasspathResourceLoader.safeJoin("/", subFolder, fileName);
                     if (!exists.contains(resolved)) {
@@ -1113,9 +1111,14 @@ public class TurbineUtils {
                             logger.error("", e);
                         }
                     }
-                    // TODO: If you find the template in the previous block, cache and return that.
-                    // TODO: If not, proceed to try the file.
-                    final File screensFolder = screensFolders.get(index);
+                }
+                if (exists.size() > 0) {
+                    return screens;
+                }
+
+                // TODO: If you find the template in the previous block, cache and return that.
+                // TODO: If not, proceed to try the file.
+                for (File screensFolder : screensFolders) {
                     if (screensFolder.exists()) {
                         File subFile = new File(screensFolder, subFolder);
                         if (subFile.exists()) {
