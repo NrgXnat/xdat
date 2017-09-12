@@ -10,13 +10,6 @@
 
 package org.nrg.xdat.ajax;
 
-import java.io.IOException;
-import java.io.StringReader;
-
-import javax.servlet.ServletConfig;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.log4j.Logger;
 import org.nrg.xdat.XDAT;
 import org.nrg.xft.XFTItem;
@@ -30,6 +23,12 @@ import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.SaveItemHelper;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+
+import javax.servlet.ServletConfig;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.StringReader;
 
 public class StoreXML {
     static org.apache.log4j.Logger logger = Logger.getLogger(StoreXML.class);
@@ -53,7 +52,16 @@ public class StoreXML {
                 XFTItem item = reader.parse(is);
                 
 				SaveItemHelper.unauthorizedSave(item, user, false, allowDataDeletion,EventUtils.newEventInstance(EventUtils.CATEGORY.SIDE_ADMIN, EventUtils.TYPE.SOAP, "Stored XML", req.getParameter(EventUtils.EVENT_REASON), req.getParameter(EventUtils.EVENT_COMMENT)));
-                
+                if(item.instanceOf("xnat:projectData")){
+                    //Event- XNAT Event: project creation or edit
+                }
+                else if(item.instanceOf("xnat:subjectData")){
+                    //Event- XNAT Event: subject creation or edit
+                }
+                else if(item.instanceOf("xnat:experimentData")){
+                    //Event- XNAT Event: session creation or edit
+                }
+
                 SAXWriter writer = new SAXWriter(response.getOutputStream(),false);
                 writer.setWriteHiddenFields(true);
                 writer.write(item);

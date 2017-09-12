@@ -230,7 +230,15 @@ public class XFTTool {
 		    override = false;
 		}
     	SaveItemHelper.authorizedSave(item,user,false,q,override,allowItemRemoval,EventUtils.newEventInstance(EventUtils.CATEGORY.SIDE_ADMIN, EventUtils.TYPE.STORE_XML, "Stored XML", EventUtils.MODIFY_VIA_STORE_XML, null));
-    	
+		if(item.instanceOf("xnat:projectData")){
+			//Event- XNAT Event: project creation or edit
+		}
+		else if(item.instanceOf("xnat:subjectData")){
+			//Event- XNAT Event: subject creation or edit
+		}
+		else if(item.instanceOf("xnat:experimentData")){
+			//Event- XNAT Event: session creation or edit
+		}
 		return XMLWriter.ItemToDOM(item,true,false);
 	}
 	
@@ -290,7 +298,15 @@ public class XFTTool {
 			
 						
         	SaveItemHelper.authorizedSave(item,user,overrideSecurity,q,override,allowItemRemoval,EventUtils.newEventInstance(EventUtils.CATEGORY.SIDE_ADMIN, EventUtils.TYPE.STORE_XML, "Stored XML", EventUtils.MODIFY_VIA_STORE_XML, null));
-
+			if(item.instanceOf("xnat:projectData")){
+				//Event- XNAT Event: project creation or edit
+			}
+			else if(item.instanceOf("xnat:subjectData")){
+				//Event- XNAT Event: subject creation or edit
+			}
+			else if(item.instanceOf("xnat:experimentData")){
+				//Event- XNAT Event: session creation or edit
+			}
 			//XFTItem temp = item.getCurrentDBVersion(true);
 			//XMLWriter.StoreXFTItemToXMLFile(temp,location.getAbsolutePath()+".stored.xml");
 			

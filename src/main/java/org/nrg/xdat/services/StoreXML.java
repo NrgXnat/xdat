@@ -10,11 +10,6 @@
 
 package org.nrg.xdat.services;
 
-import java.io.FileNotFoundException;
-import java.io.StringReader;
-import java.rmi.RemoteException;
-import java.sql.SQLException;
-
 import org.apache.axis.AxisEngine;
 import org.apache.log4j.Logger;
 import org.nrg.xdat.security.Authenticator;
@@ -22,18 +17,19 @@ import org.nrg.xdat.security.user.exceptions.FailedLoginException;
 import org.nrg.xdat.turbine.utils.AccessLogger;
 import org.nrg.xft.XFT;
 import org.nrg.xft.event.EventUtils;
-import org.nrg.xft.exception.DBPoolException;
-import org.nrg.xft.exception.ElementNotFoundException;
-import org.nrg.xft.exception.FieldNotFoundException;
-import org.nrg.xft.exception.ValidationException;
-import org.nrg.xft.exception.XFTInitException;
+import org.nrg.xft.exception.*;
 import org.nrg.xft.schema.Wrappers.XMLWrapper.SAXReader;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.SaveItemHelper;
-import org.nrg.xft.utils.XMLValidator;
 import org.nrg.xft.utils.ValidationUtils.ValidationResults;
 import org.nrg.xft.utils.ValidationUtils.XFTValidator;
+import org.nrg.xft.utils.XMLValidator;
 import org.xml.sax.InputSource;
+
+import java.io.FileNotFoundException;
+import java.io.StringReader;
+import java.rmi.RemoteException;
+import java.sql.SQLException;
 
 /**
  * @author Tim
@@ -81,8 +77,15 @@ public class StoreXML {
                 	}
                     
                     SaveItemHelper.unauthorizedSave(item, user, false,q,override,_allowDataDeletion.booleanValue(),EventUtils.newEventInstance(EventUtils.CATEGORY.SIDE_ADMIN, EventUtils.TYPE.STORE_XML, "Stored XML", EventUtils.MODIFY_VIA_STORE_XML, null));
-                    
-                    
+                    if(item.instanceOf("xnat:projectData")){
+                        //Event- XNAT Event: project edit or creation
+                    }
+                    else if(item.instanceOf("xnat:subjectData")){
+                        //Event- XNAT Event: subject creation or edit
+                    }
+                    else if(item.instanceOf("xnat:experimentData")){
+                        //Event- XNAT Event: session creation or edit
+                    }
                     sb.append("Item Successfully Stored.");
                     logger.info("Item Successfully Stored.");	
                     AccessLogger.LogServiceAccess(_username,"","StoreXML",item.getProperName() + " Successfully Stored");		
@@ -173,7 +176,15 @@ public class StoreXML {
                 	}
                     
                     SaveItemHelper.unauthorizedSave(item, user, false,q,override,_allowDataDeletion.booleanValue(),EventUtils.newEventInstance(EventUtils.CATEGORY.SIDE_ADMIN, EventUtils.TYPE.STORE_XML, "Stored XML", EventUtils.MODIFY_VIA_STORE_XML, null));
-                    
+                    if(item.instanceOf("xnat:projectData")){
+                        //Event- XNAT Event: project edit or creation
+                    }
+                    else if(item.instanceOf("xnat:subjectData")){
+                        //Event- XNAT Event: subject creation or edit
+                    }
+                    else if(item.instanceOf("xnat:experimentData")){
+                        //Event- XNAT Event: session creation or edit
+                    }
                 	sb.append("Item Successfully Stored.");
                     logger.info("Item Successfully Stored.");	
                     AccessLogger.LogServiceAccess(session_id,"","StoreXML",item.getProperName() + " Successfully Stored");		

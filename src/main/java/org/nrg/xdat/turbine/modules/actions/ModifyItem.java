@@ -10,10 +10,6 @@
 
 package org.nrg.xdat.turbine.modules.actions; 
 
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.Hashtable;
-
 import org.apache.log4j.Logger;
 import org.apache.turbine.modules.ScreenLoader;
 import org.apache.turbine.util.RunData;
@@ -26,21 +22,20 @@ import org.nrg.xdat.turbine.utils.TurbineUtils;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.collections.ItemCollection;
-import org.nrg.xft.db.DBAction;
 import org.nrg.xft.db.MaterializedView;
 import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.EventUtils;
 import org.nrg.xft.event.persist.PersistentWorkflowI;
 import org.nrg.xft.event.persist.PersistentWorkflowUtils;
-import org.nrg.xft.exception.ElementNotFoundException;
-import org.nrg.xft.exception.FieldNotFoundException;
-import org.nrg.xft.exception.InvalidItemException;
-import org.nrg.xft.exception.InvalidValueException;
-import org.nrg.xft.exception.XFTInitException;
+import org.nrg.xft.exception.*;
 import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.search.ItemSearch;
 import org.nrg.xft.utils.SaveItemHelper;
 import org.nrg.xft.utils.ValidationUtils.ValidationResultsI;
+
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Hashtable;
 
 /**
  * @author Tim
@@ -288,6 +283,15 @@ public class ModifyItem  extends SecureAction {
 
     public void save(XFTItem first,RunData data, Context context, EventMetaI c) throws InvalidItemException,Exception{
     	SaveItemHelper.unauthorizedSave(first,TurbineUtils.getUser(data),false,allowDataDeletion(),c);
+        if(first.instanceOf("xnat:projectData")){
+            //Event- XNAT Event: project creation or edit
+        }
+        else if(first.instanceOf("xnat:subjectData")){
+            //Event- XNAT Event: subject creation or edit
+        }
+        else if(first.instanceOf("xnat:experimentData")){
+            //Event- XNAT Event: session creation or edit
+        }
     }
 
     @SuppressWarnings("serial")

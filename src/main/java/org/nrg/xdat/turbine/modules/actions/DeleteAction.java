@@ -17,11 +17,8 @@ import org.nrg.xdat.om.XdatElementSecurity;
 import org.nrg.xdat.turbine.utils.TurbineUtils;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFTItem;
-import org.nrg.xft.event.EventMetaI;
-import org.nrg.xft.utils.SaveItemHelper;
 import org.nrg.xft.event.EventUtils;
-import org.nrg.xft.event.persist.PersistentWorkflowI;
-import org.nrg.xft.event.persist.PersistentWorkflowUtils;
+import org.nrg.xft.utils.SaveItemHelper;
 
 /**
  * @author Tim
@@ -42,10 +39,18 @@ public class DeleteAction extends SecureAction {
 			{		  				
 				try {
 					preDelete(data, context);
-			
-					SaveItemHelper.unauthorizedDelete(o.getItem(), TurbineUtils.getUser(data),this.newEventInstance(data, EventUtils.CATEGORY.DATA,"Deprecated Delete Action"));
+                    XFTItem item = o.getItem();
+					SaveItemHelper.unauthorizedDelete(item, TurbineUtils.getUser(data),this.newEventInstance(data, EventUtils.CATEGORY.DATA,"Deprecated Delete Action"));
                     postDelete(data, context);
-
+                    if(item.instanceOf("xnat:projectData")){
+                        //Event- XNAT Event: project deletion
+                    }
+                    else if(item.instanceOf("xnat:subjectData")){
+                        //Event- XNAT Event: subject deletion
+                    }
+                    else if(item.instanceOf("xnat:experimentData")){
+                        //Event- XNAT Event: session deletion
+                    }
                     String message;
                     if (o instanceof XFTItem && o.getXSIType().equals(XdatElementSecurity.SCHEMA_ELEMENT_NAME)) {
                         message = String.format("<b>Data type %s deleted:</b> You should re-start your application server to clear cached session references to this data type.", ((XFTItem) o).getField("element_name"));

@@ -9,9 +9,7 @@
 
 package org.nrg.xft.utils;
 
-import java.sql.SQLException;
-import java.util.Map;
-
+import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.nrg.framework.utilities.Reflection;
@@ -27,7 +25,8 @@ import org.nrg.xft.event.persist.PersistentWorkflowI;
 import org.nrg.xft.event.persist.PersistentWorkflowUtils;
 import org.nrg.xft.security.UserI;
 
-import com.google.common.collect.Maps;
+import java.sql.SQLException;
+import java.util.Map;
 
 public class SaveItemHelper {
 	private static final String ID_PLACEHOLDER = "NULL";
@@ -383,7 +382,6 @@ public class SaveItemHelper {
 		if(i==null){
 			throw new NullPointerException();
 		}
-
 		Authorizer.getInstance().authorizeSave(i.getItem(), user);
 
 		return getInstance().save(i, user, overrideSecurity, allowItemRemoval,c);

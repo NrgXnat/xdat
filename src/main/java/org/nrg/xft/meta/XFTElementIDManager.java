@@ -9,16 +9,16 @@
 
 
 package org.nrg.xft.meta;
-import java.util.Hashtable;
-
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.XFTTable;
 import org.nrg.xft.event.EventMetaI;
-import org.nrg.xft.schema.XFTManager;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperFactory;
+import org.nrg.xft.schema.XFTManager;
 import org.nrg.xft.search.TableSearch;
 import org.nrg.xft.utils.SaveItemHelper;
+
+import java.util.Hashtable;
 /**
  * @author Tim
  *
@@ -86,6 +86,7 @@ public class XFTElementIDManager {
 	
 	public Integer getID(String s,boolean allowCreate) throws Exception
 	{
+		//Event- XNAT Event: Lower level place- but might be where we'd want to do checks to distinguish between edit and create
 		if (idMap.get(s) == null)
 		{
 			if (allowCreate)

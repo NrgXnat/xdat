@@ -10,8 +10,6 @@
 
 package org.nrg.xdat.turbine.modules.actions;
 
-import java.io.IOException;
-
 import org.apache.commons.fileupload.FileItem;
 import org.apache.log4j.Logger;
 import org.apache.turbine.util.RunData;
@@ -22,22 +20,17 @@ import org.nrg.xdat.security.ElementSecurity;
 import org.nrg.xdat.turbine.utils.TurbineUtils;
 import org.nrg.xft.XFT;
 import org.nrg.xft.XFTItem;
-import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.EventUtils;
-import org.nrg.xft.event.persist.PersistentWorkflowI;
-import org.nrg.xft.event.persist.PersistentWorkflowUtils;
-import org.nrg.xft.exception.ElementNotFoundException;
-import org.nrg.xft.exception.FieldNotFoundException;
-import org.nrg.xft.exception.InvalidPermissionException;
-import org.nrg.xft.exception.ValidationException;
-import org.nrg.xft.exception.XFTInitException;
+import org.nrg.xft.exception.*;
 import org.nrg.xft.schema.Wrappers.XMLWrapper.SAXReader;
 import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.utils.SaveItemHelper;
-import org.nrg.xft.utils.XMLValidator;
 import org.nrg.xft.utils.ValidationUtils.ValidationResults;
 import org.nrg.xft.utils.ValidationUtils.XFTValidator;
+import org.nrg.xft.utils.XMLValidator;
 import org.xml.sax.SAXParseException;
+
+import java.io.IOException;
 
 /**
  * @author Tim
@@ -89,7 +82,15 @@ public class XMLUpload extends SecureAction {
                 	override = false;
                 	
                 	SaveItemHelper.unauthorizedSave(item,TurbineUtils.getUser(data),false,q,override,allowDeletion.equalsIgnoreCase("true"),newEventInstance(data, EventUtils.CATEGORY.SIDE_ADMIN, EventUtils.STORE_XML));
-                	
+                    if(item.instanceOf("xnat:projectData")){
+                        //Event- XNAT Event: project creation or edit
+                    }
+                    else if(item.instanceOf("xnat:subjectData")){
+                        //Event- XNAT Event: subject creation or edit
+                    }
+                    else if(item.instanceOf("xnat:experimentData")){
+                        //Event- XNAT Event: session creation or edit
+                    }
                 	if(XFT.VERBOSE)System.out.println("Item Successfully Stored.");
                     logger.info("Item Successfully Stored.");
 

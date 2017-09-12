@@ -10,14 +10,6 @@
 
 package org.nrg.xdat.turbine.modules.actions; 
 
-import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.commons.fileupload.FileItem;
 import org.apache.turbine.util.RunData;
 import org.apache.turbine.util.parser.ParameterParser;
@@ -36,11 +28,7 @@ import org.nrg.xft.db.MaterializedView;
 import org.nrg.xft.event.EventUtils;
 import org.nrg.xft.event.persist.PersistentWorkflowI;
 import org.nrg.xft.event.persist.PersistentWorkflowUtils;
-import org.nrg.xft.exception.DBPoolException;
-import org.nrg.xft.exception.ElementNotFoundException;
-import org.nrg.xft.exception.FieldNotFoundException;
-import org.nrg.xft.exception.InvalidValueException;
-import org.nrg.xft.exception.XFTInitException;
+import org.nrg.xft.exception.*;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperField;
 import org.nrg.xft.search.CriteriaCollection;
@@ -49,11 +37,19 @@ import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.FieldMapping;
 import org.nrg.xft.utils.FileUtils;
 import org.nrg.xft.utils.SaveItemHelper;
-import org.nrg.xft.utils.XftStringUtils;
 import org.nrg.xft.utils.ValidationUtils.ValidationResults;
 import org.nrg.xft.utils.ValidationUtils.XFTValidator;
+import org.nrg.xft.utils.XftStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class CSVUpload2 extends SecureAction {
 
@@ -279,8 +275,25 @@ public class CSVUpload2 extends SecureAction {
                 PersistentWorkflowI wrk=PersistentWorkflowUtils.buildOpenWorkflow(user, item, CSVUpload2.newEventInstance(data, EventUtils.CATEGORY.DATA, "Upload Spreadsheet"));
                 
                 try {
+
                 	SaveItemHelper.unauthorizedSave(item,user, false, false,wrk.buildEvent());
                 	PersistentWorkflowUtils.complete(wrk, wrk.buildEvent());
+
+                    if(item.instanceOf("xnat:projectData")){
+                        //Event- XNAT Event: project edit or creation
+                    }
+                    else if(item.instanceOf("xnat:subjectData")){
+                        //Event- XNAT Event: subject creation or edit
+                    }
+                    else if(item.instanceOf("xnat:imageSessionData")){
+                        //Event- XNAT Event: session edit or creation
+                    }
+                    else if(item.instanceOf("xnat:imageScanData")){
+                        //Event- XNAT Event: scan edit or creation
+                    }
+                    else if(item.instanceOf("xnat:imageAssessorData")){
+                        //Event- XNAT Event: assessor edit or creation
+                    }
                     rowSummary.add("<font color='black'><b>Successful</b></font>");
                 } catch (Throwable e1) {
                     logger.error("",e1);
