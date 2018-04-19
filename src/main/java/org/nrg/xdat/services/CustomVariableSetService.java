@@ -30,7 +30,4 @@ public interface CustomVariableSetService extends BaseHibernateService<CustomVar
     CustomVariableSet getSet(String setName);
     CustomVariableSet getUserViewableSet(UserI user, String setName);
     CustomVariableSet getUserEditableSet(UserI user, String setName);
-    CustomVariable getVariableFromSet(String setName, String variableName);
-    CustomVariable getUserViewableVariableFromSet(UserI user, String setName, String variableName);
-    CustomVariable createVariable(CustomVariable variable);
 }

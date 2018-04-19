@@ -24,4 +24,5 @@ import org.nrg.xft.security.UserI;
 import java.util.List;
 
 public interface CustomVariableService extends BaseHibernateService<CustomVariable> {
+    CustomVariable getVariableFromSet(long setId, String variableName);
 }

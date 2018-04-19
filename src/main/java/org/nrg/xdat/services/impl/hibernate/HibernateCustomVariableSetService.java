@@ -3,6 +3,7 @@ package org.nrg.xdat.services.impl.hibernate;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntityService;
+import org.nrg.xdat.daos.CustomVariableDAO;
 import org.nrg.xdat.daos.CustomVariableSetDAO;
 import org.nrg.xdat.entities.CustomVariable;
 import org.nrg.xdat.entities.CustomVariableSet;
@@ -13,6 +14,7 @@ import org.nrg.xdat.security.services.UserManagementServiceI;
 import org.nrg.xdat.services.CustomVariableSetService;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -20,9 +22,11 @@ import java.util.List;
 /**
  * Created by mike on 3/21/18.
  */
+@Service
 public class HibernateCustomVariableSetService extends AbstractHibernateEntityService<CustomVariableSet, CustomVariableSetDAO> implements CustomVariableSetService {
     @Autowired
-    public HibernateCustomVariableSetService(final CustomVariableSetDAO dao, final SiteConfigPreferences preferences, final UserManagementServiceI userService, final PermissionsServiceI permissionsService) {
+    public HibernateCustomVariableSetService(final CustomVariableSetDAO dao, CustomVariableDAO varDao, final SiteConfigPreferences preferences, final UserManagementServiceI userService, final PermissionsServiceI permissionsService) {
+        _varDao = varDao;
         _dao = dao;
         _userService = userService;
         _permissionsService = permissionsService;
@@ -51,8 +55,13 @@ public class HibernateCustomVariableSetService extends AbstractHibernateEntitySe
         return _dao.findSetsAvailableToProjectsForType(_permissionsService.getUserReadableProjects(user), xsiType);
     }
 
-
-
+//
+//    @Override
+//    @Transactional
+//    public void saveSet(CustomVariableSet newCustomVariableSet){
+//        _dao.saveSet(newCustomVariableSet);
+//        return;
+//    }
 
 
     @Override
@@ -86,34 +95,15 @@ public class HibernateCustomVariableSetService extends AbstractHibernateEntitySe
         }
     }
 
-    @Override
-    @Transactional
-    public CustomVariable getVariableFromSet(String setName, String variableName){
-        CustomVariable variable = _dao.getVariable(setName, variableName);
-        return variable;
-    }
-
-    @Override
-    @Transactional
-    public CustomVariable getUserViewableVariableFromSet(UserI user, String setName, String variableName){
-        CustomVariableSet set = _dao.getSet(setName);
-        if(!set.isProjectSpecific() || _permissionsService.getUserReadableProjects(user).contains(set.getOwningProjectId())){
-            return _dao.getVariable(setName, variableName);
-        }
-        else{
-            return null;
-        }
-    }
-
-    @Override
-    @Transactional
-    public CustomVariable createVariable(CustomVariable variable){
-        CustomVariableSet parent = variable.getParentSet();
-        List<CustomVariable> parentVariables = parent.getVariables();
-        parentVariables.add(variable);
-        parent.setVariables(parentVariables);
-        return variable;
-    }
+//    @Override
+//    @Transactional
+//    public CustomVariable createVariable(CustomVariable variable){
+//        CustomVariableSet parent = variable.getParentSet();
+//        List<CustomVariable> parentVariables = parent.getVariables();
+//        parentVariables.add(variable);
+//        parent.setVariables(parentVariables);
+//        return variable;
+//    }
 
 
     @Override
@@ -124,6 +114,7 @@ public class HibernateCustomVariableSetService extends AbstractHibernateEntitySe
     private static final Log _log = LogFactory.getLog(HibernateCustomVariableSetService.class);
 
     private final CustomVariableSetDAO          _dao;
+    private final CustomVariableDAO _varDao;
     private final UserManagementServiceI _userService;
     private PermissionsServiceI _permissionsService;
 }

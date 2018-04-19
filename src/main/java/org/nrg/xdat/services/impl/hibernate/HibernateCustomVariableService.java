@@ -15,6 +15,7 @@ import org.nrg.xdat.services.CustomVariableService;
 import org.nrg.xdat.services.CustomVariableSetService;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -22,12 +23,20 @@ import java.util.List;
 /**
  * Created by mike on 3/21/18.
  */
+@Service
 public class HibernateCustomVariableService extends AbstractHibernateEntityService<CustomVariable, CustomVariableDAO> implements CustomVariableService {
     @Autowired
     public HibernateCustomVariableService(final CustomVariableDAO dao, final SiteConfigPreferences preferences, final UserManagementServiceI userService, final PermissionsServiceI permissionsService) {
         _dao = dao;
         _userService = userService;
         _permissionsService = permissionsService;
+    }
+
+    @Override
+    @Transactional
+    public CustomVariable getVariableFromSet(long setId, String variableName){
+        CustomVariable variable = _dao.getVariable(setId, variableName);
+        return variable;
     }
 
 //    @Override

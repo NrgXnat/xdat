@@ -16,25 +16,15 @@
  */
 package org.nrg.xdat.entities;
 
-import com.google.common.collect.Lists;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
-import org.nrg.framework.utilities.Patterns;
-import org.nrg.xdat.preferences.SiteConfigPreferences;
 
 import javax.persistence.*;
-import java.security.SecureRandom;
-import java.util.Date;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 
 @Entity
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
@@ -46,61 +36,62 @@ public class CustomVariableSet extends AbstractHibernateEntity {
     }
 
     public CustomVariableSet(String _name, String _datatype, String _description, boolean _projectSpecific, List<CustomVariable> _variables, String _owningProjectId) {
-        this._name = _name;
-        this._datatype = _datatype;
-        this._description = _description;
-        this._projectSpecific = _projectSpecific;
-        this._variables = _variables;
-        this._owningProjectId = _owningProjectId;
+        this.name = _name;
+        this.datatype = _datatype;
+        this.description = _description;
+        this.projectSpecific = _projectSpecific;
+        this.variables = _variables;
+        this.owningProjectId = _owningProjectId;
     }
 
     public String getName() {
-        return _name;
+        return name;
     }
 
     public void setName(String _name) {
-        this._name = _name;
+        this.name = _name;
     }
 
     public String getDatatype() {
-        return _datatype;
+        return datatype;
     }
 
     public void setDatatype(String _datatype) {
-        this._datatype = _datatype;
+        this.datatype = _datatype;
     }
 
     public String getDescription() {
-        return _description;
+        return description;
     }
 
     public void setDescription(String _description) {
-        this._description = _description;
+        this.description = _description;
     }
 
     public boolean isProjectSpecific() {
-        return _projectSpecific;
+        return projectSpecific;
     }
 
     public void setProjectSpecific(boolean _projectSpecific) {
-        this._projectSpecific = _projectSpecific;
+        this.projectSpecific = _projectSpecific;
     }
 
-    @OneToMany(mappedBy = "_parentSet", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @JoinColumn(referencedColumnName = "id")
     public List<CustomVariable> getVariables() {
-        return _variables;
+        return variables;
     }
 
     public void setVariables(List<CustomVariable> _variables) {
-        this._variables = _variables;
+        this.variables = _variables;
     }
 
     public String getOwningProjectId() {
-        return _owningProjectId;
+        return owningProjectId;
     }
 
     public void setOwningProjectId(String _owningProjectId) {
-        this._owningProjectId = _owningProjectId;
+        this.owningProjectId = _owningProjectId;
     }
 
     @Override
@@ -111,32 +102,32 @@ public class CustomVariableSet extends AbstractHibernateEntity {
 
         CustomVariableSet that = (CustomVariableSet) o;
 
-        if (_projectSpecific != that._projectSpecific) return false;
-        if (_name != null ? !_name.equals(that._name) : that._name != null) return false;
-        if (_datatype != null ? !_datatype.equals(that._datatype) : that._datatype != null) return false;
-        if (_description != null ? !_description.equals(that._description) : that._description != null) return false;
-        if (_variables != null ? !_variables.equals(that._variables) : that._variables != null) return false;
-        return _owningProjectId != null ? _owningProjectId.equals(that._owningProjectId) : that._owningProjectId == null;
+        if (projectSpecific != that.projectSpecific) return false;
+        if (name != null ? !name.equals(that.name) : that.name != null) return false;
+        if (datatype != null ? !datatype.equals(that.datatype) : that.datatype != null) return false;
+        if (description != null ? !description.equals(that.description) : that.description != null) return false;
+        if (variables != null ? !variables.equals(that.variables) : that.variables != null) return false;
+        return owningProjectId != null ? owningProjectId.equals(that.owningProjectId) : that.owningProjectId == null;
     }
 
     @Override
     public int hashCode() {
         int result = super.hashCode();
-        result = 31 * result + (_name != null ? _name.hashCode() : 0);
-        result = 31 * result + (_datatype != null ? _datatype.hashCode() : 0);
-        result = 31 * result + (_description != null ? _description.hashCode() : 0);
-        result = 31 * result + (_projectSpecific ? 1 : 0);
-        result = 31 * result + (_variables != null ? _variables.hashCode() : 0);
-        result = 31 * result + (_owningProjectId != null ? _owningProjectId.hashCode() : 0);
+        result = 31 * result + (name != null ? name.hashCode() : 0);
+        result = 31 * result + (datatype != null ? datatype.hashCode() : 0);
+        result = 31 * result + (description != null ? description.hashCode() : 0);
+        result = 31 * result + (projectSpecific ? 1 : 0);
+        result = 31 * result + (variables != null ? variables.hashCode() : 0);
+        result = 31 * result + (owningProjectId != null ? owningProjectId.hashCode() : 0);
         return result;
     }
 
-    private static final Log _log = LogFactory.getLog(CustomVariableSet.class);
+    private static final Log log = LogFactory.getLog(CustomVariableSet.class);
 
-    private String                       _name;
-    private String                       _datatype;
-    private String                       _description;
-    private boolean                      _projectSpecific;
-    private List<CustomVariable>         _variables;
-    private String                       _owningProjectId;
+    private String                       name;
+    private String                       datatype;
+    private String                       description;
+    private boolean                      projectSpecific;
+    private List<CustomVariable>         variables;
+    private String                       owningProjectId;
 }

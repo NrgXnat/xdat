@@ -1,6 +1,9 @@
 package org.nrg.xdat.daos;
 
 import org.hibernate.Criteria;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.criterion.Criterion;
 import org.hibernate.criterion.Restrictions;
 import org.nrg.framework.orm.hibernate.AbstractHibernateDAO;
@@ -8,31 +11,22 @@ import org.nrg.xdat.entities.CustomVariable;
 import org.nrg.xdat.entities.CustomVariableSet;
 import org.nrg.xdat.security.helpers.Roles;
 import org.nrg.xft.security.UserI;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.inject.Inject;
 import java.util.List;
 
 /**
  * Created by mike on 3/21/18.
  */
+@Repository
 public class CustomVariableSetDAO extends AbstractHibernateDAO<CustomVariableSet> {
 
     public CustomVariableSet getSet(String setName){
         Criteria criteria = getCriteriaForType();
         criteria.add(Restrictions.eq("name", setName));
         List<CustomVariableSet> results = criteria.list();
-        if (results.size() == 0) {
-            return null;
-        }
-        return results.get(0);
-    }
-
-    public CustomVariable getVariable(String setName, String variableName){
-        Criteria variableCriteria = getSession().createCriteria(CustomVariable.class,"variable");
-        variableCriteria.add(Restrictions.eq("name", variableName));
-        Criteria setCriteria = variableCriteria.createCriteria("parent_set","set");
-        setCriteria.add(Restrictions.eq("name", setName));
-
-        List<CustomVariable> results = variableCriteria.list();
         if (results.size() == 0) {
             return null;
         }
@@ -64,4 +58,7 @@ public class CustomVariableSetDAO extends AbstractHibernateDAO<CustomVariableSet
         criteria.add(Restrictions.and(hasAccess, isOfType));
         return criteria.list();
     }
+
+    @Inject
+    private SessionFactory _sessionFactory;
 }
