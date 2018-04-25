@@ -82,10 +82,6 @@ public class CustomVariable extends AbstractHibernateEntity {
     public int hashCode() {
         int result = super.hashCode();
         result = 31 * result + (Long.valueOf(this.getId()).hashCode());
-//        result = 31 * result + (name != null ? name.hashCode() : 0);
-//        result = 31 * result + (type != null ? type.hashCode() : 0);
-//        result = 31 * result + (required != null ? required.hashCode() : 0);
-//        result = 31 * result + (possibleValues != null ? possibleValues.hashCode() : 0);
         return result;
     }
 

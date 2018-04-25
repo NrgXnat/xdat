@@ -17,7 +17,7 @@ import java.util.List;
 public class CustomVariableDAO extends AbstractHibernateDAO<CustomVariable> {
     public CustomVariable getVariable(long setId, String variableName){
         Criteria variableCriteria = getSession().createCriteria(CustomVariable.class);
-        variableCriteria.add(Restrictions.eq("name", variableName));
+        variableCriteria.add(Restrictions.eq("name", variableName).ignoreCase());
         variableCriteria.add(Restrictions.eq("variables", setId));
         List<CustomVariable> results = variableCriteria.list();
         if (results.size() == 0) {
