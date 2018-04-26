@@ -31,13 +31,13 @@ public class HibernateCustomVariableService extends AbstractHibernateEntityServi
         _userService = userService;
         _permissionsService = permissionsService;
     }
-
-    @Override
-    @Transactional
-    public CustomVariable getVariableFromSet(long setId, String variableName){
-        CustomVariable variable = _dao.getVariable(setId, variableName);
-        return variable;
-    }
+//
+//    @Override
+//    @Transactional
+//    public CustomVariable getVariableFromSet(long setId, String variableName){
+//        CustomVariable variable = _dao.getVariable(setId, variableName);
+//        return variable;
+//    }
 
     @Override
     protected CustomVariableDAO getDao() {
