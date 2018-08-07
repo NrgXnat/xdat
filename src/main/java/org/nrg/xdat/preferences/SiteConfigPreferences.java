@@ -1237,6 +1237,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "Nobody")
+    public String getDoiCreators() {
+        return getValue("doiCreators");
+    }
+
+    public void setDoiCreators(final String doiCreators) {
+        try {
+            set(doiCreators, "doiCreators");
+        } catch (InvalidPreferenceName e) {
+            _log.error("Invalid preference name 'doiCreators': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "Your login attempt failed because the username and password combination you provided was invalid or your user already has the maximum number of user sessions open. After %d failed login attempts, your user account will be locked. If you believe your account is currently locked, you can:<ul><li>Unlock it by resetting your password</li><li>Wait one hour for it to unlock automatically</li></ul>",
             aliases = "UI.login_failure_message")
     public String getUiLoginFailureMessage() {
