@@ -13,12 +13,12 @@
     <parent>
         <groupId>org.nrg</groupId>
         <artifactId>parent</artifactId>
-        <version>X.X.X-eventservice-SNAPSHOT</version>
+        <version>X.X.X-DEMO-SNAPSHOT</version>
     </parent>
 
     <groupId>org.nrg.xdat</groupId>
     <artifactId>core</artifactId>
-    <version>X.X.X-eventservice-SNAPSHOT</version>
+    <version>X.X.X-DEMO-SNAPSHOT</version>
     <name>XDAT Core</name>
     <url>http://bitbucket.org/nrg/xdat</url>
 
