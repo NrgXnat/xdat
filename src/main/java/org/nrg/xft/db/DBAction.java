@@ -9,9 +9,9 @@
 
 package org.nrg.xft.db;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 import org.nrg.xdat.XDAT;
 import org.nrg.xdat.security.helpers.Permissions;
 import org.nrg.xdat.turbine.utils.AdminUtils;
@@ -41,24 +41,18 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+@Slf4j
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class DBAction {
-    private static final Logger logger = Logger.getLogger(DBAction.class);
-    private static Hashtable sequences = new Hashtable();
-    private static Float VERSION = null;
-
-    private static final Pattern REGEX_EXTRACT_POSTGRESQL_VERSION = Pattern.compile("^PostgreSQL (?<version>[\\d.]+) .*$");
-
-    private static final String QUERY_FIND_SEQLESS_TABLES = "SELECT table_name FROM information_schema.columns WHERE table_name LIKE 'xhbm_%' AND column_name = 'id' AND (column_default NOT LIKE 'nextval%' OR column_default IS NULL)";
-    private static final String QUERY_CREATE_SEQUENCE = "CREATE SEQUENCE %s_id_seq";
-    private static final String QUERY_SET_ID_DEFAULT = "ALTER TABLE %s ALTER COLUMN id SET DEFAULT nextval('%s_id_seq')";
-    private static final String QUERY_SET_ID_NOT_NULL = "ALTER TABLE %s ALTER COLUMN id SET NOT NULL";
-    private static final String QUERY_SET_SEQUENCE_OWNER = "ALTER SEQUENCE %s_id_seq OWNED BY %s.id";
-    private static final String QUERY_GET_SEQUENCE_START = "SELECT (MAX(id) + 1) AS value FROM %s";
-    private static final String QUERY_SET_SEQUENCE_VALUE = "SELECT setval('%s_id_seq', %d) AS value";
+    private static final Map<String, String> SEQUENCES                 = new HashMap<>();
+    private static final String              QUERY_FIND_SEQLESS_TABLES = "SELECT table_name FROM information_schema.columns WHERE table_name LIKE 'xhbm_%' AND column_name = 'id' AND (column_default NOT LIKE 'nextval%' OR column_default IS NULL)";
+    private static final String              QUERY_CREATE_SEQUENCE     = "CREATE SEQUENCE %s_id_seq";
+    private static final String              QUERY_SET_ID_DEFAULT      = "ALTER TABLE %s ALTER COLUMN id SET DEFAULT nextval('%s_id_seq')";
+    private static final String              QUERY_SET_ID_NOT_NULL     = "ALTER TABLE %s ALTER COLUMN id SET NOT NULL";
+    private static final String              QUERY_SET_SEQUENCE_OWNER  = "ALTER SEQUENCE %s_id_seq OWNED BY %s.id";
+    private static final String              QUERY_GET_SEQUENCE_START  = "SELECT (MAX(id) + 1) AS value FROM %s";
+    private static final String              QUERY_SET_SEQUENCE_VALUE  = "SELECT setval('%s_id_seq', %d) AS value";
 
     /**
      * This method is used to insert/update an item into the database.
@@ -82,13 +76,13 @@ public class DBAction {
         DBItemCache cache = new DBItemCache(user, c);
         item = StoreItem(item, user, checkForDuplicates, new ArrayList(), quarantine, overrideQuarantine, allowItemOverwrite, cache, securityManager, false);
 
-        logger.debug("prepare-sql: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
+        log.debug("prepare-sql: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
         localStartTime = Calendar.getInstance().getTimeInMillis();
 
         if (!cache.getSQL().equals("") && !cache.getSQL().equals("[]")) {
             Quarantine(item, user, quarantine, overrideQuarantine, cache);
 
-            logger.debug("quarantine-sql: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
+            log.debug("quarantine-sql: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
             localStartTime = Calendar.getInstance().getTimeInMillis();
 
             PoolDBUtils con;
@@ -106,20 +100,20 @@ public class DBAction {
                     System.out.println("***** " + cache.getRemoved().size() + " REMOVED ITEMS *******");
                 PerformUpdateTriggers(cache, username, xdat_user_id, false);
             }
-            logger.debug("pre-triggers: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
+            log.debug("pre-triggers: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
             localStartTime = Calendar.getInstance().getTimeInMillis();
             con = new PoolDBUtils();
             con.sendBatch(cache, item.getDBName(), username);
             if (XFT.VERBOSE)
                 System.out.println("Item modifications stored. " + cache.getDBTriggers().size() + " modified elements. " + cache.getStatements().size() + " SQL statements.");
-            logger.debug("store: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
+            log.debug("store: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
             localStartTime = Calendar.getInstance().getTimeInMillis();
             PerformUpdateTriggers(cache, username, xdat_user_id, false);
-            logger.debug("post-triggers: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
-            logger.debug("Total: " + (Calendar.getInstance().getTimeInMillis() - totalStartTime) + " ms");
+            log.debug("post-triggers: " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
+            log.debug("Total: " + (Calendar.getInstance().getTimeInMillis() - totalStartTime) + " ms");
             return true;
         } else {
-            logger.info("Pre-existing item found without modifications");
+            log.info("Pre-existing item found without modifications");
             if (XFT.VERBOSE) System.out.println("Pre-existing item found without modifications");
             return false;
         }
@@ -258,9 +252,9 @@ public class DBAction {
                             item.setFieldValue(keyName, t.getCellValue("nextval"));
                         }
                     } catch (SQLException e) {
-                        logger.warn("Error accessing database", e);
+                        log.warn("Error accessing database", e);
                     } catch (Exception e) {
-                        logger.warn("Unknown exception occurred", e);
+                        log.warn("Unknown exception occurred", e);
                     }
                 }
             }
@@ -279,9 +273,9 @@ public class DBAction {
                     XFTItem sub = (XFTItem) al.get(0);
                     String output = "Duplicate " + item.getGenericSchemaElement().getFullXMLName() + " Found. (" + sub.getPK() + ")";
                     if (sub.getXSIType().startsWith("xdat:")) {
-                        logger.debug(output);
+                        log.debug(output);
                     } else {
-                        logger.info(output);
+                        log.info(output);
                     }
 
                     if (hasOneColumnTable) {
@@ -289,8 +283,8 @@ public class DBAction {
                     }
 
                     if (HasNewFields(sub, item, allowItemOverwrite)) {
-                        logger.debug("OLD\n" + sub.toString());
-                        logger.debug("NEW\n" + item.toString());
+                        log.debug("OLD\n" + sub.toString());
+                        log.debug("NEW\n" + item.toString());
                         item = UpdateItem(sub, item, user, localQuarantine, overrideQuarantine, cache, allowItemOverwrite);
                     } else {
                         item.importNonItemFields(sub, allowItemOverwrite);
@@ -315,9 +309,9 @@ public class DBAction {
                             XFTItem duplicate = (XFTItem) temp.get(0);
                             String output = "Duplicate " + item.getGenericSchemaElement().getFullXMLName() + " Found. (" + duplicate.getPK() + ")";
                             if (duplicate.getXSIType().startsWith("xdat:")) {
-                                logger.debug(output);
+                                log.debug(output);
                             } else {
-                                logger.info(output);
+                                log.info(output);
                             }
 
                             if (hasOneColumnTable) {
@@ -325,8 +319,8 @@ public class DBAction {
                             }
 
                             if (HasNewFields(duplicate, item, allowItemOverwrite)) {
-                                logger.debug("OLD\n" + duplicate.toString());
-                                logger.debug("NEW\n" + item.toString());
+                                log.debug("OLD\n" + duplicate.toString());
+                                log.debug("NEW\n" + item.toString());
                                 item = UpdateItem(duplicate, item, user, localQuarantine, overrideQuarantine, cache, allowItemOverwrite);
                             } else {
                                 item.importNonItemFields(duplicate, allowItemOverwrite);
@@ -473,9 +467,9 @@ public class DBAction {
                         XFTItem duplicate = (XFTItem) temp.get(0);
                         String output = "Duplicate " + item.getGenericSchemaElement().getFullXMLName() + " Found. (" + duplicate.getPK() + ")";
                         if (duplicate.getXSIType().startsWith("xdat:")) {
-                            logger.debug(output);
+                            log.debug(output);
                         } else {
-                            logger.info(output);
+                            log.info(output);
                         }
 
                         if (hasOneColumnTable) {
@@ -483,8 +477,8 @@ public class DBAction {
                         }
 
                         if (HasNewFields(duplicate, item, allowItemOverwrite)) {
-                            logger.debug("OLD\n" + duplicate.toString());
-                            logger.debug("NEW\n" + item.toString());
+                            log.debug("OLD\n" + duplicate.toString());
+                            log.debug("NEW\n" + item.toString());
                             item = UpdateItem(duplicate, item, user, localQuarantine, overrideQuarantine, cache, allowItemOverwrite);
 
                         } else {
@@ -563,9 +557,9 @@ public class DBAction {
                         XFTItem duplicate = (XFTItem) temp.get(0);
                         String output = "Duplicate " + item.getGenericSchemaElement().getFullXMLName() + " Found. (" + duplicate.getPK() + ")";
                         if (duplicate.getXSIType().startsWith("xdat:")) {
-                            logger.debug(output);
+                            log.debug(output);
                         } else {
-                            logger.info(output);
+                            log.info(output);
                         }
 
                         if (hasOneColumnTable) {
@@ -573,8 +567,8 @@ public class DBAction {
                         }
 
                         if (HasNewFields(duplicate, item, allowItemOverwrite)) {
-                            logger.debug("OLD\n" + duplicate.toString());
-                            logger.debug("NEW\n" + item.toString());
+                            log.debug("OLD\n" + duplicate.toString());
+                            log.debug("NEW\n" + item.toString());
                             item = UpdateItem(duplicate, item, user, localQuarantine, overrideQuarantine, cache, allowItemOverwrite);
 
                         } else {
@@ -672,22 +666,22 @@ public class DBAction {
 
             //StoreDuplicateRelationships(item,user,storedRelationships,localQuarantine,overrideQuarantine);
         } catch (XFTInitException e) {
-            logger.error("Error initializing XFT");
+            log.error("Error initializing XFT");
             throw e;
         } catch (ElementNotFoundException e) {
-            logger.error("Element not found " + e.ELEMENT);
+            log.error("Element not found " + e.ELEMENT);
             throw e;
         } catch (FieldNotFoundException e) {
-            logger.error("Field not found " + e.FIELD + ": " + e.MESSAGE);
+            log.error("Field not found " + e.FIELD + ": " + e.MESSAGE);
             throw e;
         } catch (DBPoolException e) {
-            logger.error("Database connection or pooling exception occurred: " + item.getIDValue() + " " + item.getXSIType());
+            log.error("Database connection or pooling exception occurred: " + item.getIDValue() + " " + item.getXSIType());
             throw e;
         } catch (SQLException e) {
-            logger.error("An SQL error occurred [" + e.getErrorCode() + "] " + e.getSQLState());
+            log.error("An SQL error occurred [" + e.getErrorCode() + "] " + e.getSQLState());
             throw e;
         } catch (Exception e) {
-            logger.error("An unknown error occurred.");
+            log.error("An unknown error occurred.");
             throw e;
         }
 
@@ -773,25 +767,25 @@ public class DBAction {
                         }
                     } else {
                         if (!(newObject.toString().equals("NULL") || newObject.toString().equals(""))) {
-                            logger.info("OLD:NULL NEW:" + newObject);
+                            log.info("OLD:NULL NEW:" + newObject);
                             return true;
                         }
                     }
                 } catch (NumberFormatException e) {
-                    logger.error("", e);
-                    logger.info("OLD:NULL NEW:" + newObject);
+                    log.error("", e);
+                    log.info("OLD:NULL NEW:" + newObject);
                     return true;
                 } catch (XFTInitException e) {
-                    logger.error("", e);
-                    logger.info("OLD:NULL NEW:" + newObject);
+                    log.error("", e);
+                    log.info("OLD:NULL NEW:" + newObject);
                     return true;
                 } catch (ElementNotFoundException e) {
-                    logger.error("", e);
-                    logger.info("OLD:NULL NEW:" + newObject);
+                    log.error("", e);
+                    log.info("OLD:NULL NEW:" + newObject);
                     return true;
                 } catch (FieldNotFoundException e) {
-                    logger.error("", e);
-                    logger.info("OLD:NULL NEW:" + newObject);
+                    log.error("", e);
+                    log.info("OLD:NULL NEW:" + newObject);
                     return true;
                 }
             }
@@ -810,7 +804,7 @@ public class DBAction {
                             final String newString = newObject.toString();
                             if (StringUtils.isNotBlank(newString)) {
                                 if (!oldI.getPkNames().contains(field)) {
-                                    logger.info("NEW:NULL OLD:" + newString);
+                                    log.info("NEW:NULL OLD:" + newString);
                                     return true;
                                 } else {
                                     newI.getProps().put(field, newObject);
@@ -829,7 +823,7 @@ public class DBAction {
                                 final String newString = newObject.toString();
                                 if (StringUtils.isNotBlank(newString)) {
                                     if (!oldI.getPkNames().contains(field)) {
-                                        logger.info("NEW:NULL OLD:" + newObject);
+                                        log.info("NEW:NULL OLD:" + newObject);
                                         return true;
                                     } else {
                                         newI.getProps().put(field, newObject);
@@ -851,7 +845,7 @@ public class DBAction {
                             final String newString = newObject.toString();
                             if (StringUtils.isNotBlank(newString)) {
                                 if (!oldI.getPkNames().contains(field)) {
-                                    logger.info("NEW:NULL OLD:" + newObject);
+                                    log.info("NEW:NULL OLD:" + newObject);
                                     return true;
                                 } else {
                                     newI.getProps().put(field, newObject);
@@ -877,13 +871,13 @@ public class DBAction {
             }
 
             if (!oldValue.equals(newValue)) {
-                logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                log.info("OLD:" + oldValue + " NEW:" + newValue);
                 return true;
             }
         } else {
             if (type.equalsIgnoreCase("")) {
                 if (!oldValue.equals(newValue)) {
-                    logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                    log.info("OLD:" + oldValue + " NEW:" + newValue);
                     return true;
                 }
             } else {
@@ -892,7 +886,7 @@ public class DBAction {
                     Integer o2 = Integer.valueOf(newValue);
 
                     if (!o1.equals(o2)) {
-                        logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                        log.info("OLD:" + oldValue + " NEW:" + newValue);
                         return true;
                     }
                 } else if (type.equalsIgnoreCase("boolean")) {
@@ -912,7 +906,7 @@ public class DBAction {
                     }
 
                     if (!o1.equals(o2)) {
-                        logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                        log.info("OLD:" + oldValue + " NEW:" + newValue);
                         return true;
                     }
                 } else if (type.equalsIgnoreCase("float")) {
@@ -933,12 +927,12 @@ public class DBAction {
                     }
                     if (oldValue.equals("'NaN'") || newValue.equals("'NaN'")) {
                         if (!oldValue.equals(newValue)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } else if (oldValue.equals("'INF'") || newValue.equals("'INF'")) {
                         if (!oldValue.equals(newValue)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } else {
@@ -946,7 +940,7 @@ public class DBAction {
                         Float o2 = Float.valueOf(newValue);
 
                         if (!o1.equals(o2)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     }
@@ -971,12 +965,12 @@ public class DBAction {
                     }
                     if (oldValue.equals("'NaN'") || newValue.equals("'NaN'")) {
                         if (!oldValue.equals(newValue)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } else if (oldValue.contains("Infinity") || newValue.contains("Infinity")) {
                         if (!oldValue.equals(newValue)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } else {
@@ -984,7 +978,7 @@ public class DBAction {
                         Double o2 = Double.valueOf(newValue);
 
                         if (!o1.equals(o2)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     }
@@ -1006,12 +1000,12 @@ public class DBAction {
                     }
                     if (oldValue.equals("'NaN'") || newValue.equals("'NaN'")) {
                         if (!oldValue.equals(newValue)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } else if (oldValue.equals("'INF'") || newValue.equals("'INF'")) {
                         if (!oldValue.equals(newValue)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } else {
@@ -1019,7 +1013,7 @@ public class DBAction {
                         Float o2 = Float.valueOf(newValue);
 
                         if (!o1.equals(o2)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     }
@@ -1029,12 +1023,12 @@ public class DBAction {
                         Date o2 = DateUtils.parseDate(newValue);
 
                         if (!o1.equals(o2)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } catch (ParseException e) {
-                        logger.error("", e);
-                        logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                        log.error("", e);
+                        log.info("OLD:" + oldValue + " NEW:" + newValue);
                         return true;
                     }
                 } else if (type.equalsIgnoreCase("dateTime")) {
@@ -1043,12 +1037,12 @@ public class DBAction {
                         Date o2 = DateUtils.parseDateTime(newValue);
 
                         if (!o1.equals(o2)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } catch (ParseException e) {
-                        logger.error("", e);
-                        logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                        log.error("", e);
+                        log.info("OLD:" + oldValue + " NEW:" + newValue);
                         return true;
                     }
                 } else if (type.equalsIgnoreCase("time")) {
@@ -1057,17 +1051,17 @@ public class DBAction {
                         Date o2 = DateUtils.parseTime(newValue);
 
                         if (!o1.equals(o2)) {
-                            logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                            log.info("OLD:" + oldValue + " NEW:" + newValue);
                             return true;
                         }
                     } catch (ParseException e) {
-                        logger.error("", e);
-                        logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                        log.error("", e);
+                        log.info("OLD:" + oldValue + " NEW:" + newValue);
                         return true;
                     }
                 } else {
                     if (!oldValue.equals(newValue)) {
-                        logger.info("OLD:" + oldValue + " NEW:" + newValue);
+                        log.info("OLD:" + oldValue + " NEW:" + newValue);
                         return true;
                     }
                 }
@@ -1098,7 +1092,7 @@ public class DBAction {
                                             isNoIdentifierTable = true;
                                         }
                                     } catch (FieldNotFoundException e1) {
-                                        logger.error("", e1);
+                                        log.error("", e1);
                                     }
                                 }
 
@@ -1122,36 +1116,36 @@ public class DBAction {
                                                     throw new FieldNotFoundException(item.getXSIType() + "/" + fieldName.toLowerCase());
                                                 }
                                             } catch (ElementNotFoundException e) {
-                                                logger.error("Element not found " + e.ELEMENT, e);
+                                                log.error("Element not found " + e.ELEMENT, e);
                                             } catch (XFTInitException e) {
-                                                logger.error("Error initializing XFT ", e);
+                                                log.error("Error initializing XFT ", e);
                                             }
                                         }
                                     } catch (XFTInitException e) {
-                                        logger.error("Error initializing XFT ", e);
+                                        log.error("Error initializing XFT ", e);
                                     } catch (ElementNotFoundException e) {
-                                        logger.error("Element not found " + e.ELEMENT, e);
+                                        log.error("Element not found " + e.ELEMENT, e);
                                     } catch (FieldNotFoundException e) {
-                                        logger.error("Field not found " + e.FIELD + ": " + e.MESSAGE, e);
+                                        log.error("Field not found " + e.FIELD + ": " + e.MESSAGE, e);
                                     }
                                 }
                             } catch (XFTInitException e) {
-                                logger.error("Error initializing XFT ", e);
+                                log.error("Error initializing XFT ", e);
                             } catch (ElementNotFoundException e) {
-                                logger.error("Element not found " + e.ELEMENT, e);
+                                log.error("Element not found " + e.ELEMENT, e);
                             }
                         }
                     } catch (FieldNotFoundException e) {
-                        logger.error("Field not found " + e.FIELD + ": " + e.MESSAGE, e);
+                        log.error("Field not found " + e.FIELD + ": " + e.MESSAGE, e);
                     }
                 } catch (XFTInitException e) {
-                    logger.error("Error initializing XFT ", e);
+                    log.error("Error initializing XFT ", e);
                 } catch (ElementNotFoundException e) {
-                    logger.error("Element not found " + e.ELEMENT, e);
+                    log.error("Element not found " + e.ELEMENT, e);
                 }
             }
         } catch (ElementNotFoundException e) {
-            logger.error("", e);
+            log.error("", e);
         }
         return item;
     }
@@ -1637,7 +1631,7 @@ public class DBAction {
         XFTTable table = TableSearch.GetMappingTable(mapping, criteria, login);
 
         if (table.getNumRows() > 0) {
-            logger.info("Duplicate mapping table row found in '" + mapping.getMappingTable() + "'");
+            log.info("Duplicate mapping table row found in '" + mapping.getMappingTable() + "'");
             return false;
         } else {
             String query = "INSERT INTO ";
@@ -1667,11 +1661,11 @@ public class DBAction {
                 PoolDBUtils con = new PoolDBUtils();
                 con.insertItem(query, mapping.getElement1().getDbName(), login, cache);
             } catch (ClassNotFoundException e) {
-                logger.warn("Class missing", e);
+                log.warn("Class missing", e);
             } catch (SQLException e) {
-                logger.warn("Error accessing database", e);
+                log.warn("Error accessing database", e);
             } catch (Exception e) {
-                logger.warn("Unknown exception occurred", e);
+                log.warn("Unknown exception occurred", e);
             }
             return true;
         }
@@ -1771,7 +1765,7 @@ public class DBAction {
         cache.handlePostModificationAction(item, "insert");
 
         if (!element.getFullXMLName().toLowerCase().startsWith("xdat")) {
-            logger.info(element.getFullXMLName() + " stored.");
+            log.info(element.getFullXMLName() + " stored.");
         }
 
         return item;
@@ -1779,7 +1773,7 @@ public class DBAction {
 
 
     public static String getSequenceName(GenericWrapperElement e) {
-        if (sequences.get(e.getSQLName().toLowerCase()) == null) {
+        if (SEQUENCES.get(e.getSQLName().toLowerCase()) == null) {
             String col_name;
 
             GenericWrapperField key = e.getAllPrimaryKeys().get(0);
@@ -1812,11 +1806,11 @@ public class DBAction {
             }
 
             if (col_name != null) {
-                sequences.put(e.getSQLName().toLowerCase(), col_name);
+                SEQUENCES.put(e.getSQLName().toLowerCase(), col_name);
             }
         }
 
-        return (String) sequences.get(e.getSQLName().toLowerCase());
+        return (String) SEQUENCES.get(e.getSQLName().toLowerCase());
     }
 
     public static String getSequenceName(String table, String key, String dbName) {
@@ -2065,21 +2059,21 @@ public class DBAction {
         }
         query += ";";
 
-        //logger.debug(query);
+        //log.debug(query);
         try {
             PoolDBUtils con = new PoolDBUtils();
             con.updateItem(query, element.getDbName(), login, cache);
             cache.handlePostModificationAction(item, "update");
 
             if (!element.getFullXMLName().toLowerCase().startsWith("xdat")) {
-                logger.info(element.getFullXMLName() + " updated.");
+                log.info(element.getFullXMLName() + " updated.");
             }
         } catch (ClassNotFoundException e) {
-            logger.warn("Class missing", e);
+            log.warn("Class missing", e);
         } catch (SQLException e) {
-            logger.warn("Error accessing database", e);
+            log.warn("Error accessing database", e);
         } catch (Exception e) {
-            logger.warn("Unknown exception occurred", e);
+            log.warn("Unknown exception occurred", e);
         }
 
         item.modified = true;
@@ -2441,7 +2435,7 @@ public class DBAction {
 
             //PerformUpdateTriggers(cache, username,xdat_user_id,false); This shouldn't be necessary TO
         } else {
-            logger.info("Pre-existing item found without modifications");
+            log.info("Pre-existing item found without modifications");
         }
 
     }
@@ -2801,13 +2795,13 @@ public class DBAction {
                 }
             }
         } catch (ElementNotFoundException e) {
-            logger.error("The specified element was not found: " + e.ELEMENT, e);
+            log.error("The specified element was not found: " + e.ELEMENT, e);
         } catch (XFTInitException e) {
-            logger.error("There was an error initializing XFT.", e);
+            log.error("There was an error initializing XFT.", e);
         } catch (FieldNotFoundException e) {
-            logger.error("The specified field was not found: " + e.FIELD, e);
+            log.error("The specified field was not found: " + e.FIELD, e);
         } catch (Exception e) {
-            logger.error("An unknown error occurred.", e);
+            log.error("An unknown error occurred.", e);
             throw e;
         }
     }
@@ -2853,7 +2847,7 @@ public class DBAction {
                     }
                     query += ");";
 
-                    logger.debug(query);
+                    log.debug(query);
                     con.updateItem(query, dbName, login, cache);
                 }
 
@@ -2869,15 +2863,15 @@ public class DBAction {
                     query += key.get(0) + "=" + key.get(1);
                 }
 
-                logger.debug(query);
+                log.debug(query);
                 con.updateItem(query, dbName, login, cache);
-                logger.info(mapping.getMappingTable() + " removed.");
+                log.info(mapping.getMappingTable() + " removed.");
             } catch (ClassNotFoundException e) {
-                logger.error("The requested class definition was not found.", e);
+                log.error("The requested class definition was not found.", e);
             } catch (SQLException e) {
-                logger.warn("There was an error executing the database query.", e);
+                log.warn("There was an error executing the database query.", e);
             } catch (Exception e) {
-                logger.error("An unknown error occurred.", e);
+                log.error("An unknown error occurred.", e);
             }
         }
     }
@@ -3002,7 +2996,7 @@ public class DBAction {
                     }
                 }
             } catch (Exception e) {
-                logger.error("", e);
+                log.error("", e);
             }
 
             //DELETE
@@ -3049,18 +3043,18 @@ public class DBAction {
         }
         query += ";";
 
-        logger.debug(query);
+        log.debug(query);
         try {
             PoolDBUtils con = new PoolDBUtils();
             con.updateItem(query, element.getDbName(), login, cache);
             cache.handlePostModificationAction(item, "delete");
-            logger.info(element.getFullXMLName() + " Removed.");
+            log.info(element.getFullXMLName() + " Removed.");
         } catch (ClassNotFoundException e) {
-            logger.warn("Class missing", e);
+            log.warn("Class missing", e);
         } catch (SQLException e) {
-            logger.warn("Error accessing database", e);
+            log.warn("Error accessing database", e);
         } catch (Exception e) {
-            logger.warn("Unknown exception occurred", e);
+            log.warn("Unknown exception occurred", e);
         }
     }
 
@@ -3082,7 +3076,7 @@ public class DBAction {
             GenericWrapperElement element = GenericWrapperElement.GetElement(elementName);
 
             DBItemCache cache = new DBItemCache(null, null);
-            logger.info("Update Meta-Data: " + element.getFullXMLName());
+            log.info("Update Meta-Data: " + element.getFullXMLName());
             ArrayList<GenericWrapperField> keys = element.getAllPrimaryKeys();
             String keyString = "";
             for (GenericWrapperField key : keys) {
@@ -3122,13 +3116,13 @@ public class DBAction {
                     con.sendBatch(cache, element.getDbName(), null);
 
                 } catch (SQLException e) {
-                    logger.warn("Error accessing database", e);
+                    log.warn("Error accessing database", e);
                 } catch (Exception e) {
-                    logger.warn("Unknown exception occurred", e);
+                    log.warn("Unknown exception occurred", e);
                 }
             }
         } catch (Exception e) {
-            logger.error("Failed inserting metadata", e);
+            log.error("Failed inserting metadata", e);
         }
     }
 
@@ -3136,41 +3130,31 @@ public class DBAction {
     public static void AdjustSequences() {
         long startTime = Calendar.getInstance().getTimeInMillis();
         try {
-            final String defaultDBName = PoolDBUtils.getDefaultDBName();
-            if (VERSION == null) {
-                final String version = (String) PoolDBUtils.ReturnStatisticQuery("SELECT version()", "version", defaultDBName, null);
-                final Matcher matcher = REGEX_EXTRACT_POSTGRESQL_VERSION.matcher(version);
-                if (matcher.matches()) {
-                    final String extracted = matcher.group("version");
-                    logger.info("Extracted PostgreSQL " + extracted + " from full version " + version);
-                    VERSION = Float.parseFloat(extracted);
-                }
-            }
-            
-            XFTTable tables = XFTTable.Execute(QUERY_FIND_SEQLESS_TABLES, defaultDBName, null);
+            final String   defaultDBName = PoolDBUtils.getDefaultDBName();
+            final XFTTable tables        = XFTTable.Execute(QUERY_FIND_SEQLESS_TABLES, defaultDBName, null);
             if (tables.size() > 0) {
                 for (Object table : tables.convertColumnToArrayList("table_name")) {
                     try {
-                        logger.error("Preparing to convert table " + table + " to use sequence for default value.");
+                        log.error("Preparing to convert table " + table + " to use sequence for default value.");
                         ArrayList<String> queries = new ArrayList<>();
                         queries.add(String.format(QUERY_CREATE_SEQUENCE, table));
                         queries.add(String.format(QUERY_SET_ID_DEFAULT, table, table));
                         queries.add(String.format(QUERY_SET_ID_NOT_NULL, table));
                         queries.add(String.format(QUERY_SET_SEQUENCE_OWNER, table, table));
-                        logger.error("Queries prepared for conversion:");
+                        log.error("Queries prepared for conversion:");
                         for (String query : queries) {
-                            logger.error(" *** " + query);
+                            log.error(" *** {}", query);
                         }
                         PoolDBUtils.ExecuteBatch(queries, defaultDBName, null);
-                        Long start = (Long) PoolDBUtils.ReturnStatisticQuery(String.format(QUERY_GET_SEQUENCE_START, table), "value", defaultDBName, null);
-                        if (start == null) {
-                            start = 1L;
-                        }
-                        logger.error("Ran the query " + String.format(QUERY_GET_SEQUENCE_START, table) + " and got the value " + start);
-                        logger.error("Now preparing to run the query: " + String.format(QUERY_SET_SEQUENCE_VALUE, table, start));
-                        PoolDBUtils.ReturnStatisticQuery(String.format(QUERY_SET_SEQUENCE_VALUE, table, start), "value", defaultDBName, null);
+                        final String querySeqStart = String.format(QUERY_GET_SEQUENCE_START, table);
+                        final Long   start  = ObjectUtils.defaultIfNull((Long) PoolDBUtils.ReturnStatisticQuery(querySeqStart, "value", defaultDBName, null), 1L);
+                        log.error("Ran the query {}" + querySeqStart + " and got the value " + start);
+
+                        final String querySeqValue = String.format(QUERY_SET_SEQUENCE_VALUE, table, start);
+                        log.error("Now preparing to run the query: " + querySeqValue);
+                        PoolDBUtils.ReturnStatisticQuery(querySeqValue, "value", defaultDBName, null);
                     } catch (Exception e) {
-                        logger.error("", e);
+                        log.error("", e);
                     }
                 }
             }
@@ -3189,7 +3173,7 @@ public class DBAction {
                         adjustSequence(sequenceName, pk.getSQLName(), input.getSQLName(), input.getDbName());
                     }
                 } catch (Exception e) {
-                    logger.error("", e);
+                    log.error("", e);
                 }
 
             }
@@ -3201,11 +3185,11 @@ public class DBAction {
                     adjustSequence(sequenceName, map.getMappingTable() + "_id", map.getMappingTable(), map.getElement1().getDbName());
 
                 } catch (Exception e) {
-                    logger.error("", e);
+                    log.error("", e);
                 }
             }
         } catch (Exception e) {
-            logger.error("", e);
+            log.error("", e);
         }
         if (XFT.VERBOSE) {
             System.out.println("Finished db sequence check " + (Calendar.getInstance().getTimeInMillis() - startTime) + "ms");
@@ -3217,41 +3201,15 @@ public class DBAction {
     //the logic ends up changing the sequence to aggressively when the row count is 1.  I tried to fix it, but it introduced lots of bugs.
     //so, this small issue is tolerable.  If you mess with it, test installing a new server, and creating some stuff.
     private static void adjustSequence(String sequenceName, String column, String table, String dbName) throws Exception {
-        final Object numRows = ObjectUtils.defaultIfNull(PoolDBUtils.ReturnStatisticQuery("SELECT MAX(" + column + ") AS MAX_COUNT from " + table, "MAX_COUNT", dbName, null), 0);
-        final String sequenceQuery;
-        if (VERSION >= 10.0) {
-            final String[] atoms = StringUtils.split(sequenceName, ".");
-            final String   schema;
-            final String   sequence;
-            switch (atoms.length) {
-                case 0:
-                    throw new SQLException("Invalid sequence name, empty!");
-
-                case 1:
-                    schema = "public";
-                    sequence = atoms[0];
-                    break;
-
-                default:
-                    schema = atoms[0];
-                    sequence = atoms[1];
-            }
-            sequenceQuery = "SELECT CASE WHEN (start_value >= last_value) THEN start_value ELSE (last_value + 1) END AS LAST_COUNT FROM pg_sequences WHERE schemaname = '" + schema + "' AND sequencename = '" + sequence + "'";
-        } else {
-            sequenceQuery = "SELECT CASE WHEN (start_value >= last_value) THEN start_value ELSE (last_value + 1) END AS LAST_COUNT from " + sequenceName;
-        }
-        final Object nextValue = PoolDBUtils.ReturnStatisticQuery(sequenceQuery, "LAST_COUNT", dbName, null);
+        final int    numRows   = ((Number) ObjectUtils.defaultIfNull(PoolDBUtils.ReturnStatisticQuery("SELECT MAX(" + column + ") AS MAX_COUNT from " + table, "MAX_COUNT", dbName, null), 0)).intValue();
+        final Number nextValue = (Number) PoolDBUtils.ReturnStatisticQuery("SELECT CASE WHEN (start_value >= last_value) THEN start_value ELSE (last_value + 1) END AS LAST_COUNT from " + sequenceName, "LAST_COUNT", dbName, null);
 
         if (nextValue == null) {
-            logger.info("Adjusting missing sequence (" + table + ");");
-            PoolDBUtils.ExecuteNonSelectQuery("SELECT setval('" + sequenceName + "'," + (((Number) numRows).intValue() + 1) + ")", dbName, null);
-        } else {
-            Number i1 = (Number) numRows;
-            Number i2 = (Number) nextValue;
-            if (i1.intValue() >= i2.intValue()) {
-                logger.info(String.format("Adjusting invalid sequence (%s) from %s to %s (%s max_row)", table, i2, (i1.intValue() + 1), i1));
-                PoolDBUtils.ExecuteNonSelectQuery("SELECT setval('" + sequenceName + "'," + (i1.intValue() + 1) + ")", dbName, null);
-            }
+            log.info("Adjusting missing sequence ({})", table);
+            PoolDBUtils.ExecuteNonSelectQuery("SELECT setval('" + sequenceName + "'," + (numRows + 1) + ")", dbName, null);
+        } else if (numRows >= nextValue.intValue()) {
+            log.info("Adjusting invalid sequence ({}) from {} to {} ({} max_row)", table, nextValue, numRows + 1, numRows);
+            PoolDBUtils.ExecuteNonSelectQuery("SELECT setval('" + sequenceName + "'," + (numRows + 1) + ")", dbName, null);
         }
     }
 
@@ -3329,7 +3287,7 @@ public class DBAction {
                 }
             }
         } catch (Exception e) {
-            logger.error("", e);
+            log.error("", e);
         }
         if (XFT.VERBOSE)
             System.out.println("triggers (" + cmds.size() + "): " + (Calendar.getInstance().getTimeInMillis() - localStartTime) + " ms");
