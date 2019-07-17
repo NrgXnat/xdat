@@ -12,6 +12,7 @@ package org.nrg.xft.schema.Wrappers.XMLWrapper;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.nrg.xdat.XDAT;
 import org.nrg.xft.XFT;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.exception.ElementNotFoundException;
@@ -79,7 +80,7 @@ public class SAXReader extends org.xml.sax.ext.DefaultHandler2{
 	}
 
 	public XFTItem parse(java.io.File data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
 		try {
 			spf.setNamespaceAware(true);
 		
@@ -105,7 +106,7 @@ public class SAXReader extends org.xml.sax.ext.DefaultHandler2{
      * @throws SAXException
      */
     public XFTItem parse(java.io.File data, String stopAtXMLPath) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
         try {
             spf.setNamespaceAware(true);
         
@@ -124,7 +125,7 @@ public class SAXReader extends org.xml.sax.ext.DefaultHandler2{
     }
 
     public XFTItem parse(Reader data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
 		try {
 			spf.setNamespaceAware(true);
 		
@@ -143,7 +144,7 @@ public class SAXReader extends org.xml.sax.ext.DefaultHandler2{
 
 
     public XFTItem parse(org.xml.sax.InputSource data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
 		try {
 			spf.setNamespaceAware(true);
 		
@@ -161,8 +162,7 @@ public class SAXReader extends org.xml.sax.ext.DefaultHandler2{
     }
 
     public XFTItem parse(InputStream data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
-        
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
 		try {
 			spf.setNamespaceAware(true);
 		
@@ -181,7 +181,7 @@ public class SAXReader extends org.xml.sax.ext.DefaultHandler2{
     }
 
     public XFTItem parse(String file_path) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
 		try {
 			spf.setNamespaceAware(true);
 		

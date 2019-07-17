@@ -14,6 +14,7 @@ package org.nrg.xft.utils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.xml.serialize.OutputFormat;
 import org.apache.xml.serialize.XMLSerializer;
+import org.nrg.xdat.XDAT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -196,7 +197,7 @@ public  class XMLUtils
 	public static Document GetDOM(Resource file)
 	{
 		try{
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			DocumentBuilderFactory factory = XDAT.getContextService().getBeanSafely(DocumentBuilderFactory.class);
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			Document doc = builder.parse(file.getInputStream());
 			return doc;
@@ -217,7 +218,7 @@ public  class XMLUtils
 	public static Document GetDOM(File file)
 	{
 		try{
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			DocumentBuilderFactory factory = XDAT.getContextService().getBeanSafely(DocumentBuilderFactory.class);
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			Document doc = builder.parse(file);
 			return doc;
@@ -231,7 +232,7 @@ public  class XMLUtils
 	public static Document GetDOM(InputStream is)
 	{
 	    try{
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			DocumentBuilderFactory factory = XDAT.getContextService().getBeanSafely(DocumentBuilderFactory.class);
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			Document doc = builder.parse(is);
 			return doc;
@@ -245,7 +246,7 @@ public  class XMLUtils
 	public static Document GetDOM(String stream)
 	{
 	    try{
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			DocumentBuilderFactory factory = XDAT.getContextService().getBeanSafely(DocumentBuilderFactory.class);
 			DocumentBuilder builder = factory.newDocumentBuilder();
             StringReader sr = new StringReader(stream);
             InputSource is = new InputSource(sr);

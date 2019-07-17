@@ -11,6 +11,7 @@
 package org.nrg.xdat.bean.reader;
 
 import org.apache.log4j.Logger;
+import org.nrg.xdat.XDAT;
 import org.nrg.xdat.bean.ClassMappingFactory;
 import org.nrg.xdat.bean.base.BaseElement;
 import org.nrg.xdat.bean.base.BaseElement.UnknownFieldException;
@@ -464,7 +465,7 @@ public class XDATXMLReader extends DefaultHandler {
     }
     
     public BaseElement parse(java.io.File data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
         try {
             spf.setNamespaceAware(true);
             java.io.FileInputStream fi = new java.io.FileInputStream(data);
@@ -483,7 +484,7 @@ public class XDATXMLReader extends DefaultHandler {
     }
 
     public BaseElement parse(Reader data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
         try {
             spf.setNamespaceAware(true);
         
@@ -501,7 +502,7 @@ public class XDATXMLReader extends DefaultHandler {
 
 
     public BaseElement parse(org.xml.sax.InputSource data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
         try {
             spf.setNamespaceAware(true);
         
@@ -518,7 +519,7 @@ public class XDATXMLReader extends DefaultHandler {
     }
 
     public BaseElement parse(InputStream data) throws IOException, SAXException{
-        SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
         try {
             spf.setNamespaceAware(true);
         

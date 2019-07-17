@@ -9,6 +9,7 @@
 
 package org.nrg.xft.schema.Wrappers.XMLWrapper;
 
+import org.nrg.xdat.XDAT;
 import org.nrg.xft.XFT;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.exception.ElementNotFoundException;
@@ -48,7 +49,7 @@ public class XMLWriter {
 	public XMLWriter()
 	{
 		try {
-			factory = DocumentBuilderFactory.newInstance();
+			factory = XDAT.getContextService().getBeanSafely(DocumentBuilderFactory.class);
 			newbuilder = factory.newDocumentBuilder();
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();

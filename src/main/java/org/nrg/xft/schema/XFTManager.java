@@ -17,6 +17,7 @@ import org.nrg.framework.exceptions.NrgServiceError;
 import org.nrg.framework.exceptions.NrgServiceRuntimeException;
 import org.nrg.framework.utilities.LapStopWatch;
 import org.nrg.framework.utilities.Reflection;
+import org.nrg.xdat.XDAT;
 import org.nrg.xft.collections.XFTElementSorter;
 import org.nrg.xft.exception.ElementNotFoundException;
 import org.nrg.xft.exception.XFTInitException;
@@ -350,7 +351,7 @@ public class XFTManager {
      */
     private static List<String> getDependentSchema(InputStream in) throws ParserConfigurationException, SAXException, IOException {
         try (final InputStream inputStream = in) {
-            SAXParserFactory spf = SAXParserFactory.newInstance();
+            SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
             DependencyParser parser = new DependencyParser();
 
             spf.setNamespaceAware(true);

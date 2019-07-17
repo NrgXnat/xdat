@@ -19,6 +19,7 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.apache.xerces.parsers.DOMParser;
+import org.nrg.xdat.XDAT;
 import org.nrg.xft.XFT;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -53,7 +54,7 @@ public class XMLValidator {
     }
 
     public ValidationHandler validateReader(Reader stream) throws Exception {
-    	SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
         spf.setNamespaceAware(true);
         spf.setValidating(true);
         spf.setFeature("http://apache.org/xml/features/validation/schema", true);
@@ -83,7 +84,7 @@ public class XMLValidator {
     }
 
     public ValidationHandler validateInputStream(InputStream stream) throws Exception {
-    	SAXParserFactory spf = SAXParserFactory.newInstance();
+        SAXParserFactory spf = XDAT.getContextService().getBeanSafely(SAXParserFactory.class);
         spf.setNamespaceAware(true);
         spf.setValidating(true);
         spf.setFeature("http://apache.org/xml/features/validation/schema", true);
