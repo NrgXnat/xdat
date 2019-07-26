@@ -10,17 +10,22 @@
 
 package org.nrg.xft.utils;
 
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.xerces.parsers.DOMParser;
 import org.nrg.xdat.XDAT;
 import org.nrg.xft.XFT;
+import org.xml.sax.ErrorHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
@@ -28,6 +33,18 @@ import org.xml.sax.helpers.DefaultHandler;
 
 
 public class XMLValidator {
+    public static void verifyValidatesInternalXsd(String filename) throws Exception {
+        try (final InputStream xmlStream = new FileInputStream(filename)) {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setValidating(true);
+            factory.setNamespaceAware(true);
+            factory.setAttribute("http://java.sun.com/xml/jaxp/properties/schemaLanguage",
+                                 "http://www.w3.org/2001/XMLSchema");
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            builder.setErrorHandler(new Validator());
+            builder.parse(new InputSource(xmlStream));
+        }
+    }
 
     public void validateSchema(String XmlDocumentUrl) throws Exception {
         DOMParser domParser = new DOMParser();
@@ -202,22 +219,20 @@ public class XMLValidator {
     }
 }
 
+@Slf4j
 class Validator extends DefaultHandler {
-    public boolean validationError = false;
-
-    public SAXParseException saxParseException = null;
-
-    public void error(SAXParseException exception) throws SAXException {
-        validationError = true;
-        saxParseException = exception;
+    public void error(final SAXParseException exception) throws SAXException {
+        log.error("An error occurred during XML parsing", exception);
+        throw exception;
     }
 
-    public void fatalError(SAXParseException exception) throws SAXException {
-        validationError = true;
-        saxParseException = exception;
+    public void fatalError(final SAXParseException exception) throws SAXException {
+        log.error("A fatal error occurred during XML parsing", exception);
+        throw exception;
     }
 
-    public void warning(SAXParseException exception) throws SAXException {
+    public void warning(final SAXParseException exception) {
+        log.warn("Something went wrong during XML parsing", exception);
     }
 }
 
