@@ -53,6 +53,7 @@ public  class XMLUtils {
         }
 	}
 	
+	@SuppressWarnings("unused")
 	public static void PrettyPrintSAX(final File file) {
 	    try {
             DOMToFile(GetDOM(file), file.getAbsolutePath());
@@ -83,6 +84,7 @@ public  class XMLUtils {
 	 * Translates the DOM Document to a basic string.
 	 * @param document XML DOM Document
 	 */
+	@SuppressWarnings("unused")
 	public static String DOMToBasicString(final Document document) {
 		try {
 			return getSerializer().toXml(document);
