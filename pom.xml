@@ -18,6 +18,7 @@
 
     <groupId>org.nrg.xdat</groupId>
     <artifactId>core</artifactId>
+    <version>1.7.6-SER-SNAPSHOT</version>
 
     <name>XDAT Core</name>
     <url>http://bitbucket.org/nrg/xdat</url>
