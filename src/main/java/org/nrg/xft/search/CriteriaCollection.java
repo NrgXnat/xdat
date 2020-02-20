@@ -21,7 +21,7 @@ import java.util.List;
  */
 @Slf4j
 public class CriteriaCollection implements SQLClause {
-    private ArrayList<SQLClause>   collection = new ArrayList<>();
+    private final ArrayList<SQLClause>   collection = new ArrayList<>();
     private String                 joinType;
 
     public String getElementName() {

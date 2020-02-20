@@ -83,26 +83,25 @@ public class DBAction {
 
             PoolDBUtils con;
             String      username     = null;
-            Integer     xdat_user_id = null;
+            Integer     userId = null;
             if (user != null) {
                 username = user.getUsername();
-                xdat_user_id = user.getID();
+                userId = user.getID();
             }
             if (!cache.getDBTriggers().contains(item, false)) {
                 cache.getDBTriggers().add(item);
             }
             if (cache.getRemoved().size() > 0) {
                 log.debug("***** {} REMOVED ITEMS *******", cache.getRemoved().size());
-                PerformUpdateTriggers(cache, username, xdat_user_id, false);
+                PerformUpdateTriggers(cache, username, userId, false);
             }
             log.debug("pre-triggers: {} ms", Calendar.getInstance().getTimeInMillis() - localStartTime);
             localStartTime = Calendar.getInstance().getTimeInMillis();
             con = new PoolDBUtils();
             con.sendBatch(cache, item.getDBName(), username);
-            log.debug("Item modifications stored. {} modified elements. {} SQL statements.", cache.getDBTriggers().size(), cache.getStatements().size());
-            log.debug("store: {} ms", Calendar.getInstance().getTimeInMillis() - localStartTime);
+            log.debug("Item modifications stored for {} instance {}. {} modified elements ({} SQL statements) in {} ms", item.getXSIType(), item.getIDValue(), cache.getDBTriggers().size(), cache.getStatements().size(), Calendar.getInstance().getTimeInMillis() - localStartTime);
             localStartTime = Calendar.getInstance().getTimeInMillis();
-            PerformUpdateTriggers(cache, username, xdat_user_id, false);
+            PerformUpdateTriggers(cache, username, userId, false);
             log.debug("post-triggers: {} ms", Calendar.getInstance().getTimeInMillis() - localStartTime);
             log.debug("Total: {} ms", Calendar.getInstance().getTimeInMillis() - localStartTime);
             return true;
@@ -470,7 +469,6 @@ public class DBAction {
                             item = UpdateItem(duplicate, item, user, localQuarantine, overrideQuarantine, cache, allowItemOverwrite);
                         } else {
                             item.importNonItemFields(duplicate, allowItemOverwrite);
-
                         }
 
                         cache.getPreexisting().add(item);
@@ -481,7 +479,6 @@ public class DBAction {
 
                             if (HasNewFields(duplicate, item, allowItemOverwrite)) {
                                 item = UpdateItem(duplicate, item, user, localQuarantine, overrideQuarantine, cache, false);
-
                             }
                         }
                     } else {

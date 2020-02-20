@@ -9,23 +9,24 @@
 
 package org.nrg.xft.db;
 
-import java.sql.SQLException;
-import java.util.Calendar;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xdat.schema.SchemaField;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFT;
 import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.security.UserI;
-import org.nrg.xft.utils.XftStringUtils;
 
+import java.sql.SQLException;
+import java.util.Calendar;
+
+import static org.nrg.xft.db.PoolDBUtils.SEARCH_SCHEMA_NAME;
+
+@Slf4j
 public class ItemAccessHistory {
-	static org.apache.log4j.Logger logger = Logger.getLogger(ItemAccessHistory.class);
-	public final static String TABLE_NAME="xs_item_access";
-	private static boolean EXISTS=false;
+	public final static String ITEM_ACCESS_TABLE ="xs_item_access";
+	private static boolean         EXISTS     =false;
 	
 	private String search_value;
 	private String search_element;
@@ -89,7 +90,7 @@ public class ItemAccessHistory {
 	public void save() throws SQLException,Exception{
 		VerifyManagerExistence(user);
 		
-		String query = "INSERT INTO " + PoolDBUtils.search_schema_name + "." + TABLE_NAME + " (search_value,search_element,search_field,xdat_user_id,method) VALUES (";
+		String query = "INSERT INTO " + SEARCH_SCHEMA_NAME + "." + ITEM_ACCESS_TABLE + " (search_value,search_element,search_field,xdat_user_id,method) VALUES (";
 		query +="'" +search_value + "'";
 		
 		query +=",'" + search_element + "'";
@@ -118,31 +119,31 @@ public class ItemAccessHistory {
             if (!EXISTS){
         		PoolDBUtils.CreateTempSchema(user.getDBName(), user.getLogin());
 
-                String query ="SELECT relname FROM pg_catalog.pg_class WHERE  relname=LOWER('"+TABLE_NAME+"');";
+                String query ="SELECT relname FROM pg_catalog.pg_class WHERE  relname=LOWER('"+ITEM_ACCESS_TABLE+"');";
                 String exists =(String)PoolDBUtils.ReturnStatisticQuery(query, "relname", user.getDBName(), user.getLogin());
 
-                if (exists!=null){
-                	EXISTS=true;
-                }else{
-                    query = "CREATE TABLE " + PoolDBUtils.search_schema_name + "." + TABLE_NAME+
-                    "\n("+
-                    "\n  search_value VARCHAR(255),"+
-                    "\n  search_element VARCHAR(255),"+
-                    "\n  search_field VARCHAR(255),"+
-                    "\n  accessed timestamp DEFAULT now(),"+
-                    "\n  xdat_user_id VARCHAR(255),"+
-                    "\n  method VARCHAR(255)"+
-                    "\n);";
+				if (exists != null) {
+					EXISTS = true;
+				} else {
+					query = "CREATE TABLE " + SEARCH_SCHEMA_NAME + "." + ITEM_ACCESS_TABLE +
+							"\n(" +
+							"\n  search_value VARCHAR(255)," +
+							"\n  search_element VARCHAR(255)," +
+							"\n  search_field VARCHAR(255)," +
+							"\n  accessed timestamp DEFAULT now()," +
+							"\n  xdat_user_id VARCHAR(255)," +
+							"\n  method VARCHAR(255)" +
+							"\n);";
 
-                    PoolDBUtils.ExecuteNonSelectQuery(query, user.getDBName(), user.getLogin());
+					PoolDBUtils.ExecuteNonSelectQuery(query, user.getDBName(), user.getLogin());
 
-                    EXISTS=true;
-                }
+					EXISTS = true;
+				}
             }
         } catch (SQLException e) {
-            logger.error("",e);
+            log.error("", e);
         } catch (Exception e) {
-            logger.error("",e);
+            log.error("", e);
         }
 	}
 	

@@ -7,17 +7,17 @@
  * Released under the Simplified BSD.
  */
 
-
 package org.nrg.xft.schema.Wrappers.GenericWrapper;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import lombok.extern.slf4j.Slf4j;
 import org.nrg.xdat.search.CriteriaCollection;
 import org.nrg.xdat.search.QueryOrganizer;
 import org.nrg.xdat.security.SecurityManager;
 import org.nrg.xft.TypeConverter.PGSQLMapping;
 import org.nrg.xft.TypeConverter.SQLMapping;
 import org.nrg.xft.TypeConverter.TypeConverter;
+import org.nrg.xft.db.FavEntries;
+import org.nrg.xft.db.PoolDBUtils;
 import org.nrg.xft.db.ViewManager;
 import org.nrg.xft.exception.ElementNotFoundException;
 import org.nrg.xft.exception.FieldNotFoundException;
@@ -31,7 +31,12 @@ import org.nrg.xft.search.SearchCriteria;
 
 import java.util.*;
 
+import static org.nrg.xft.db.ItemAccessHistory.ITEM_ACCESS_TABLE;
+import static org.nrg.xft.db.PoolDBUtils.SEARCH_SCHEMA_NAME;
+import static org.nrg.xft.db.views.service.MaterializedViewManager.MATERIALIZED_VIEWS_TABLE;
+
 @SuppressWarnings({ "rawtypes", "unchecked" })
+@Slf4j
 public class GenericWrapperUtils {
     public static final String CREATE_CLASS = "create_class2";
     
@@ -40,10 +45,6 @@ public class GenericWrapperUtils {
 	public static final String CREATE_SCHEMA = "create_schema2";
 
 	public static final String CREATE_TRIGGER = "create_trigger2";
-	
-	public static Boolean BATCH_MODE=Boolean.FALSE;
-
-    public static org.apache.log4j.Logger logger = Logger.getLogger(GenericWrapperUtils.class);
 
     public static final String TXT_FUNCTION = "i_";
     public static final String TXT_EXT_FUNCTION = "ie_";
@@ -445,9 +446,9 @@ public class GenericWrapperUtils {
             sb.append(") WITH OIDS;");
 
         } catch (org.nrg.xft.exception.XFTInitException e) {
-            logger.error("", e);
+            log.error("", e);
         } catch (ElementNotFoundException e) {
-            logger.error("", e);
+            log.error("", e);
         }
         return new StringBuffer(sb.toString());
     }
@@ -582,11 +583,11 @@ public class GenericWrapperUtils {
                 post.addAll(func[1]);
             }
         } catch (XFTInitException e) {
-            logger.error("", e);
+            log.error("", e);
         } catch (ElementNotFoundException e) {
-            logger.error("", e);
+            log.error("", e);
         } catch (Exception e) {
-            logger.error("", e);
+            log.error("", e);
         }
         List[] _return={all,post};
         return _return;
@@ -603,7 +604,7 @@ public class GenericWrapperUtils {
         String functionName = input.getTextFunctionName() + "(";
         if (input.isExtended() && (!(input.getName().endsWith("meta_data") || input
                 .getName().endsWith("history")))) {
-            functionName = GenericWrapperUtils.TXT_EXT_FUNCTION + input.getFormattedName() + "(";
+            functionName = TXT_EXT_FUNCTION + input.getFormattedName() + "(";
         }
         for (int i = 0; i < keyArray.length; i++) {
             if (i > 0)
@@ -711,7 +712,7 @@ public class GenericWrapperUtils {
                                 
                                 sb.append("\n           child_count := child_count+1;");
                                 sb.append("\n           tempText := NULL;");
-                                sb.append("\n           tempText := " + GenericWrapperUtils.TXT_FUNCTION)
+                                sb.append("\n           tempText := " + TXT_FUNCTION)
                                         .append(foreign.getFormattedName()).append(
                                                 "(");
                                 refCols = ((XFTManyToManyReference) ref)
@@ -787,7 +788,7 @@ public class GenericWrapperUtils {
                                 sb
                                         .append("\n           child_count := child_count+1;");
                                 sb.append("\n           tempText := NULL;");
-                                sb.append("\n           tempText := " + GenericWrapperUtils.TXT_FUNCTION)
+                                sb.append("\n           tempText := " + TXT_FUNCTION)
                                         .append(foreign.getFormattedName()).append(
                                                 "(");
                                 foreignKeyArray = foreign
@@ -865,10 +866,10 @@ public class GenericWrapperUtils {
                             sb.append("\n           tempText := NULL;");
                             if (input.getExtensionFieldName().equalsIgnoreCase(field.getName()))
                             {
-                                sb.append("\n           tempText := " + GenericWrapperUtils.TXT_EXT_FUNCTION)
+                                sb.append("\n           tempText := " + TXT_EXT_FUNCTION)
                                 .append(foreign.getFormattedName()).append("(");
                             }else{
-                                sb.append("\n           tempText := " + GenericWrapperUtils.TXT_FUNCTION)
+                                sb.append("\n           tempText := " + TXT_FUNCTION)
                                 .append(foreign.getFormattedName()).append("(");
                             }
                             refsCols = supRef.getKeyRelations().iterator();
@@ -930,7 +931,7 @@ public class GenericWrapperUtils {
                             sb
                                     .append("\n           child_count := child_count+1;");
                             sb.append("\n           tempText := NULL;");
-                            sb.append("\n           tempText := " + GenericWrapperUtils.TXT_FUNCTION)
+                            sb.append("\n           tempText := " + TXT_FUNCTION)
                                     .append(foreign.getFormattedName()).append("(");
                             foreignKeyArray = foreign.getSQLKeys();
                             for (int i = 0; i < foreignKeyArray.length; i++) {
@@ -1102,11 +1103,11 @@ public class GenericWrapperUtils {
                 sb.append("\n          ");
                 sb.append("\n      END IF;");
             } catch (ElementNotFoundException e) {
-                logger.error("",e);
+                log.error("", e);
             } catch (FieldNotFoundException e) {
-                logger.error("",e);
+                log.error("", e);
             } catch (XFTInitException e) {
-                logger.error("",e);
+                log.error("", e);
             }
         }
         sb.append("\n	   fullText := fullText || '')*END_ITEM*'' || local_count || '')'';");
@@ -1170,7 +1171,7 @@ public class GenericWrapperUtils {
 	                sb.append("\n      LOOP");
 	                sb.append("\n         IF (current_row.").append(colname)
 	                        .append(" IS NULL) THEN ");
-	                sb.append("\n             fullText:= " + GenericWrapperUtils.TXT_EXT_FUNCTION
+	                sb.append("\n             fullText:= " + TXT_EXT_FUNCTION
 	                        + input.getFormattedName() + "(");
 	                for (int i = 0; i < keyArray.length; i++) {
 	                    if (i > 0)
@@ -1193,10 +1194,10 @@ public class GenericWrapperUtils {
 	                    // input.getSQLName() + " TO " + se.getSQLName() +
 	                    // "'';");
 	                    if (se.getGenericXFTElement().isExtended())
-	                        sb.append("\n                fullText:= " + GenericWrapperUtils.TXT_EXT_FUNCTION
+	                        sb.append("\n                fullText:= " + TXT_EXT_FUNCTION
 	                            + se.getFormattedName() + "(");
 	                    else
-		                    sb.append("\n                fullText:= " + GenericWrapperUtils.TXT_FUNCTION
+		                    sb.append("\n                fullText:= " + TXT_FUNCTION
 		                            + se.getFormattedName() + "(");
 	                    for (int i = 0; i < keyArray.length; i++) {
 	                        if (i > 0)
@@ -1208,7 +1209,7 @@ public class GenericWrapperUtils {
 	                    sb.append("\n            END IF;");
 	                }
 	                sb.append("\n                IF (matches=0) THEN");
-	               sb.append("\n                    fullText:= " + GenericWrapperUtils.TXT_EXT_FUNCTION
+	               sb.append("\n                    fullText:= " + TXT_EXT_FUNCTION
 	                        + input.getFormattedName() + "(");
 	                for (int i = 0; i < keyArray.length; i++) {
 	                    if (i > 0)
@@ -1221,8 +1222,8 @@ public class GenericWrapperUtils {
 	                sb.append("\n         end IF;");
 	                sb.append("\n      END LOOP;");
 	            } catch (Exception e) {
-	                logger.error("", e);
-	                sb.append("\n      fullText:= " + GenericWrapperUtils.TXT_EXT_FUNCTION
+	                log.error("", e);
+	                sb.append("\n      fullText:= " + TXT_EXT_FUNCTION
 	                        + input.getFormattedName() + "(");
 	                for (int i = 0; i < keyArray.length; i++) {
 	                    if (i > 0)
@@ -1233,7 +1234,7 @@ public class GenericWrapperUtils {
 	            }
 	        } else {
 	            sb.append("\n -- ITEM IS NOT EXTENDED BY ANYTHING... REDIRECT TO MAIN FUNCTION");
-	            sb.append("\n      fullText:= " + GenericWrapperUtils.TXT_EXT_FUNCTION + input.getFormattedName()
+	            sb.append("\n      fullText:= " + TXT_EXT_FUNCTION + input.getFormattedName()
 	                    + "(");
 	            for (int i = 0; i < keyArray.length; i++) {
 	                if (i > 0)
@@ -1575,11 +1576,11 @@ public class GenericWrapperUtils {
                     sb.append("\n      END IF;");
                     }
                 } catch (ElementNotFoundException e) {
-                    logger.error("",e);
+                    log.error("", e);
                 } catch (FieldNotFoundException e) {
-                    logger.error("",e);
+                    log.error("", e);
                 } catch (XFTInitException e) {
-                    logger.error("",e);
+                    log.error("", e);
                 }
                 
         }
@@ -1706,13 +1707,13 @@ public class GenericWrapperUtils {
 	                    sb.append("\n         end IF;");
 	                    sb.append("\n      END LOOP;");
 	                } catch (ElementNotFoundException e) {
-	                    logger.error("",e);
+	                    log.error("", e);
 	                } catch (XFTInitException e) {
-	                    logger.error("",e);
+	                    log.error("", e);
 	                } catch (FieldNotFoundException e) {
-	                    logger.error("",e);
+	                    log.error("", e);
 	                } catch (Exception e) {
-	                    logger.error("",e);
+	                    log.error("", e);
 	                }
 	        }
 	        sb.append("\n	");
@@ -1979,11 +1980,11 @@ public class GenericWrapperUtils {
 
                 sb.append(", ").append(userVariable).append(");");
             } catch (XFTInitException e) {
-                logger.error("", e);
+                log.error("", e);
             } catch (ElementNotFoundException e) {
-                logger.error("", e);
+                log.error("", e);
             } catch (FieldNotFoundException e) {
-                logger.error("", e);
+                log.error("", e);
             }
         }
 
@@ -2099,7 +2100,7 @@ public class GenericWrapperUtils {
                 sb.append("\n         end IF;");
                 sb.append("\n      END LOOP;");
             } catch (Exception e) {
-                logger.error("", e);
+                log.error("", e);
                 sb.append("\n      PERFORM update_ls_ext_"
                         + input.getFormattedName() + "(");
                 for (int i = 0; i < keyArray.length; i++) {
@@ -2121,7 +2122,7 @@ public class GenericWrapperUtils {
         
             sb = new StringBuffer();
             //		CREATE TRIGGER REFERENCE FUNCTION.
-//            sb.append("\n\nSELECT " + GenericWrapperUtils.CREATE_FUNCTION + "('after_update_"
+//            sb.append("\n\nSELECT " + CREATE_FUNCTION + "('after_update_"
 //                    + input.getSQLName() + "','");
             sb.append("CREATE OR REPLACE FUNCTION after_update_"
                     + input.getFormattedName() + "()");
@@ -2164,7 +2165,7 @@ public class GenericWrapperUtils {
                     sb.append(", NULL);");
                 }
             } catch (Exception e) {
-                logger.error("",e);
+                log.error("", e);
             }
             
             sb.append("\n	");
@@ -2175,7 +2176,7 @@ public class GenericWrapperUtils {
 
             all.add(sb.toString());
             sb = new StringBuffer();
-            sb.append("\n\nSELECT " + GenericWrapperUtils.CREATE_TRIGGER + "('a_u_" + input.getFormattedName()
+            sb.append("\n\nSELECT " + CREATE_TRIGGER + "('a_u_" + input.getFormattedName()
                     + "','");
             sb.append("CREATE TRIGGER a_u_" + input.getFormattedName());
             sb.append("  AFTER UPDATE OR DELETE ON ")
@@ -2594,7 +2595,7 @@ public class GenericWrapperUtils {
                             	fTables.get(foreignSQLName).add(row);
                             }
                         } catch (ElementNotFoundException e1) {
-                            logger.error("", e1);
+                            log.error("", e1);
                         }
 
                     }
@@ -2630,8 +2631,8 @@ public class GenericWrapperUtils {
                 al.add(sb.toString());
             }
 
-        } catch (org.nrg.xft.exception.XFTInitException e) {
-            logger.error(e);
+        } catch (XFTInitException e) {
+            log.error("Error initializing XFT", e);
         }
 
         al.addAll(indexs.values());
@@ -2645,7 +2646,7 @@ public class GenericWrapperUtils {
      * @return Returns a list of ALTER TABLE SQL statement Strings
      * @throws XFTInitException
      */
-    public static List GetAlterTableStatements(XFTManyToManyReference input)
+    public static List GetAlterTableStatements(final XFTManyToManyReference input)
             throws XFTInitException {
         ArrayList al = new ArrayList();
 
@@ -2750,7 +2751,7 @@ public class GenericWrapperUtils {
         functions.append("\n  LANGUAGE 'plpgsql' VOLATILE;");
         statements.add(functions.toString());
         functions = new StringBuilder();
-        functions.append("\n\nCREATE OR REPLACE FUNCTION " + GenericWrapperUtils.CREATE_TRIGGER + "(VARCHAR,VARCHAR)");
+        functions.append("\n\nCREATE OR REPLACE FUNCTION " + CREATE_TRIGGER + "(VARCHAR,VARCHAR)");
         functions.append("\nRETURNS void AS");
         functions.append("\n'");
         functions.append("\n    begin");
@@ -2765,7 +2766,7 @@ public class GenericWrapperUtils {
         statements.add(functions.toString());
         functions = new StringBuilder();
         functions.append("\n");
-        functions.append("\n\nCREATE OR REPLACE FUNCTION " + GenericWrapperUtils.CREATE_CLASS + "(VARCHAR,VARCHAR)");
+        functions.append("\n\nCREATE OR REPLACE FUNCTION " + CREATE_CLASS + "(VARCHAR,VARCHAR)");
         functions.append("\nRETURNS void AS");
         functions.append("\n'");
         functions.append("\n    begin");
@@ -2780,7 +2781,7 @@ public class GenericWrapperUtils {
         statements.add(functions.toString());
         functions = new StringBuilder();
         functions.append("\n");
-        functions.append("\n\nCREATE OR REPLACE FUNCTION " + GenericWrapperUtils.CREATE_SCHEMA + "(VARCHAR,VARCHAR)");
+        functions.append("\n\nCREATE OR REPLACE FUNCTION " + CREATE_SCHEMA + "(VARCHAR,VARCHAR)");
         functions.append("\nRETURNS void AS");
         functions.append("\n'");
         functions.append("\n    begin");
@@ -2796,7 +2797,7 @@ public class GenericWrapperUtils {
         functions = new StringBuilder();
         functions.append("\n");
         functions.append("\n");
-        functions.append("\nCREATE OR REPLACE FUNCTION " + GenericWrapperUtils.CREATE_FUNCTION + "(VARCHAR,VARCHAR)");
+        functions.append("\nCREATE OR REPLACE FUNCTION " + CREATE_FUNCTION + "(VARCHAR,VARCHAR)");
         functions.append("\nRETURNS void AS");
         functions.append("\n'");
         functions.append("\n    begin");
@@ -2828,7 +2829,7 @@ public class GenericWrapperUtils {
         functions.append("\n'");
         functions.append("\n  LANGUAGE 'plpgsql' VOLATILE;");
         statements.add(functions.toString());
-        functions.append("\nSELECT " + GenericWrapperUtils.CREATE_FUNCTION + "('xs_a_concat','CREATE AGGREGATE xs_a_concat(");
+        functions.append("\nSELECT " + CREATE_FUNCTION + "('xs_a_concat','CREATE AGGREGATE xs_a_concat(");
         functions.append("\n    BASETYPE = text,");
         functions.append("\n    SFUNC = textcat,");
         functions.append("\n    STYPE = text,");
@@ -2837,7 +2838,7 @@ public class GenericWrapperUtils {
         
         
         StringBuilder buffer = new StringBuilder();
-        buffer.append("SELECT " + GenericWrapperUtils.CREATE_CLASS + "('analytics', '");
+        buffer.append("SELECT " + CREATE_CLASS + "('analytics', '");
         buffer.append("CREATE TABLE analytics\n");
         buffer.append("(\n");
         buffer.append("        id serial NOT NULL,\n");
@@ -2856,10 +2857,10 @@ public class GenericWrapperUtils {
 
 
         statements.add("\n\n--XDAT SEARCH ENTRIES\n" +
-				"SELECT " + GenericWrapperUtils.CREATE_SCHEMA + "('xdat_search','CREATE SCHEMA xdat_search;');");
+                       "SELECT " + CREATE_SCHEMA + "('" + SEARCH_SCHEMA_NAME + "','CREATE SCHEMA " + SEARCH_SCHEMA_NAME + ";');");
 		
 		statements.add("\n\n--XDAT SEARCH ENTRIES\n" +
-				"SELECT " + GenericWrapperUtils.CREATE_CLASS + "('xdat_searches','CREATE TABLE xdat_searches"+
+				"SELECT " + CREATE_CLASS + "('xdat_searches','CREATE TABLE xdat_searches"+
 		"\n("+
 				"\n  search_name varchar(255) NOT NULL,"+
 				"\n  last_access timestamp DEFAULT now(),"+
@@ -2872,7 +2873,7 @@ public class GenericWrapperUtils {
 
 
 		statements.add("\n\n--XDAT SEARCH ENTRIES\n" +
-				"SELECT " + GenericWrapperUtils.CREATE_CLASS + "('xs_fav_entries','CREATE TABLE xdat_search.xs_fav_entries "+
+                       "SELECT " + CREATE_CLASS + "('" + FavEntries.FAV_ENTRIES_TABLE + "','CREATE TABLE " + PoolDBUtils.SEARCH_SCHEMA_NAME + "." + FavEntries.FAV_ENTRIES_TABLE + " "+
 				"\n( "+
 				"\n  datatype character varying(255), "+
 				"\n  id character varying(255), "+
@@ -2880,10 +2881,10 @@ public class GenericWrapperUtils {
 				"\n) "+
 				"\nWITH OIDS;');");
 
-		statements.add("GRANT ALL ON TABLE xdat_search.xs_fav_entries TO public;");
+		statements.add("GRANT ALL ON TABLE " + PoolDBUtils.SEARCH_SCHEMA_NAME + "." + FavEntries.FAV_ENTRIES_TABLE + " TO public;");
 		
 		statements.add("\n\n--XDAT SEARCH ENTRIES\n" +
-				"SELECT " + GenericWrapperUtils.CREATE_CLASS + "('xs_materialized_views','CREATE TABLE xdat_search.xs_materialized_views"+
+				"SELECT " + CREATE_CLASS + "('" + MATERIALIZED_VIEWS_TABLE + "','CREATE TABLE " + PoolDBUtils.SEARCH_SCHEMA_NAME + "." + MATERIALIZED_VIEWS_TABLE + ""+
 				"\n("+
 				"\ntable_name character varying(255),"+
 				"\ncreated timestamp without time zone DEFAULT now(),"+
@@ -2896,10 +2897,10 @@ public class GenericWrapperUtils {
 				"\n) "+
 				"\nWITH OIDS;');");
 
-		statements.add("GRANT ALL ON TABLE xdat_search.xs_materialized_views TO public;");
+		statements.add("GRANT ALL ON TABLE " + PoolDBUtils.SEARCH_SCHEMA_NAME + "." + MATERIALIZED_VIEWS_TABLE + " TO public;");
 		
 		statements.add("\n\n--XDAT SEARCH ENTRIES\n" +
-				"SELECT " + GenericWrapperUtils.CREATE_CLASS + "('xs_item_access','CREATE TABLE xdat_search.xs_item_access"+
+				"SELECT " + CREATE_CLASS + "('" + ITEM_ACCESS_TABLE + "','CREATE TABLE " + PoolDBUtils.SEARCH_SCHEMA_NAME + "." + ITEM_ACCESS_TABLE + ""+
 				"\n("+
 				"\nsearch_value character varying(255),"+
 				"\nsearch_element character varying(255),"+

@@ -31,7 +31,6 @@ import org.nrg.xft.utils.XMLUtils;
 import org.nrg.xft.utils.XftStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.w3c.dom.Document;
@@ -44,6 +43,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.*;
+
+import static org.nrg.xft.db.ItemAccessHistory.ITEM_ACCESS_TABLE;
+import static org.nrg.xft.db.PoolDBUtils.SEARCH_SCHEMA_NAME;
 
 /**
  * @author Tim
@@ -63,7 +65,7 @@ public class DisplayManager {
      *
      * @return The elements set in the display manager.
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"rawtypes" })
     public Hashtable getElements() {
         return elements;
     }
@@ -572,7 +574,7 @@ public class DisplayManager {
     public static List<String> GetCreateViewsSQL() {
         final List<String> views = new ArrayList<>();
 
-        views.add("GRANT ALL ON TABLE xdat_search.xs_item_access TO public;");
+        views.add(QUERY_GRANT_ALL_ON_SEARCH_SCHEMA);
 
         Object[] col = GetInstance().getElements().values().toArray();
 
@@ -1132,5 +1134,6 @@ public class DisplayManager {
     public String getPluralDisplayNameForMRSession() {
         return getPluralDisplayNameForElement("xnat:mrSessionData");
     }
-}
 
+    private static final String QUERY_GRANT_ALL_ON_SEARCH_SCHEMA = "GRANT ALL ON TABLE " + SEARCH_SCHEMA_NAME + "." + ITEM_ACCESS_TABLE + " TO public";
+}

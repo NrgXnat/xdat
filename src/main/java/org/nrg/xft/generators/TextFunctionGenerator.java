@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
 import org.nrg.xdat.search.CriteriaCollection;
 import org.nrg.xdat.search.QueryOrganizer;
 import org.nrg.xft.TypeConverter.PGSQLMapping;
@@ -33,8 +34,8 @@ import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.search.SearchCriteria;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
+@Slf4j
 public class TextFunctionGenerator {
-
 	public static ArrayList GetTextOutputFunctions(GenericWrapperElement primary_input)
 	    throws ElementNotFoundException, XFTInitException, Exception
 	    {
@@ -518,11 +519,11 @@ public class TextFunctionGenerator {
                 sb.append("\n          ");
                 sb.append("\n      END IF;");
             } catch (ElementNotFoundException e) {
-                GenericWrapperUtils.logger.error("",e);
+                log.error("", e);
             } catch (FieldNotFoundException e) {
-                GenericWrapperUtils.logger.error("",e);
+                log.error("", e);
             } catch (XFTInitException e) {
-                GenericWrapperUtils.logger.error("",e);
+                log.error("", e);
             }
         }
         sb.append("\n	   fullText := fullText || '')*END_ITEM*'' || local_count || '')'';");
@@ -849,7 +850,7 @@ public class TextFunctionGenerator {
                 sb.append("\n      END LOOP;");
             } catch (Exception e) {
             	System.out.println(e);
-                GenericWrapperUtils.logger.error("", e);
+                log.error("", e);
                 sb.append("\n-- EXCEPTION IN SQL GENERATION" );
                 sb.append("\n      fullText:= " + GenericWrapperUtils.TXT_EXT_FUNCTION)
                	.append(surrogate_input.getFormattedName());
@@ -1078,7 +1079,7 @@ public class TextFunctionGenerator {
                 sb.append("\n      END LOOP;");
             } catch (Exception e) {
             	System.out.println(e);
-                GenericWrapperUtils.logger.error("", e);
+                log.error("", e);
                 sb.append("\n-- EXCEPTION IN SQL GENERATION" );
                 sb.append("\n      fullText:= " + GenericWrapperUtils.TXT_EXT_FUNCTION)
                	.append(surrogate_input.getFormattedName());

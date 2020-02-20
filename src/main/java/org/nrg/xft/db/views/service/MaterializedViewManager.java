@@ -9,179 +9,106 @@
 
 package org.nrg.xft.db.views.service;
 
-import java.sql.SQLException;
-import java.util.Hashtable;
-import java.util.List;
-
-import org.apache.log4j.Logger;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.nrg.xft.XFTTable;
 import org.nrg.xft.db.MaterializedViewI;
 import org.nrg.xft.db.PoolDBUtils;
 import org.nrg.xft.security.UserI;
 
-import com.google.common.collect.Lists;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
+import static org.nrg.xft.db.PoolDBUtils.SEARCH_SCHEMA_NAME;
+
+@SuppressWarnings("DuplicateThrows")
+@Slf4j
 public class MaterializedViewManager {
-	static org.apache.log4j.Logger logger = Logger.getLogger(MaterializedViewManager.class);
+    public static final String MATERIALIZED_VIEWS_TABLE = "xs_materialized_views";
+    public static final String SCHEMA_AND_TABLE         = SEARCH_SCHEMA_NAME + "." + MATERIALIZED_VIEWS_TABLE;
 
-	public final static String MATERIALIZED_VIEWS="xs_materialized_views";
-	private static MaterializedViewManager manager=null;
-	
-	public static MaterializedViewManager getMaterializedViewManager(){
-		try {
-            if (manager==null){
-        		PoolDBUtils.CreateTempSchema(PoolDBUtils.getDefaultDBName(),null);
-
-                String query ="SELECT relname FROM pg_catalog.pg_class WHERE  relname=LOWER('"+MATERIALIZED_VIEWS+"');";
-                String exists =(String)PoolDBUtils.ReturnStatisticQuery(query, "relname", PoolDBUtils.getDefaultDBName(), null);
-
-                if (exists!=null){
-                	manager=new MaterializedViewManager();
-                }else{
-                    query = "CREATE TABLE " + PoolDBUtils.search_schema_name + "." + MATERIALIZED_VIEWS+
-                    "\n("+
-                    "\n  table_name VARCHAR(255),"+
-                    "\n  created timestamp DEFAULT now(),"+
-                    "\n  last_access timestamp DEFAULT now(),"+
-                    "\n  username VARCHAR(255),"+
-                    "\n  search_id text,"+
-                    "\n  tag VARCHAR(255),"+
-                    "\n  search_sql text,"+
-                    "\n  search_xml text"+
-                    "\n);";
-
-                    PoolDBUtils.ExecuteNonSelectQuery(query, PoolDBUtils.getDefaultDBName(), null);
-
-                	manager=new MaterializedViewManager();
+    public static MaterializedViewManager getMaterializedViewManager() {
+        try {
+            if (manager == null) {
+                PoolDBUtils.CreateTempSchema(PoolDBUtils.getDefaultDBName(), null);
+                if (PoolDBUtils.ReturnStatisticQuery(QUERY_VIEWS_TABLE_EXISTS, "relname", PoolDBUtils.getDefaultDBName(), null) == null) {
+                    PoolDBUtils.ExecuteNonSelectQuery(QUERY_CREATE_VIEWS_TABLE, PoolDBUtils.getDefaultDBName(), null);
                 }
+                manager = new MaterializedViewManager();
             }
         } catch (SQLException e) {
-            logger.error("",e);
+            log.error("An database or SQL error occurred trying to validate or create the materialized view manager table.", e);
         } catch (Exception e) {
-            logger.error("",e);
+            log.error("An unknown error occurred trying to validate or create the materialized view manager table.", e);
         }
-		
-		return manager;
-	}
-	
 
-		
-		public static class DBMaterializedViewManager extends Thread{
-			String dbname=null;
-			String currentView=null;
-				
-			public DBMaterializedViewManager(String currentView,String dbname) {
-				super();
-				this.currentView=currentView;
-				this.dbname=dbname;
-				
-			}
-				
-			public DBMaterializedViewManager(String currentView) {
-				super();
-			}
+        return manager;
+    }
 
-			@Override
-			public void run() {
-				try {
-					String query;
-					if(currentView!=null){
-						query = "UPDATE " +PoolDBUtils.search_schema_name + "." + MATERIALIZED_VIEWS + " SET last_access=NOW() WHERE table_name='" + currentView + "';";
-						PoolDBUtils.ExecuteNonSelectQuery(query, dbname, "system");
-					}
-					
-					query="SELECT * FROM " +PoolDBUtils.search_schema_name + "." + MATERIALIZED_VIEWS + " WHERE last_access + INTERVAL '1 hour'< NOW();";
-					XFTTable table = XFTTable.Execute(query, dbname, "system");
-					
-					for(Hashtable row : table.rowHashs()){
-						try {
-							query = "DROP TABLE " + PoolDBUtils.search_schema_name + "." + row.get("table_name") + ";";
-							PoolDBUtils.ExecuteNonSelectQuery(query, dbname, "system");
-						} catch (Throwable e) {
-				            continue;
-						}
-						try{
-							query = "DELETE FROM " + PoolDBUtils.search_schema_name + "." + MATERIALIZED_VIEWS + " WHERE table_name ='" + row.get("table_name") + "' ;";
-							PoolDBUtils.ExecuteNonSelectQuery(query, dbname, "system");
-						} catch (Throwable e) {
-				            logger.error("",e);
-						}
-					}
-				} catch (Throwable e) {
-		            logger.error("",e);
-				}
-			}
-		}
+    public List<MaterializedViewI> getViewsByUser(final UserI user, final MaterializedViewServiceI service) throws Exception {
+        final List<MaterializedViewI> views = new ArrayList<>();
+        final XFTTable                table = XFTTable.Execute(String.format(QUERY_GET_USER_VIEWS, user.getUsername()), PoolDBUtils.getDefaultDBName(), user.getUsername());
+        if (table.size() > 0) {
+            while (table.hasMoreRows()) {
+                views.add(service.populateView(table.nextRowHash(), user));
+            }
+        }
+        return views;
+    }
 
+    public MaterializedViewI getViewBySearchID(final String searchId, UserI user, MaterializedViewServiceI service) throws Exception {
+        final XFTTable table = XFTTable.Execute(String.format(QUERY_GET_VIEW_BY_ID, searchId), PoolDBUtils.getDefaultDBName(), user.getUsername());
+        return table.size() > 0 ? service.populateView(table.nextRowHash(), user) : null;
+    }
 
+    public MaterializedViewI getViewByTablename(final String tableName, final UserI user, final MaterializedViewServiceI service) throws Exception {
+        final XFTTable table = XFTTable.Execute(String.format(QUERY_GET_VIEW_BY_TABLENAME, tableName), PoolDBUtils.getDefaultDBName(), user.getUsername());
+        return table.size() > 0 ? service.populateView(table.nextRowHash(), user) : null;
+    }
 
-		public List<MaterializedViewI> getViewsByUser(UserI user,MaterializedViewServiceI service) throws Exception {
-			List<MaterializedViewI> views=Lists.newArrayList();
-			XFTTable t = XFTTable.Execute("SELECT * FROM " +PoolDBUtils.search_schema_name + "." + MATERIALIZED_VIEWS + " WHERE username='" + user.getUsername() + "';", PoolDBUtils.getDefaultDBName(), user.getUsername());
-			if(t.size()>0){
-				while(t.hasMoreRows()){
-					views.add(service.populateView(t.nextRowHash(),user));
-				}
-			}
-			return views;
-		}
-		
-		public MaterializedViewI getViewBySearchID(String search_id, UserI user,MaterializedViewServiceI service) throws Exception {
-			XFTTable t = XFTTable.Execute("SELECT * FROM " +PoolDBUtils.search_schema_name + "." + MATERIALIZED_VIEWS + " WHERE search_id='" + search_id+"';", PoolDBUtils.getDefaultDBName(), user.getUsername());
-			if(t.size()>0){
-				return service.populateView(t.nextRowHash(),user);
-			}
-			return null;
-		}
+    public void delete(final MaterializedViewI view) throws SQLException, Exception {
+        delete(view.getTable_name(), view.getUser_name());
+    }
 
-		public MaterializedViewI getViewByTablename(String tablename, UserI user,MaterializedViewServiceI service) throws Exception {
-			XFTTable t = XFTTable.Execute("SELECT * FROM " +PoolDBUtils.search_schema_name + "." + MATERIALIZED_VIEWS + " WHERE table_name='" + tablename+"';", PoolDBUtils.getDefaultDBName(), user.getUsername());
-			if(t.size()>0){
-				return service.populateView(t.nextRowHash(),user);
-			}
-			return null;
-		}
-		
-		public void delete(MaterializedViewI view) throws SQLException, Exception{
-			String delete = "DELETE FROM " +PoolDBUtils.search_schema_name + "." + MaterializedViewManager.MATERIALIZED_VIEWS + " WHERE table_name='" + view.getTable_name() +"';";
+    public void delete(final String viewName, final String username) throws SQLException, Exception {
+        PoolDBUtils.ExecuteNonSelectQuery(String.format(QUERY_DELETE_VIEW, viewName), PoolDBUtils.getDefaultDBName(), username);
+    }
 
-			PoolDBUtils.ExecuteNonSelectQuery(delete, PoolDBUtils.getDefaultDBName(), view.getUser_name());
-		}
-		
-		public void register(MaterializedViewI view) throws SQLException, Exception{
-			String insert = "INSERT INTO " +PoolDBUtils.search_schema_name + "." + MaterializedViewManager.MATERIALIZED_VIEWS + " " +
-					"(table_name,created,last_access,username,search_id,tag,search_sql,search_xml) VALUES " +
-					"('" + view.getTable_name()+"',NOW(),NOW(),'" + view.getUser_name() + "'";
-			if(view.getSearch_id()==null){
-				insert+=",NULL";
-			}else{
-				insert+=",'" + view.getSearch_id() + "'";
-			}
-			if(view.getTag()==null){
-				insert+=",NULL";
-			}else{
-				insert+=",'" + view.getTag() + "'";
-			}
-			if(view.getSearch_sql()==null){
-				insert+=",NULL";
-			}else{
-				insert+=",'" + view.getSearch_sql() + "'";
-			}
-			if(view.getSearch_xml()==null){
-				insert+=",NULL";
-			}else{
-				insert+=",'" + view.getSearch_xml().replaceAll("'", "''") + "'";
-			}
-			insert+=");";
+    public void register(final MaterializedViewI view) throws SQLException, Exception {
+        PoolDBUtils.ExecuteNonSelectQuery(String.format(QUERY_INSERT_VIEW, view.getTable_name(), view.getUser_name(), wrap(view.getSearch_id()), wrap(view.getTag()), wrap(view.getSearch_sql()), wrap(view.getSearch_xml())), PoolDBUtils.getDefaultDBName(), view.getUser_name());
+    }
 
-			PoolDBUtils.ExecuteNonSelectQuery(insert, PoolDBUtils.getDefaultDBName(), view.getUser_name());
-		}
-		
-		public static void Register(MaterializedViewI view) throws SQLException, Exception{
-			getMaterializedViewManager().register(view);
-		}
-		
-		public static void Delete(MaterializedViewI view) throws SQLException, Exception{
-			getMaterializedViewManager().delete(view);
-		}
+    public static void Register(final MaterializedViewI view) throws SQLException, Exception {
+        getMaterializedViewManager().register(view);
+    }
+
+    public static void Delete(final MaterializedViewI view) throws SQLException, Exception {
+        getMaterializedViewManager().delete(view);
+    }
+
+    private String wrap(final String value) {
+        if (StringUtils.isBlank(value)) {
+            return "NULL";
+        }
+        return "'" + StringUtils.replaceChars(value, "'", "''") + "'";
+    }
+
+    private static final String QUERY_GET_USER_VIEWS        = "SELECT * FROM " + SCHEMA_AND_TABLE + " WHERE username='%s'";
+    private static final String QUERY_DELETE_VIEW           = "DELETE FROM " + SCHEMA_AND_TABLE + " WHERE table_name ='%s'";
+    private static final String QUERY_VIEWS_TABLE_EXISTS    = "SELECT relname FROM pg_catalog.pg_class WHERE relname = LOWER('" + MATERIALIZED_VIEWS_TABLE + "')";
+    private static final String QUERY_CREATE_VIEWS_TABLE    = "CREATE TABLE " + SCHEMA_AND_TABLE + " (" +
+                                                              "    table_name VARCHAR(255)," +
+                                                              "    created timestamp DEFAULT now()," +
+                                                              "    last_access timestamp DEFAULT now()," +
+                                                              "    username VARCHAR(255)," +
+                                                              "    search_id text," +
+                                                              "    tag VARCHAR(255)," +
+                                                              "    search_sql text," +
+                                                              "    search_xml text)";
+    private static final String QUERY_GET_VIEW_BY_ID        = "SELECT * FROM " + SCHEMA_AND_TABLE + " WHERE search_id = '%s'";
+    private static final String QUERY_GET_VIEW_BY_TABLENAME = "SELECT * FROM " + SCHEMA_AND_TABLE + " WHERE table_name = '%s'";
+    private static final String QUERY_INSERT_VIEW           = "INSERT INTO " + SCHEMA_AND_TABLE + " (table_name,created,last_access,username,search_id,tag,search_sql,search_xml) VALUES ('%s', NOW(), NOW(), '%s', '%s', '%s', '%s', '%s')";
+
+    private static MaterializedViewManager manager = null;
 }
