@@ -9,51 +9,90 @@
 
 package org.nrg.xft.utils;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import javax.annotation.Nullable;
 import org.nrg.xdat.XDAT;
 import org.nrg.xft.XFTTool;
 import org.nrg.xft.exception.InvalidValueException;
 import org.nrg.xft.exception.XFTInitException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.ResourceUtils;
 
+import javax.annotation.Nullable;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.file.*;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 @SuppressWarnings({"RedundantThrows", "DuplicateThrows"})
-public  class FileUtils
-{
-    private static final Logger logger = LoggerFactory.getLogger(FileUtils.class);
+@Slf4j
+public  class FileUtils {
+    private static final String     TSDIR_SECONDS_FORMAT         = "yyyyMMdd_HHmmss";
+    private static final DateFormat TSDIR_SECONDS_FORMATTER      = new SimpleDateFormat(TSDIR_SECONDS_FORMAT);
+    private static final String     TSDIR_MILLISECONDS_FORMAT    = "yyyyMMdd_HHmmssSSS";
+    private static final DateFormat TSDIR_MILLISECONDS_FORMATTER = new SimpleDateFormat(TSDIR_MILLISECONDS_FORMAT);
 
     public static final int LARGE_DOWNLOAD = 1000 * 1024;
     public static final int SMALL_DOWNLOAD = 8 * 1024;
 
-    public static String ReadFromFile(String path) throws IOException {
+    /**
+     * Reads the contents of the specified file.
+     *
+     * @param path The path to the file to read
+     *
+     * @return The contents of the file
+     *
+     * @throws IOException When an error occurs reading the file.
+     *
+     * @deprecated Use methods from Apache Commons IO like <b>IOUtils.read()</b>, <b>IOUtils.readLines()</b>, or similar.
+     */
+    @Deprecated
+    @SuppressWarnings("unused")
+    public static String ReadFromFile(final String path) throws IOException {
         return ReadFromFile(new File(path));
     }
 
-    public static String ReadFromFile(File file) throws IOException {
+    /**
+     * Reads the contents of the specified file.
+     *
+     * @param file The file to read
+     *
+     * @return The contents of the file
+     *
+     * @throws IOException When an error occurs reading the file.
+     *
+     * @deprecated Use methods from Apache Commons IO like <b>IOUtils.read()</b>, <b>IOUtils.readLines()</b>, or similar.
+     */
+    @Deprecated
+    public static String ReadFromFile(final File file) throws IOException {
         try (final FileInputStream stream = new FileInputStream(file)) {
-            FileChannel      channel = stream.getChannel();
-            MappedByteBuffer buffer  = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+            final FileChannel      channel = stream.getChannel();
+            final MappedByteBuffer buffer  = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
             return Charset.defaultCharset().decode(buffer).toString();
         }
     }
 
+    /**
+     * Writes the content to the specified file.
+     *
+     * @param content  The content to be written
+     * @param filePath The path to the file to be written
+     *
+     * @deprecated Use methods from Apache Commons IO like <b>IOUtils.write()</b>, <b>IOUtils.writeLines()</b>, or similar.
+     */
+    @Deprecated
 	public static void OutputToFile(String content, String filePath)
 	{
         File             _outFile;
@@ -72,7 +111,7 @@ public  class FileUtils
         }  // end try
 		catch ( IOException except )
 		{
-            logger.error("FileUtils::OutputToFile", except);
+            log.error("FileUtils::OutputToFile", except);
             return;
         }  // end catch
         // Instantiate and chain the PrintWriter
@@ -89,9 +128,20 @@ public  class FileUtils
 		}
 		catch ( IOException except )
 		{
-            logger.error("FileUtils::OutputToFile", except);
+            log.error("FileUtils::OutputToFile", except);
         }
     }
+
+    /**
+     * Writes the content to the specified file, overwriting the existing content if <b>append</b> is <b>false</b> and
+     * appending to the existing content if <b>append</b> is <b>true</b>.
+     *
+     * @param content  The content to be written
+     * @param filePath The path to the file to be written
+     *
+     * @deprecated Use methods from Apache Commons IO like <b>IOUtils.write()</b>, <b>IOUtils.writeLines()</b>, or similar.
+     */
+    @Deprecated
 	public static void OutputToFile(String content, String filePath,boolean append)
 	{
         File             _outFile;
@@ -106,7 +156,7 @@ public  class FileUtils
         }  // end try
 		catch ( IOException except )
 		{
-            logger.error("FileUtils::OutputToFile", except);
+            log.error("FileUtils::OutputToFile", except);
             return;
         }  // end catch
         // Instantiate and chain the PrintWriter
@@ -123,10 +173,32 @@ public  class FileUtils
 		}
 		catch ( IOException except )
 		{
-            logger.error("FileUtils::OutputToFile", except);
+            log.error("FileUtils::OutputToFile", except);
         }
     }
 
+    public static final FileFilter isDirectory = File::isDirectory;
+
+    /**
+     * Creates a formatted timestamp for the current time using the {@link #TSDIR_MILLISECONDS_FORMAT} specification.
+     *
+     * @return The formatted timestamp
+     */
+    public static String getMsTimestamp() {
+        return getMsTimestamp(new Date());
+    }
+
+    /**
+     * Creates a formatted timestamp for the specified date/time using the {@link #TSDIR_MILLISECONDS_FORMAT}
+     * specification.
+     *
+     * @param date The date to be formatted.
+     *
+     * @return The formatted timestamp
+     */
+    public static String getMsTimestamp(final Date date) {
+        return TSDIR_MILLISECONDS_FORMATTER.format(date);
+    }
 
     @SuppressWarnings("deprecation")
     public static String GetContents(File f)
@@ -145,7 +217,7 @@ public  class FileUtils
 
             return sb.toString();
         } catch (Exception e) {
-            logger.error("", e);
+            log.error("", e);
             return "";
         }
     }
@@ -167,7 +239,7 @@ public  class FileUtils
 		    return false;
         }
         final String[] children = folder.list();
-        return children != null && Iterables.any(Arrays.asList(children), Predicates.containsPattern(folderName));
+        return children != null && Arrays.stream(children).anyMatch(Pattern.compile(folderName).asPredicate());
     }
 
 	public static Properties GetPropertiesFromFile(File file) throws IOException
@@ -193,7 +265,7 @@ public  class FileUtils
 
             out.close();
         } catch (Exception e) {
-            logger.error("", e);
+            log.error("", e);
         }
     }
 
@@ -211,7 +283,7 @@ public  class FileUtils
 
             out.close();
         } catch (Exception e) {
-            logger.error("", e);
+            log.error("", e);
         }
     }
 
@@ -231,7 +303,7 @@ public  class FileUtils
 
             return sb;
         } catch (Exception e) {
-            logger.error("", e);
+            log.error("", e);
             return null;
         }
     }
@@ -409,30 +481,18 @@ public  class FileUtils
 
     public static int CountFiles(File src, boolean stopAt1) {
         if (src.isDirectory()) {
-            File[] files = src.listFiles();
-            int    count = 0;
-
-            if (files == null) {
-                return count;
+            if (stopAt1) {
+                return HasFiles(src) ? 1 : 0;
             }
-
-            for (final File file : files) {
-                if (file.isDirectory()) {
-                    int sub_count = CountFiles(file, stopAt1);
-                    if (sub_count > 0 && stopAt1) {
-                        return 1;
-                    } else {
-                        count += sub_count;
-                    }
-                } else {
-                    if (stopAt1) {
-                        return 1;
-                    } else {
-                        count++;
-                    }
-                }
+            int count = 0;
+            try (Stream<Path> stream = Files.walk(src.toPath())) {
+                count += stream
+                        .filter(file -> !Files.isDirectory(file))
+                        .count();
+            } catch (IOException e) {
+                // Don't throw checked exceptions to match previous signature
+                throw new RuntimeException(e);
             }
-
             return count;
         } else {
             return 1;
@@ -441,21 +501,12 @@ public  class FileUtils
 
     public static boolean HasFiles(File src) {
         if (src.isDirectory()) {
-            File[] files = src.listFiles();
-
-            if (files == null) {
-                return false;
+            try (Stream<Path> stream = Files.walk(src.toPath())) {
+                return stream.anyMatch(file -> !Files.isDirectory(file));
+            } catch (IOException e) {
+                // Don't throw checked exceptions to match previous signature
+                throw new RuntimeException(e);
             }
-
-            for (final File file : files) {
-                if (file.isDirectory()) {
-                    if (HasFiles(file)) {
-                        return true;
-                    }
-                } else return true;
-            }
-
-            return false;
         } else {
             return true;
         }
@@ -502,29 +553,19 @@ public  class FileUtils
      *
      * @return Returns the first file that matches in the specified files/directories
      */
-    public static File FindFirstMatch(final File source, final File destination, final FileFilter filter) {
-        if (source == null) {
-            return null;
+    public static File FindFirstMatch(final File source, final File destination, final FileFilter filter){
+        final Path sourcePath = source.toPath();
+        final Path destPath = destination.toPath();
+        try (Stream<Path> entries = Files.walk(sourcePath)) {
+            Path path = entries.filter(file -> !Files.isDirectory(file) &&
+                    (filter == null || filter.accept(file.toFile())) &&
+                    Files.exists(destPath.resolve(sourcePath.relativize(file))))
+                    .findFirst().orElse(null);
+            return path != null ? path.toFile() : null;
+        } catch (IOException e) {
+            // Don't throw checked exceptions to match previous signature
+            throw new RuntimeException(e);
         }
-        final File[] files = source.listFiles();
-        if (files == null) {
-            return null;
-        }
-        for (final File file : files) {
-            final File target = (new File(destination, file.getName()));
-            if (file.isDirectory()) {
-                final File match = FindFirstMatch(file, target, filter);
-                if (match != null) {
-                    return match;
-                }
-            } else if (filter == null || filter.accept(file)) {
-                if (target.exists()) {
-                    return target;
-                }
-            }
-        }
-
-        return null;
     }
 
     public static void CopyDir(File src, File dest, boolean overwrite) throws FileNotFoundException, IOException {
@@ -553,8 +594,7 @@ public  class FileUtils
             for (final File file : files) {
                 final File dChild = new File(dest, file.getName());
                 if (filter == null || filter.accept(dChild)) {
-                if (file.isDirectory())
-                {
+                    if (file.isDirectory()) {
                         CopyDirImpl(file, dChild, overwrite, filter);
                     } else {
                         CopyFile(file, dChild, overwrite);
@@ -598,14 +638,14 @@ public  class FileUtils
             try {
                 moved = src.renameTo(dest);
             } catch (Throwable e) {
-                logger.error("", e);
+                log.error("", e);
             }
         }
 
         if (!moved) {
             if (!dest.exists()) {
                 if (!dest.mkdirs() && !dest.exists()) {
-                    logger.error("Failed to create the destination folder {} when trying to move \"{}\" to \"{}\". This isn't an exception, so I don't know what went wrong, but probably more stuff will fail later.", dest.getAbsolutePath(), src.getAbsolutePath(), dest.getAbsolutePath());
+                    log.error("Failed to create the destination folder {} when trying to move \"{}\" to \"{}\". This isn't an exception, so I don't know what went wrong, but probably more stuff will fail later.", dest.getAbsolutePath(), src.getAbsolutePath(), dest.getAbsolutePath());
                 }
             }
             if (src != null && src.exists()) {
@@ -620,7 +660,7 @@ public  class FileUtils
                                 try {
                                     MoveFile(file, dChild, overwrite, handler);
                                 } catch (FileNotFoundException e) {
-                                    logger.warn("", e);
+                                    log.warn("", e);
                                 }
                             }
                         }
@@ -646,12 +686,12 @@ public  class FileUtils
             try {
                 final File destDir = dest.getParentFile();
                 if (!destDir.mkdirs() && !destDir.exists()) {
-                    logger.error("Failed to create the destination folder {} when trying to move \"{}\" to \"{}\". This isn't an exception, so I don't know what went wrong, but probably more stuff will fail later.", destDir.getAbsolutePath(), src.getAbsolutePath(), dest.getAbsolutePath());
+                    log.error("Failed to create the destination folder {} when trying to move \"{}\" to \"{}\". This isn't an exception, so I don't know what went wrong, but probably more stuff will fail later.", destDir.getAbsolutePath(), src.getAbsolutePath(), dest.getAbsolutePath());
                 } else {
                     moved = src.renameTo(dest);
                 }
             } catch (Throwable e) {
-                logger.error("", e);
+                log.error("", e);
             }
         } else if (!overwrite) {
             return;
@@ -847,30 +887,27 @@ public  class FileUtils
     }
 
     public static void DeleteFile(final File file) {
-        logger.debug("Got request to delete file {}", file);
+        log.debug("Got request to delete file {}", file);
         if (!org.apache.commons.io.FileUtils.deleteQuietly(file)) {
             logFailedToDelete(file);
         }
     }
 
-    public static String renameWTimestamp(final String n, Date d) {
-        return n + "_" + getTimestamp(d);
+    public static String renameWTimestamp(final String name) {
+        return renameWTimestamp(name, new Date());
     }
 
-    public static String getTimestamp(Date d) {
-        final SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmss");
-        return sdf.format(d);
+    public static String renameWTimestamp(final String name, final Date date) {
+        return name + "_" + getMsTimestamp(date);
+    }
+
+    public static String getTimestamp(final Date date) {
+        return TSDIR_SECONDS_FORMATTER.format(date);
     }
 
     public static String BuildRootHistoryPath() {
-        String cache = XDAT.getSiteConfigPreferences().getCachePath();
-
-		if(StringUtils.isBlank(cache))
-		{
-            return "/.history/";
-        } else {
-            return AppendSlash(cache) + ".history/";
-        }
+        final String cache = XDAT.getSiteConfigPreferences().getCachePath();
+		return (StringUtils.isNotBlank(cache) ? StringUtils.appendIfMissing(cache, File.separator) : "/") + ".history/";
     }
 
     public static File BuildHistoryParentFile(File f) {
@@ -881,14 +918,13 @@ public  class FileUtils
         return new File(BuildHistoryParentFile(f), (StringUtils.isBlank(timestamp) ? "" : AppendSlash(timestamp)) + f.getName());
     }
 
-    public static File MoveToHistory(final File f, String timestamp) throws FileNotFoundException, IOException {
-        final File dest = BuildHistoryFile(f, timestamp);
-
-		if(f.isDirectory())
-            FileUtils.MoveDir(f, dest, true);
-		else
-            FileUtils.MoveFile(f, dest, true);
-
+    public static File MoveToHistory(final File file, final String timestamp) throws FileNotFoundException, IOException {
+        final File dest = BuildHistoryFile(file, timestamp);
+		if(file.isDirectory()) {
+            FileUtils.MoveDir(file, dest, true);
+        } else {
+            FileUtils.MoveFile(file, dest, true);
+        }
         return dest;
     }
 
@@ -903,31 +939,24 @@ public  class FileUtils
         return dest;
     }
 
-    public static void MoveToCache(File f) throws FileNotFoundException, IOException {
-        if (XDAT.getBoolSiteConfigurationProperty("files.allow_move_to_cache", true)) {
-            String cache = XDAT.getSiteConfigPreferences().getCachePath();
-			if(cache.equals(""))
-			{
-                cache = "/cache/";
-            }
-            cache = AppendSlash(cache) + "DELETED";
+    public static void MoveToCache(final File file) throws FileNotFoundException, IOException {
+        MoveToCache(file, null);
+    }
 
-            cache = AppendSlash(cache) + getTimestamp(Calendar.getInstance().getTime());
-
-            String path = f.getAbsolutePath();
-
-            String dest = AppendSlash(cache) + RemoveAbsoluteCharacters(path);
-
-			if(f.isDirectory())
-                FileUtils.MoveDir(f, new File(dest), true);
-			else
-                FileUtils.MoveFile(f, new File(dest), true);
-        } else {
-            if (f.isDirectory()) {
-                org.apache.commons.io.FileUtils.deleteDirectory(f);
+    public static void MoveToCache(final File file, final String timestamp) throws FileNotFoundException, IOException {
+        if (XDAT.getBoolSiteConfigurationProperty("backupDeletedToCache", false)) {
+            final Path   cacheRoot   = Paths.get(StringUtils.defaultIfBlank(XDAT.getSiteConfigPreferences().getCachePath(), "/cache"), "DELETED");
+            final String subpath     = StringUtils.stripStart(file.getAbsolutePath(), "/");
+            final Path   destination = (StringUtils.isNotBlank(timestamp) ? cacheRoot.resolve(timestamp.replace("_", "/")) : getUniqueCacheFolder(cacheRoot, getMsTimestamp())).resolve(subpath);
+            if (file.isDirectory()) {
+                FileUtils.MoveDir(file, destination.toFile(), true);
             } else {
-                f.delete();
+                FileUtils.MoveFile(file, destination.toFile(), true);
             }
+        } else if (file.isDirectory()) {
+            org.apache.commons.io.FileUtils.deleteDirectory(file);
+        } else {
+            file.delete();
         }
     }
 
@@ -935,20 +964,18 @@ public  class FileUtils
         if (child.getAbsolutePath().startsWith(parent.getAbsolutePath())) {
             return child.getAbsolutePath().substring(parent.getAbsolutePath().length() + 1);
         }
-        String path = child.getName();
 
+        final StringBuilder path = new StringBuilder(child.getName());
         File temp = child;
-
         while (temp.getParentFile() != null) {
             if (temp.getParentFile().getName().equals(parent.getName())) {
                 break;
             } else {
                 temp = temp.getParentFile();
-                path = temp.getName() + "/" + path;
+                path.insert(0, temp.getName() + "/");
             }
         }
-
-        return path;
+        return path.toString();
     }
 
     public static void ValidateUriAgainstRoot(String s1, String root, String message) throws InvalidValueException {
@@ -956,7 +983,7 @@ public  class FileUtils
         try {
             rootU = new URI(root);
         } catch (URISyntaxException e) {
-            logger.error("The archive path is not a valid URI: " + root, e);
+            log.error("The archive path is not a valid URI: " + root, e);
             return;
         }
 
@@ -964,16 +991,16 @@ public  class FileUtils
             s1 = s1.replace('\\', '/');
         }
 
-        logger.debug("Validating URI \"{}\" against root URI \"{}\"", s1, rootU);
+        log.debug("Validating URI \"{}\" against root URI \"{}\"", s1, rootU);
         ValidateUriAgainstRoot(s1, rootU, message);
 
         if (FileUtils.IsAbsolutePath(s1)) {
             try {
                 new URI(s1).normalize();
             } catch (URISyntaxException e) {
-                logger.error("Expected Path: " + s1);
-                logger.error("Current Path: " + root);
-                logger.error("", e);
+                log.error("Expected Path: " + s1);
+                log.error("Current Path: " + root);
+                log.error("", e);
                 throw new InvalidValueException("Invalid URI: " + s1 + "\nCheck for occurrences of non-standard characters.");
             }
         }
@@ -985,14 +1012,15 @@ public  class FileUtils
             try {
                 u = new URI(s1).normalize();
             } catch (URISyntaxException e) {
-                logger.error("", e);
+                log.error("", e);
                 throw new InvalidValueException("Invalid URI: " + s1 + "\nCheck for occurrences of non-standard characters.");
             }
 
             final URI rootU = root.normalize();
-            logger.debug("Validating URI \"{}\" against root URI \"{}\"", u, rootU);
-            if (rootU.relativize(u).equals(u)) {
-                logger.error("The relative path from root is \"{}\", apparently that's not good enough", rootU.relativize(u));
+            log.debug("Validating URI \"{}\" against root URI \"{}\"", u, rootU);
+            final URI relativized = rootU.relativize(u);
+            if (relativized.equals(u)) {
+                log.error("Testing URI \"{}\" against normalized root URI \"{}\" gives relative path from root is \"{}\", apparently that's not good enough", u, rootU, relativized);
                 throw new InvalidValueException(message);
             }
         }
@@ -1009,7 +1037,7 @@ public  class FileUtils
         }
 
     private static void logFailedToDelete(final File f) {
-        if (logger.isDebugEnabled()) {
+        if (log.isDebugEnabled()) {
             final StringBuilder       buffer = new StringBuilder("Failed to delete: ").append(f.getAbsolutePath()).append("\n");
             final StackTraceElement[] layers = Thread.currentThread().getStackTrace();
             for (final StackTraceElement layer : layers) {
@@ -1019,10 +1047,24 @@ public  class FileUtils
                     buffer.append("   at ").append(layer).append("\n");
                 }
             }
-            logger.warn(buffer.toString());
+            log.warn(buffer.toString());
         } else {
-            logger.warn("Failed to delete: {}", f.getAbsolutePath());
+            log.warn("Failed to delete: {}", f.getAbsolutePath());
+        }
+    }
+
+    private static Path getUniqueCacheFolder(final Path root, final String timestamp) {
+        final String converted = timestamp.replace("_", "/");
+        final Path defaultFolder = root.resolve(converted);
+        if (!defaultFolder.toFile().exists()) {
+            return defaultFolder;
+        }
+        final AtomicInteger index = new AtomicInteger(1);
+        while (true) {
+            final Path indexed = root.resolve(converted + "-" + index.getAndIncrement());
+            if (!indexed.toFile().exists()) {
+                return indexed;
+            }
         }
     }
 }
-

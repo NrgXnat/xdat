@@ -623,6 +623,32 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "false", aliases = "files.allow_move_to_cache")
+    public boolean getBackupDeletedToCache() {
+        return getBooleanValue("backupDeletedToCache");
+    }
+
+    public void setBackupDeletedToCache(final boolean backupDeletedToCache) {
+        try {
+            setBooleanValue(backupDeletedToCache, "backupDeletedToCache");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'backupDeletedToCache': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "false", aliases = "audit.maintain-file-history")
+    public boolean getMaintainFileHistory() {
+        return getBooleanValue("maintainFileHistory");
+    }
+
+    public void setMaintainFileHistory(final boolean backupDeletedToCache) {
+        try {
+            setBooleanValue(backupDeletedToCache, "maintainFileHistory");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'maintainFileHistory': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "true")
     public boolean getScanTypeMapping() {
         return getBooleanValue("scanTypeMapping");
@@ -1573,6 +1599,32 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
             setBooleanValue(requireEventName, "requireEventName");
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'requireEventName': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "false")
+    public boolean getUiHideCompressedUploaderUploadOption() {
+        return getBooleanValue("uiHideCompressedUploaderUploadOption");
+    }
+
+    public void setUiHideCompressedUploaderUploadOption(final boolean uiHideCompressedUploaderUploadOption) {
+        try {
+            setBooleanValue(uiHideCompressedUploaderUploadOption, "uiHideCompressedUploaderUploadOption");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiHideCompressedUploaderUploadOption': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "true")
+    public boolean getUiHideXnatUploadAssistantDownload() {
+        return getBooleanValue("uiHideXnatUploadAssistantDownload");
+    }
+
+    public void setUiHideXnatUploadAssistantDownload(final boolean uiHideXnatUploadAssistantDownload) {
+        try {
+            setBooleanValue(uiHideXnatUploadAssistantDownload, "uiHideXnatUploadAssistantDownload");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiHideXnatUploadAssistantDownload': something is very wrong here.", e);
         }
     }
     

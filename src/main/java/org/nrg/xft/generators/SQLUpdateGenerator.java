@@ -7,9 +7,10 @@
  * Released under the Simplified BSD.
  */
 
-
 package org.nrg.xft.generators;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xft.TypeConverter.PGSQLMapping;
@@ -26,15 +27,25 @@ import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperField;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperUtils;
 import org.nrg.xft.schema.XFTManager;
 import org.nrg.xft.utils.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+@Slf4j
 public class SQLUpdateGenerator {
-    private static final Logger logger = LoggerFactory.getLogger(SQLUpdateGenerator.class);
+    /**
+     * Returns the SQL for functions that can be used to find and drop views associated with the specified user.
+     *
+     * @param username The name of the database user with which views are associated.
+     *
+     * @return A list of strings containing the SQL statements to be executed.
+     */
+    public static List<String> getViewDropSql(final String username) {
+        return Arrays.asList(QUERY_FIND_USER_VIEWS, QUERY_DROP_USER_VIEWS, String.format(QUERY_EXEC_DROP_USER_VIEWS, username));
+    }
 
     /**
      * outputs all of the SQL needed to create the database, including CREATE,
@@ -45,7 +56,7 @@ public class SQLUpdateGenerator {
      */
     public static void generateDoc(String location) throws Exception {
         try {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder                          sb  = new StringBuilder();
             for (Object o : GetSQLCreate()) {
                 sb.append(o);
             }
@@ -60,9 +71,9 @@ public class SQLUpdateGenerator {
             FileUtils.OutputToFile(sb.toString(), location);
             System.out.println("File Created: " + location);
         } catch (XFTInitException e) {
-            logger.error("There was an error initializing XFT", e);
+            log.error("There was an error initializing XFT", e);
         } catch (ElementNotFoundException e) {
-            logger.error("Couldn't find the requested element " + e.ELEMENT, e);
+            log.error("Couldn't find the requested element " + e.ELEMENT, e);
         }
     }
 
@@ -87,9 +98,9 @@ public class SQLUpdateGenerator {
                 tables.add(t.getCellValue("relname").toString().toLowerCase());
             }
         } catch (SQLException ex) {
-            logger.error("An SQL error occurred [" + ex.getErrorCode() + "] " + ex.getSQLState(), ex);
+            log.error("An SQL error occurred [" + ex.getErrorCode() + "] " + ex.getSQLState(), ex);
         } catch (Exception ex) {
-            logger.error("An unknown error occurred.", ex);
+            log.error("An unknown error occurred.", ex);
         }
 
         //ITERATE THROUGH ELEMENTS
@@ -102,7 +113,7 @@ public class SQLUpdateGenerator {
                     if (updSts[0].size() > 0) {
                         for (Object updSt : updSts[0]) {
                             creates.add("\n\n" + updSt);
-                        }
+                    }
                     }
                     if (updSts[1].size() > 0) {
                         optional.addAll(updSts[1]);
@@ -110,15 +121,9 @@ public class SQLUpdateGenerator {
                 } else {
                     //table missing, add it.
                     creates.add("\n\n" + GenericWrapperUtils.GetCreateStatement(element));
-
                     for (Object o1 : GenericWrapperUtils.GetAlterTableStatements(element)) {
                         alters.add("\n\n" + o1);
                     }
-                }
-
-            } else {
-                if (XFT.VERBOSE) {
-                    System.out.print(" ");
                 }
             }
         }
@@ -127,11 +132,11 @@ public class SQLUpdateGenerator {
         for (Object o : XFTReferenceManager.GetInstance().getUniqueMappings()) {
             XFTManyToManyReference map = (XFTManyToManyReference) o;
             if (!tables.contains(map.getMappingTable().toLowerCase())) {
-                logger.debug("Generating the CREATE sql for '" + map.getMappingTable() + "'");
+                log.debug("Generating the CREATE sql for '" + map.getMappingTable() + "'");
                 //delete.add("\n\nDELETE FROM "+ map.getMappingTable() + ";");
                 creates.add("\n\n" + GenericWrapperUtils.GetCreateStatement(map));
 
-                logger.debug("Generating the ALTER sql for '" + map.getMappingTable() + "'");
+                log.debug("Generating the ALTER sql for '" + map.getMappingTable() + "'");
                 //delete.add("\n\nDELETE FROM "+map.getMappingTable()+";");
                 for (Object o1 : GenericWrapperUtils.GetAlterTableStatements(map)) {
                     alters.add("\n\n" + o1);
@@ -146,17 +151,24 @@ public class SQLUpdateGenerator {
         return new List[]{all,optional};
     }
 
+    /**
+     * 2 lists of statements: 0=required, 1=optional (to be commented out).
+     * @return A list of two lists, the first a list of required statements, the second a list of optional statements.
+     */
     public static List<String>[] GetUpdateStatements(GenericWrapperElement e) {
-        List<String> statements = new ArrayList<>();
-        List<String> optional = new ArrayList<>();
+        List<String>        statements       = new ArrayList<>();
+        List<String>        optional         = new ArrayList<>();
+        List<String>        lowerCaseColumns = new ArrayList<>();
+        List<String>        columnTypes      = new ArrayList<>();
+        List<String>        columnsRequired  = new ArrayList<>();
+        final String        elementName      = e.getName();
+        final String        elementSqlName   = e.getSQLName().toLowerCase();
+        final AtomicBoolean requiresViewDrop = new AtomicBoolean();
 
-        List<String> lowerCaseColumns = new ArrayList<>();
-        List<String> columnTypes = new ArrayList<>();
-        List<String> columnRequireds = new ArrayList<>();
         PoolDBUtils con;
         try {
             con = new PoolDBUtils();
-            XFTTable t = con.executeSelectQuery("select LOWER(attname) as col_name,typname, attnotnull from pg_attribute, pg_class,pg_type where attrelid = pg_class.oid AND atttypid=pg_type.oid AND attnum>0 and LOWER(relname) = '" + e.getSQLName().toLowerCase() + "';", e.getDbName(), null);
+            XFTTable t = con.executeSelectQuery("select LOWER(attname) as col_name,typname, attnotnull from pg_attribute, pg_class,pg_type where attrelid = pg_class.oid AND atttypid=pg_type.oid AND attnum>0 and LOWER(relname) = '" + elementSqlName + "';", e.getDbName(), null);
             //iterate the existing columns for this table
             while (t.hasMoreRows()) {
                 t.nextRow();
@@ -180,17 +192,17 @@ public class SQLUpdateGenerator {
                 }
 
                 String notnull = t.getCellValue("attnotnull").toString().toLowerCase();
-                columnRequireds.add(notnull);
+                columnsRequired.add(notnull);
             }
         } catch (SQLException ex) {
-            logger.error("An SQL error occurred [" + ex.getErrorCode() + "] " + ex.getSQLState(), e);
+            log.error("An SQL error occurred [{}]: {}", ex.getErrorCode(), ex.getSQLState(), ex);
         } catch (Exception ex) {
-            logger.error("An unknown error occurred.", e);
+            log.error("An unknown error occurred.", ex);
         }
 
         List<String> matched = new ArrayList<>();
         try {
-            final String prefix = "ALTER TABLE " + e.getSQLName() + " ";
+            final String prefix = "ALTER TABLE " + elementSqlName + " ";
             final TypeConverter converter = new TypeConverter(new PGSQLMapping(e.getWrapped().getSchemaPrefix()));
             for (final Object object : e.getAllFieldsWAddIns(false, true)) {
                 final GenericWrapperField field = (GenericWrapperField) object;
@@ -204,7 +216,7 @@ public class SQLUpdateGenerator {
                                     final boolean             required = localKey != null && localKey.isRequired();
                                     if (!lowerCaseColumns.contains(spec.getLocalCol().toLowerCase())) {
                                         if (XFT.VERBOSE) {
-                                        	logger.error("WARNING: Database column " + e.getSQLName() + "." + spec.getLocalCol() + " is missing. Execute update sql.");
+                                        	log.error("WARNING: Database column " + elementSqlName + "." + spec.getLocalCol() + " is missing. Execute update sql.");
                                         }
                                         if (localKey != null) {
                                             if (localKey.getAutoIncrement().equalsIgnoreCase("true")) {
@@ -212,7 +224,7 @@ public class SQLUpdateGenerator {
                                             } else {
                                                 final StringBuilder statement         = new StringBuilder(prefix).append(" ADD COLUMN ").append(spec.getLocalCol());
                                                 if (!setTypeAndDefaultValue(statement, spec, converter)) {
-                                                    logger.warn("The property {}.{} is required but does not have a default value. This may cause issues when updating the database.", e.getName(), field.getName());
+                                                    log.warn("The property {}.{} is required but does not have a default value. This may cause issues when updating the database.", elementName, field.getName());
                                                 }
                                                 statement.append(";\n");
                                                 statements.add(statement.toString());
@@ -220,12 +232,12 @@ public class SQLUpdateGenerator {
                                         } else {
                                             statements.add(prefix + " ADD COLUMN " + spec.getLocalCol() + (spec.getForeignKey() != null ? " " + spec.getForeignKey().getType(converter) : converter.convert(spec.getSchemaType().getFullLocalType())) + ";");
                                         }
-                                    } else if (!e.getName().endsWith("_history")) {
-                                        String fieldSQLName = spec.getLocalCol();
+                                    } else if (!elementName.endsWith("_history")) {
+                                        String fieldSQLName = spec.getLocalCol().toLowerCase();
                                         matched.add(fieldSQLName);
-                                        int index = lowerCaseColumns.indexOf(fieldSQLName.toLowerCase());
+                                        int index = lowerCaseColumns.indexOf(fieldSQLName);
                                         String t = columnTypes.get(index);
-                                        String req = columnRequireds.get(index);
+                                        String req = columnsRequired.get(index);
                                         String exptType;
                                         if (localKey != null) {
                                             if (localKey.getAutoIncrement().equalsIgnoreCase("true")) {
@@ -250,19 +262,19 @@ public class SQLUpdateGenerator {
 
                                         if (!t.equalsIgnoreCase(exptType)) {
                                             //COLUMN TYPE MIS-MATCH
-                                            logger.error("WARNING: Database column " + e.getSQLName() + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "'). Unable to resolve.");
+                                            log.error("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "'). Unable to resolve.");
                                         }
 
                                         if (!required && req.equals("true")) {
-                                            logger.error("WARNING: Database column " + e.getSQLName() + "." + fieldSQLName + " is no longer required. Execute update sql.");
-                                            statements.add("\n--Database column " + e.getSQLName() + "." + fieldSQLName + " is no longer required.\nALTER COLUMN " + fieldSQLName + " DROP NOT NULL;");
+                                            log.error("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " is no longer required. Execute update sql.");
+                                            statements.add("\n--Database column " + elementSqlName + "." + fieldSQLName + " is no longer required.\nALTER COLUMN " + fieldSQLName + " DROP NOT NULL;");
                                         }
                                     }
 
                                 }
                             }
                         } catch (Exception ex) {
-                            logger.error("An exception occurred trying to process the reference field {}", field.getName(), ex);
+                            log.error("An exception occurred trying to process the reference field {}", field.getName(), ex);
                         }
                     }
                 } else {
@@ -271,7 +283,7 @@ public class SQLUpdateGenerator {
                         final boolean required    = field.isRequired();
                         if (!lowerCaseColumns.contains(fieldSQLName)) {
                             if (XFT.VERBOSE) {
-                                logger.error("WARNING: Database column " + e.getSQLName() + "." + fieldSQLName + " is missing. Execute update sql.");
+                                log.error("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " is missing. Execute update sql.");
                             }
                             final StringBuilder statement = new StringBuilder(prefix);
                             statement.append(" ADD COLUMN ").append(fieldSQLName);
@@ -282,16 +294,16 @@ public class SQLUpdateGenerator {
                                 }
                             } else {
                                 if (!setTypeAndDefaultValue(statement, field, converter)) {
-                                    logger.warn("The property {}.{} is required but does not have a default value. This may cause issues when updating the database.", e.getName(), field.getName());
+                                    log.warn("The property {}.{} is required but does not have a default value. This may cause issues when updating the database.", elementName, field.getName());
                                 }
                                 statement.append(";\n");
                                 statements.add(statement.toString());
                             }
-                        } else if (!e.getName().endsWith("_history")) {
+                        } else if (!elementName.endsWith("_history")) {
                             matched.add(fieldSQLName);
                             int index = lowerCaseColumns.indexOf(fieldSQLName);
                             String t = columnTypes.get(index);
-                            String req = columnRequireds.get(index);
+                            String req = columnsRequired.get(index);
 
                             String exptType;
                             if (!field.getType(converter).equals("")) {
@@ -305,30 +317,23 @@ public class SQLUpdateGenerator {
 
                             if (!t.equalsIgnoreCase(exptType)) {
                                 //COLUMN TYPE MIS-MATCH
-
                                 try {
-                                    String query = "SELECT count(" + fieldSQLName + ") AS value_count FROM " + e.getSQLName();
-                                    if (t.equalsIgnoreCase("text") || t.equalsIgnoreCase("varchar") || t.equalsIgnoreCase("bytea"))
-                                        query += " WHERE " + fieldSQLName + " IS NOT NULL AND " + fieldSQLName + " !=''";
-                                    Number values = (Number) org.nrg.xft.db.PoolDBUtils.ReturnStatisticQuery(query + ";", "value_count", e.getDbName(), "system");
-
-                                    query = "SELECT relname, attname, COUNT(conname) AS value_count FROM ("
-                                            + " SELECT pg_constraint.oid, conname, contype, tb.relname, pg_attribute.attname FROM pg_constraint, pg_class tb, pg_attribute WHERE conrelid = tb.oid AND ((conrelid=pg_attribute.attrelid AND pg_attribute.attnum=ANY(conkey)))"
-                                            + " UNION"
-                                            + " SELECT pg_constraint.oid, conname, contype, fk.relname, pg_attribute.attname FROM pg_constraint, pg_class fk, pg_attribute WHERE confrelid = fk.oid AND ((confrelid=pg_attribute.attrelid AND pg_attribute.attnum=ANY(confkey)))"
-                                            + " ) SEARCH WHERE relname='" + e.getSQLName().toLowerCase() + "' AND attname='" + fieldSQLName + "' GROUP BY relname, attname";
-                                    Number constraints = (Number) org.nrg.xft.db.PoolDBUtils.ReturnStatisticQuery(query + ";", "value_count", e.getDbName(), "system");
-                                    optional.add("\n--Database column " + e.getSQLName() + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "').\n");
-
-                                    if (values == null) {
-                                        values = 0;
+                                    final int dependencies = ((Number) ObjectUtils.defaultIfNull(PoolDBUtils.ReturnStatisticQuery(String.format(QUERY_FIND_TABLE_DEPENDENCIES, elementSqlName), "dependent_count", e.getDbName(), "system"), 0)).intValue();
+                                    if (dependencies > 0) {
+                                        requiresViewDrop.set(true);
                                     }
-                                    if (constraints == null) {
-                                        constraints = 0;
-                                    }
+                                    final boolean isTextColumn = StringUtils.equalsAnyIgnoreCase(t, "text", "varchar", "bytea");
+                                    final String  query        = String.format(isTextColumn ? QUERY_FIND_TABLE_TEXT_VALUE_COUNT : QUERY_FIND_TABLE_NONTEXT_VALUE_COUNT, elementSqlName, fieldSQLName);
+                                    final Number  values       = (Number) ObjectUtils.defaultIfNull(PoolDBUtils.ReturnStatisticQuery(query, "value_count", e.getDbName(), "system"), 0);
+                                    final Number  constraints  = (Number) ObjectUtils.defaultIfNull(PoolDBUtils.ReturnStatisticQuery(String.format(QUERY_FIND_TABLE_CONSTRAINTS, elementSqlName, fieldSQLName), "value_count", e.getDbName(), "system"), 0);
+
+                                    optional.add("\n--Database column " + elementSqlName + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "').\n");
+
+                                    log.info("Tested the column {}.{} and found {} values, {} constraints, and {} dependencies", elementSqlName, fieldSQLName, values, constraints, dependencies);
                                     if (values.intValue() > 0 || constraints.intValue() > 0) {
-                                        if (XFT.VERBOSE)
-                                            System.out.println("WARNING: Database column " + e.getSQLName() + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "'). Uncomment appropriate lines in update sql to resolve.");
+                                        if (XFT.VERBOSE) {
+                                            System.out.println("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "'). Uncomment appropriate lines in update sql to resolve.");
+                                        }
                                         optional.add( "----Unable to resolve type mis-match for the following reason(s).\n");
                                         optional.add( "----Please review these factors before uncommenting this code.\n");
                                         if (values.intValue() > 0)
@@ -336,75 +341,70 @@ public class SQLUpdateGenerator {
                                         if (constraints.intValue() > 0)
                                         	optional.add( "----" + constraints.intValue() + " column constraint(s).\n");
 
-                                        	optional.add( "----Fix " + e.getSQLName() + "_history table.\n");
-                                        	optional.add( "--ALTER TABLE " + e.getSQLName() + "_history ADD COLUMN " + fieldSQLName + "_cp " + t + ";\n");
-                                        	optional.add( "--UPDATE " + e.getSQLName() + "_history SET " + fieldSQLName + "_cp=" + fieldSQLName + ";\n");
-                                        	optional.add( "--ALTER TABLE " + e.getSQLName() + "_history DROP COLUMN " + fieldSQLName + ";\n");
-                                        	optional.add( "--ALTER TABLE " + e.getSQLName() + "_history ADD COLUMN " + fieldSQLName + " " + exptType + ";\n");
+                                        	optional.add("----Fix " + elementSqlName + "_history table.\n");
+                                        	optional.add("--ALTER TABLE " + elementSqlName + "_history ADD COLUMN " + fieldSQLName + "_cp " + t + ";\n");
+                                        	optional.add("--UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "_cp=" + fieldSQLName + ";\n");
+                                        	optional.add("--ALTER TABLE " + elementSqlName + "_history DROP COLUMN " + fieldSQLName + ";\n");
+                                        	optional.add("--ALTER TABLE " + elementSqlName + "_history ADD COLUMN " + fieldSQLName + " " + exptType + ";\n");
                                         if (t.equalsIgnoreCase("BYTEA")) {
-                                        	optional.add( "--UPDATE " + e.getSQLName() + "_history SET " + fieldSQLName + "=ENCODE(" + fieldSQLName + "_cp,'escape');\n");
+                                        	optional.add("--UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "=ENCODE(" + fieldSQLName + "_cp,'escape');\n");
                                         } else {
-                                        	optional.add( "--UPDATE " + e.getSQLName() + "_history SET " + fieldSQLName + "=CAST(" + fieldSQLName + "_cp AS " + exptType + ");\n");
+                                        	optional.add("--UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "=CAST(" + fieldSQLName + "_cp AS " + exptType + ");\n");
                                         }
 
-                                        optional.add("--CREATE OR REPLACE FUNCTION after_update_" + e.getSQLName() + "()"+
-                                        	"  RETURNS TRIGGER AS"+
-                                        	" '"+
-                                        	"    begin"+
-                                        	"        RETURN NULL;"+
-                                        	"     end;"+
-                                        	" '"+
-                                        	"   LANGUAGE 'plpgsql' VOLATILE;\n");
+                                        optional.add("--CREATE OR REPLACE FUNCTION after_update_" + elementSqlName + "()" +
+                                                     "  RETURNS TRIGGER AS" +
+                                                     " '" +
+                                                     "    begin" +
+                                                     "        RETURN NULL;" +
+                                                     "     end;" +
+                                                     " '" +
+                                                     "   LANGUAGE 'plpgsql' VOLATILE;\n");
 
-                                        	optional.add( "----Fix " + e.getSQLName() + " table.\n");
-                                        	optional.add( "--ALTER TABLE " + e.getSQLName() + " ADD COLUMN " + fieldSQLName + "_cp " + t + ";\n");
-                                        	optional.add( "--UPDATE " + e.getSQLName() + " SET " + fieldSQLName + "_cp=" + fieldSQLName + ";\n");
-                                        	optional.add( "--ALTER TABLE " + e.getSQLName() + " DROP COLUMN " + fieldSQLName + ";\n");
-                                        	optional.add( "--ALTER TABLE " + e.getSQLName() + " ADD COLUMN " + fieldSQLName + " " + exptType + ";\n");
+                                        	optional.add("----Fix " + elementSqlName + " table.\n");
+                                        	optional.add("--ALTER TABLE " + elementSqlName + " ADD COLUMN " + fieldSQLName + "_cp " + t + ";\n");
+                                        	optional.add("--UPDATE " + elementSqlName + " SET " + fieldSQLName + "_cp=" + fieldSQLName + ";\n");
+                                        	optional.add("--ALTER TABLE " + elementSqlName + " DROP COLUMN " + fieldSQLName + ";\n");
+                                        	optional.add("--ALTER TABLE " + elementSqlName + " ADD COLUMN " + fieldSQLName + " " + exptType + ";\n");
                                         if (t.equalsIgnoreCase("BYTEA")) {
-                                        	optional.add( "--UPDATE " + e.getSQLName() + " SET " + fieldSQLName + "=ENCODE(" + fieldSQLName + "_cp,'escape');\n");
+                                        	optional.add("--UPDATE " + elementSqlName + " SET " + fieldSQLName + "=ENCODE(" + fieldSQLName + "_cp,'escape');\n");
                                         } else {
-                                        	optional.add( "--UPDATE " + e.getSQLName() + " SET " + fieldSQLName + "=CAST(" + fieldSQLName + "_cp AS " + exptType + ");");
+                                        	optional.add("--UPDATE " + elementSqlName + " SET " + fieldSQLName + "=CAST(" + fieldSQLName + "_cp AS " + exptType + ");");
                                         }
                                     } else {
                                         if (XFT.VERBOSE)
-                                            System.out.println("WARNING: Database column " + e.getSQLName() + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "'). Uncomment appropriate lines in update sql to resolve.");
+                                            System.out.println("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "'). Uncomment appropriate lines in update sql to resolve.");
 
                                     	String temp = "";
                                         temp += "--Existing column has no values or constraints.\n";
-                                        query = "SELECT count(" + fieldSQLName + ") AS value_count FROM " + e.getSQLName() + "_history";
-                                        if (t.equalsIgnoreCase("text") || t.equalsIgnoreCase("varchar") || t.equalsIgnoreCase("bytea")) {
-                                            query += " WHERE " + fieldSQLName + " IS NOT NULL AND " + fieldSQLName + " !=''";
-                                        }
+                                        temp += "--Fix " + elementSqlName + "_history table.\n";
+                                        temp += "ALTER TABLE " + elementSqlName + "_history DROP COLUMN " + fieldSQLName + ";\n";
+                                        temp += "ALTER TABLE " + elementSqlName + "_history ADD COLUMN " + fieldSQLName + " " + exptType + ";\n";
+                                        temp += "--Fix " + elementSqlName + " table.\n";
+                                        temp += "ALTER TABLE " + elementSqlName + " DROP COLUMN " + fieldSQLName + ";\n";
+                                        temp += "ALTER TABLE " + elementSqlName + " ADD COLUMN " + fieldSQLName + " " + exptType + ";\n";
 
-                                        temp += "--Fix " + e.getSQLName() + "_history table.\n";
-                                        temp += "ALTER TABLE " + e.getSQLName() + "_history DROP COLUMN " + fieldSQLName + ";\n";
-                                        temp += "ALTER TABLE " + e.getSQLName() + "_history ADD COLUMN " + fieldSQLName + " " + exptType + ";\n";
-                                        temp += "--Fix " + e.getSQLName() + " table.\n";
-                                        temp += "ALTER TABLE " + e.getSQLName() + " DROP COLUMN " + fieldSQLName + ";\n";
-                                        temp += "ALTER TABLE " + e.getSQLName() + " ADD COLUMN " + fieldSQLName + " " + exptType + ";\n";
-                                        
                                         statements.add(temp);
                                     }
                                 } catch (Exception e1) {
                                     e1.printStackTrace();
-                                    logger.error("", e1);
+                                    log.error("", e1);
                                 }
                             }
 
                             if (required) {
                                 if (req.equals("false")) {
                                     if (XFT.VERBOSE)
-                                        System.out.println("WARNING: Database column " + e.getSQLName() + "." + fieldSQLName + " is now required. Uncomment line in update sql to fix.");
-                                    String temp = "\n--Database column " + e.getSQLName() + "." + fieldSQLName + " is now required.\n";
+                                        System.out.println("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " is now required. Uncomment line in update sql to fix.");
+                                    String temp = "\n--Database column " + elementSqlName + "." + fieldSQLName + " is now required.\n";
                                     temp += "--" + prefix + " ALTER COLUMN " + fieldSQLName + " SET NOT NULL";
                                     optional.add(temp + ";");
                                 }
                             } else {
                                 if (req.equals("true")) {
                                     if (XFT.VERBOSE)
-                                        System.out.println("WARNING: Database column " + e.getSQLName() + "." + fieldSQLName + " is no longer required. Execute update sql.");
-                                    String temp = "\n--Database column " + e.getSQLName() + "." + fieldSQLName + " is no longer required.\n";
+                                        System.out.println("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " is no longer required. Execute update sql.");
+                                    String temp = "\n--Database column " + elementSqlName + "." + fieldSQLName + " is no longer required.\n";
                                     temp += prefix + " ALTER COLUMN " + fieldSQLName + " DROP NOT NULL";
                                     statements.add(temp + ";");
                                 }
@@ -414,15 +414,15 @@ public class SQLUpdateGenerator {
                 }
             }
 
-            if (!e.getName().endsWith("_history")) {
+            if (!elementName.endsWith("_history")) {
                 for (int i = 0; i < lowerCaseColumns.size(); i++) {
                     if (!matched.contains(lowerCaseColumns.get(i))) {
                         String fieldSQLName = lowerCaseColumns.get(i);
 
-                        String req = columnRequireds.get(i);
+                        String req = columnsRequired.get(i);
                         if (req.equalsIgnoreCase("true")) {
                             if (XFT.VERBOSE) {
-                                System.out.println("WARNING: Required database column " + e.getSQLName() + "." + fieldSQLName + " is no longer valid. Execute update sql.");
+                                System.out.println("WARNING: Required database column " + elementSqlName + "." + fieldSQLName + " is no longer valid. Execute update sql.");
                             }
                             statements.add(prefix + " ALTER COLUMN " + fieldSQLName + " DROP NOT NULL;");
                         }
@@ -430,9 +430,14 @@ public class SQLUpdateGenerator {
                 }
             }
         } catch (XFTInitException ex) {
-            logger.error("There was an error initializing XFT", ex);
+            log.error("There was an error initializing XFT", ex);
         } catch (ElementNotFoundException ex) {
-            logger.error("Couldn't find the requested element " + ex.ELEMENT, ex);
+            log.error("Couldn't find the requested element " + ex.ELEMENT, ex);
+        }
+
+        if (requiresViewDrop.get()) {
+            statements.add(0, "SELECT dependencies_save_and_drop('" + elementSqlName + "');");
+            statements.add("SELECT dependencies_restore('" + elementSqlName + "');");
         }
 
         return new List[]{statements,optional};
@@ -456,7 +461,7 @@ public class SQLUpdateGenerator {
         return setTypeAndDefaultValue(statement, columnType, javaType, required, defaultValue);
     }
 
-    public static void main(String args[]) {
+    public static void main(final String[] args) {
         if (args.length == 2) {
             try {
                 XFT.init(args[0]);
@@ -510,5 +515,142 @@ public class SQLUpdateGenerator {
         }
         return !(required && defaultValue == null);
     }
-}
 
+    private static final String  QUERY_FIND_USER_VIEWS                = "CREATE OR REPLACE FUNCTION find_user_views(username TEXT) " +
+                                                                        "RETURNS TABLE(table_schema NAME, view_name NAME) AS $$ " +
+                                                                        "BEGIN " +
+                                                                        "RETURN QUERY " +
+                                                                        "SELECT " +
+                                                                        "n.nspname AS table_schema, " +
+                                                                        "c.relname AS view_name " +
+                                                                        "FROM pg_catalog.pg_class c " +
+                                                                        "LEFT JOIN pg_catalog.pg_namespace n " +
+                                                                        "ON (n.oid = c.relnamespace) " +
+                                                                        "WHERE c.relkind = 'v' " +
+                                                                        "AND c.relowner = (SELECT usesysid " +
+                                                                        "FROM pg_catalog.pg_user " +
+                                                                        "WHERE usename = $1); " +
+                                                                        "END$$ LANGUAGE plpgsql;";
+    private static final String  QUERY_DROP_USER_VIEWS                = "CREATE OR REPLACE FUNCTION drop_user_views(username TEXT) " +
+                                                                        "RETURNS INTEGER AS $$ " +
+                                                                        "DECLARE " +
+                                                                        "r RECORD; " +
+                                                                        "s TEXT; " +
+                                                                        "c INTEGER := 0; " +
+                                                                        "BEGIN " +
+                                                                        "RAISE NOTICE 'Dropping views for user %', $1; " +
+                                                                        "FOR r IN " +
+                                                                        "SELECT * FROM find_user_views($1) " +
+                                                                        "LOOP " +
+                                                                        "S := 'DROP VIEW IF EXISTS ' || quote_ident(r.table_schema) || '.' || quote_ident(r.view_name) || ' CASCADE;'; " +
+                                                                        "EXECUTE s; " +
+                                                                        "c := c + 1; " +
+                                                                        "RAISE NOTICE 's = % ', S; " +
+                                                                        "END LOOP; " +
+                                                                        "RETURN c; " +
+                                                                        "END$$ LANGUAGE plpgsql;";
+    private static final String  QUERY_EXEC_DROP_USER_VIEWS           = "SELECT drop_user_views('%s');";
+    private static final String  QUERY_FIND_TABLE_NONTEXT_VALUE_COUNT = "SELECT " +
+                                                                        "    COUNT(%2$s) AS value_count " +
+                                                                        "FROM " +
+                                                                        "    %1$s " +
+                                                                        "WHERE " +
+                                                                        "    %2$s IS NOT NULL";
+    private static final String  QUERY_FIND_TABLE_TEXT_VALUE_COUNT    = "SELECT " +
+                                                                        "    COUNT(%2$s) AS value_count " +
+                                                                        "FROM " +
+                                                                        "    %1$s " +
+                                                                        "WHERE " +
+                                                                        "    %2$s IS NOT NULL AND " +
+                                                                        "    %2$s != ''";
+    private static final String  QUERY_FIND_TABLE_CONSTRAINTS         = "WITH " +
+                                                                        "    search AS ( " +
+                                                                        "        SELECT " +
+                                                                        "            pg_constraint.oid, " +
+                                                                        "            conname, " +
+                                                                        "            contype, " +
+                                                                        "            tb.relname, " +
+                                                                        "            pg_attribute.attname " +
+                                                                        "        FROM " +
+                                                                        "            pg_constraint, " +
+                                                                        "            pg_class tb, " +
+                                                                        "            pg_attribute " +
+                                                                        "        WHERE " +
+                                                                        "            conrelid = tb.oid AND " +
+                                                                        "            ((conrelid = pg_attribute.attrelid AND pg_attribute.attnum = ANY (conkey))) " +
+                                                                        "        UNION " +
+                                                                        "        SELECT " +
+                                                                        "            pg_constraint.oid, " +
+                                                                        "            conname, " +
+                                                                        "            contype, " +
+                                                                        "            fk.relname, " +
+                                                                        "            pg_attribute.attname " +
+                                                                        "        FROM " +
+                                                                        "            pg_constraint, " +
+                                                                        "            pg_class fk, " +
+                                                                        "            pg_attribute " +
+                                                                        "        WHERE " +
+                                                                        "            confrelid = fk.oid AND " +
+                                                                        "            ((confrelid = pg_attribute.attrelid AND pg_attribute.attnum = ANY (confkey)))) " +
+                                                                        "SELECT " +
+                                                                        "    relname, " +
+                                                                        "    attname, " +
+                                                                        "    COUNT(conname) AS value_count " +
+                                                                        "FROM " +
+                                                                        "    search " +
+                                                                        "WHERE " +
+                                                                        "    relname = '%s' AND " +
+                                                                        "    attname = '%s' " +
+                                                                        "GROUP BY " +
+                                                                        "    relname, " +
+                                                                        "    attname";
+    private static final String  QUERY_FIND_TABLE_DEPENDENCIES        = "WITH " +
+                                                                        "    RECURSIVE " +
+                                                                        "    recursive_deps(obj_schema, obj_name, obj_type, depth) AS ( " +
+                                                                        "        SELECT " +
+                                                                        "            'public'::NAME, " +
+                                                                        "            '%s'::NAME, " +
+                                                                        "            NULL::VARCHAR, " +
+                                                                        "            0 " +
+                                                                        "        UNION " +
+                                                                        "        SELECT " +
+                                                                        "            dep_schema::VARCHAR, " +
+                                                                        "            dep_name::VARCHAR, " +
+                                                                        "            dep_type::VARCHAR, " +
+                                                                        "            recursive_deps.depth + 1 " +
+                                                                        "        FROM " +
+                                                                        "            (SELECT " +
+                                                                        "                 ref_nsp.nspname ref_schema, " +
+                                                                        "                 ref_cl.relname  ref_name, " +
+                                                                        "                 rwr_cl.relkind  dep_type, " +
+                                                                        "                 rwr_nsp.nspname dep_schema, " +
+                                                                        "                 rwr_cl.relname  dep_name " +
+                                                                        "             FROM " +
+                                                                        "                 pg_depend dep " +
+                                                                        "                     JOIN pg_class ref_cl ON dep.refobjid = ref_cl.oid " +
+                                                                        "                     JOIN pg_namespace ref_nsp ON ref_cl.relnamespace = ref_nsp.oid " +
+                                                                        "                     JOIN pg_rewrite rwr ON dep.objid = rwr.oid " +
+                                                                        "                     JOIN pg_class rwr_cl ON rwr.ev_class = rwr_cl.oid " +
+                                                                        "                     JOIN pg_namespace rwr_nsp ON rwr_cl.relnamespace = rwr_nsp.oid " +
+                                                                        "             WHERE " +
+                                                                        "                 dep.deptype = 'n' AND " +
+                                                                        "                 dep.classid = 'pg_rewrite'::REGCLASS) deps " +
+                                                                        "                JOIN recursive_deps ON deps.ref_schema = recursive_deps.obj_schema AND deps.ref_name = recursive_deps.obj_name " +
+                                                                        "        WHERE " +
+                                                                        "            deps.ref_schema != deps.dep_schema OR " +
+                                                                        "            deps.ref_name != deps.dep_name), " +
+                                                                        "    dependencies                                          AS ( " +
+                                                                        "        SELECT " +
+                                                                        "            obj_schema, " +
+                                                                        "            obj_name, " +
+                                                                        "            obj_type, " +
+                                                                        "            depth " +
+                                                                        "        FROM " +
+                                                                        "            recursive_deps " +
+                                                                        "        WHERE " +
+                                                                        "            depth > 0) " +
+                                                                        "SELECT" +
+                                                                        "    COUNT(*) AS dependent_count " +
+                                                                        "FROM " +
+                                                                        "    dependencies";
+}
