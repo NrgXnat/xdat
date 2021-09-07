@@ -212,7 +212,6 @@ public abstract class SecureScreen extends VelocitySecureScreen {
                             logger.error("problem looking for concurrent session IP addresses.", e);
                         }
                     }
-                    //if(sessionCount > 100 || (sessionCount > 1 && ip.size() > 1 && ! TurbineUtils.getUser(data).getLogin().equals("guest"))){
                     if (!user.isGuest()) {
                         context.put("sessionCount", sessionIds.size());
                         context.put("sessionIpCount", uniqueIPs.size());
@@ -357,7 +356,7 @@ public abstract class SecureScreen extends VelocitySecureScreen {
                     data.getParameters().add("nextAction", Turbine.getConfiguration().getString("action.login"));
                 }
             } else {
-                if (!allowGuestAccess() && user.getLogin().equals("guest")) {
+                if (!allowGuestAccess() && user.isGuest()) {
                     isAuthorized = false;
                 }
             }
@@ -462,7 +461,13 @@ public abstract class SecureScreen extends VelocitySecureScreen {
         data.setMessage("Unauthorized access.  Please login to gain access to this page.");
         logAccess(data, "Unauthorized access.");
         logger.error("Unauthorized Access to an Admin Screen (prevented).");
-        AdminUtils.sendAdminEmail(XDAT.getUserDetails(), "Unauthorized Admin Access Attempt", "Unauthorized Access to an Admin Screen (" + data.getScreen() + ") prevented.");
+        if (XDAT.getNotificationsPreferences().getSmtpEnabled()) {
+            String body = XDAT.getNotificationsPreferences().getEmailMessageUnauthorizedDataAttempt();
+            String type = "to an Admin Screen (" + data.getScreen() + ")";
+            body = body.replaceAll("TYPE", type);
+            body = body.replaceAll("USER_DETAILS", "");
+            AdminUtils.sendAdminEmail(XDAT.getUserDetails(), "Unauthorized Admin Access Attempt", body);
+        }
         data.getResponse().sendError(HttpServletResponse.SC_FORBIDDEN);
     }
 

@@ -1,7 +1,7 @@
 /*
  * core: org.nrg.xdat.security.helpers.Users
  * XNAT http://www.xnat.org
- * Copyright (c) 2005-2017, Washington University School of Medicine and Howard Hughes Medical Institute
+ * Copyright (c) 2005-2021, Washington University School of Medicine and Howard Hughes Medical Institute
  * All Rights Reserved
  *
  * Released under the Simplified BSD.
@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.nrg.framework.exceptions.NrgServiceError;
 import org.nrg.framework.exceptions.NrgServiceRuntimeException;
 import org.nrg.framework.services.ContextService;
@@ -55,8 +57,6 @@ import org.springframework.security.authentication.encoding.ShaPasswordEncoder;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import javax.annotation.Nonnull;
-import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -64,27 +64,91 @@ import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletRequest;
 
 @SuppressWarnings({"WeakerAccess", "SqlDialectInspection", "SqlNoDataSourceInspection"})
 @Slf4j
 public class Users {
-    public static final String                  ANONYMOUS_AUTH_PROVIDER_KEY = "xnat-anonymous-auth-provider";
-    public static final String                  ROLE_ANONYMOUS              = "ROLE_ANONYMOUS";
-    public static final String                  ROLE_ADMIN                  = "ROLE_ADMIN";
-    public static final String                  ROLE_DATA_ADMIN             = "ROLE_" + ALL_DATA_ADMIN_GROUP;
-    public static final String                  ROLE_DATA_ACCESS            = "ROLE_" + ALL_DATA_ACCESS_GROUP;
-    public static final String                  ROLE_USER                   = "ROLE_USER";
-    public static final SimpleGrantedAuthority  AUTHORITY_ANONYMOUS         = new SimpleGrantedAuthority(ROLE_ANONYMOUS);
-    public static final SimpleGrantedAuthority  AUTHORITY_ADMIN             = new SimpleGrantedAuthority(ROLE_ADMIN);
-    public static final SimpleGrantedAuthority  AUTHORITY_DATA_ADMIN        = new SimpleGrantedAuthority(ROLE_DATA_ADMIN);
-    public static final SimpleGrantedAuthority  AUTHORITY_DATA_ACCESS       = new SimpleGrantedAuthority(ROLE_DATA_ACCESS);
-    public static final SimpleGrantedAuthority  AUTHORITY_USER              = new SimpleGrantedAuthority(ROLE_USER);
-    public static final List<GrantedAuthority>  AUTHORITIES_ANONYMOUS       = Collections.singletonList(AUTHORITY_ANONYMOUS);
-    public static final List<GrantedAuthority>  AUTHORITIES_ADMIN           = new ArrayList<>(Arrays.asList(AUTHORITY_ADMIN, AUTHORITY_USER));
-    public static final List<GrantedAuthority>  AUTHORITIES_DATA_ADMIN      = new ArrayList<>(Arrays.asList(AUTHORITY_DATA_ADMIN, AUTHORITY_USER));
-    public static final List<GrantedAuthority>  AUTHORITIES_DATA_ACCESS     = new ArrayList<>(Arrays.asList(AUTHORITY_DATA_ACCESS, AUTHORITY_USER));
-    public static final List<GrantedAuthority>  AUTHORITIES_USER            = Collections.singletonList(AUTHORITY_USER);
+    public static final String                 USERNAME_PROPERTY           = "username";
+    public static final String                 DEFAULT_ANON_USERNAME       = "anonymousUser";
+    public static final String                 DEFAULT_GUEST_USERNAME      = "guest";
+    public static final String                 ANONYMOUS_AUTH_PROVIDER_KEY = "xnat-anonymous-auth-provider";
+    public static final String                 ROLE_ANONYMOUS              = "ROLE_ANONYMOUS";
+    public static final String                 ROLE_ADMIN                  = "ROLE_ADMIN";
+    public static final String                 ROLE_DATA_ADMIN             = "ROLE_" + ALL_DATA_ADMIN_GROUP;
+    public static final String                 ROLE_DATA_ACCESS            = "ROLE_" + ALL_DATA_ACCESS_GROUP;
+    public static final String                 ROLE_USER                   = "ROLE_USER";
+    public static final SimpleGrantedAuthority AUTHORITY_ANONYMOUS         = new SimpleGrantedAuthority(ROLE_ANONYMOUS);
+    public static final SimpleGrantedAuthority AUTHORITY_ADMIN             = new SimpleGrantedAuthority(ROLE_ADMIN);
+    public static final SimpleGrantedAuthority AUTHORITY_DATA_ADMIN        = new SimpleGrantedAuthority(ROLE_DATA_ADMIN);
+    public static final SimpleGrantedAuthority AUTHORITY_DATA_ACCESS       = new SimpleGrantedAuthority(ROLE_DATA_ACCESS);
+    public static final SimpleGrantedAuthority AUTHORITY_USER              = new SimpleGrantedAuthority(ROLE_USER);
+    public static final List<GrantedAuthority> AUTHORITIES_ANONYMOUS       = Collections.singletonList(AUTHORITY_ANONYMOUS);
+    public static final List<GrantedAuthority> AUTHORITIES_ADMIN           = new ArrayList<>(Arrays.asList(AUTHORITY_ADMIN, AUTHORITY_USER));
+    public static final List<GrantedAuthority> AUTHORITIES_DATA_ADMIN      = new ArrayList<>(Arrays.asList(AUTHORITY_DATA_ADMIN, AUTHORITY_USER));
+    public static final List<GrantedAuthority> AUTHORITIES_DATA_ACCESS     = new ArrayList<>(Arrays.asList(AUTHORITY_DATA_ACCESS, AUTHORITY_USER));
+    public static final List<GrantedAuthority> AUTHORITIES_USER            = Collections.singletonList(AUTHORITY_USER);
+    public static final String                 EXPRESSION_USERNAME         = "[A-z][A-z0-9]{0,39}";
+    public static final String                 EXPRESSION_EMAIL            = "^[A-Za-z0-9_!#$%&'*+/=?`{|}~^-]+(?:\\.[A-Za-z0-9_!#$%&'*+/=?`{|}~^-]+)*@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*$";
+    public static final String                 EXPRESSION_COMBINED         = "^(?<username>" + EXPRESSION_USERNAME + ")[\\s]*<(?<email>" + EXPRESSION_EMAIL + ")>$";
+    public static final Pattern                PATTERN_USERNAME            = Pattern.compile("^" + EXPRESSION_USERNAME + "$");
+    public static final Pattern                PATTERN_EMAIL               = Pattern.compile("^" + EXPRESSION_EMAIL + "$");
+    public static final Pattern                PATTERN_COMBINED            = Pattern.compile(EXPRESSION_COMBINED);
+
+    /**
+     * Indicates whether the submitted username complies with requirements. Note that this doesn't check whether or not
+     * the username already exists on the system, just that it complies with XNAT's required format.
+     *
+     * @param username The username to check.
+     *
+     * @return Returns true if the username is valid, false otherwise.
+     */
+    public static boolean isValidUsername(final String username) {
+        return PATTERN_USERNAME.matcher(username).matches();
+    }
+
+    /**
+     * Indicates whether the submitted email address complies with requirements. Note that this doesn't check whether or
+     * not the email is already used on the system, just that it complies with the required format.
+     *
+     * @param email The email to check.
+     *
+     * @return Returns true if the username is valid, false otherwise.
+     */
+    public static boolean isValidEmail(final String email) {
+        return PATTERN_EMAIL.matcher(email).matches();
+    }
+
+    /**
+     * Indicates whether the submitted username and email address combination complies with requirements. Note that this
+     * doesn't check whether the username already exists or the email is already used on the system, just that the value
+     * complies with the required format.
+     *
+     * @param combined The combined username and email to check.
+     *
+     * @return Returns true if the username and email are valid, false otherwise.
+     */
+    public static boolean isValidUsernameAndEmail(final String combined) {
+        return PATTERN_COMBINED.matcher(combined).matches();
+    }
+
+    /**
+     * Indicates whether the submitted username and email address combination complies with requirements. Note that this
+     * doesn't check whether the username already exists or the email is already used on the system, just that the value
+     * complies with the required format.
+     *
+     * @param combined The combined username and email to check.
+     *
+     * @return Returns true if the username and email are valid, false otherwise.
+     */
+    public static Pair<String, String> extractUsernameAndEmail(final String combined) {
+        final Matcher matcher = PATTERN_COMBINED.matcher(combined);
+        return matcher.find() ? Pair.of(matcher.group("username"), matcher.group("email")) : ImmutablePair.nullPair();
+    }
 
     /**
      * Returns the currently configured user management service.  You can customize the implementation returned by
@@ -146,6 +210,49 @@ public class Users {
             _authorities.put(qualified, new SimpleGrantedAuthority(qualified));
         }
         return _authorities.get(qualified);
+    }
+
+    public static boolean isGuest(final String username) {
+        return StringUtils.isBlank(username) || StringUtils.equalsAnyIgnoreCase(username, DEFAULT_GUEST_USERNAME, DEFAULT_ANON_USERNAME);
+    }
+
+    public static boolean isGuest(final Object principal) {
+        if (principal == null) {
+            return true;
+        }
+        if (principal instanceof UserI) {
+            return ((UserI) principal).isGuest();
+        }
+        return isGuest(principal instanceof String ? (String) principal : principal.toString());
+    }
+
+    /**
+     * Tries to get a user object from the submitted parameter. If the object's a {@link UserI} object, it just returns
+     * that. If it's a <b>String</b>, it tries to retrieve the user object with that username. Otherwise it returns the
+     * guest user.
+     *
+     * @param principal The principal to coerce into a {@link UserI} object.
+     *
+     * @return The user object for the submitted principal.
+     */
+    public static UserI getUserPrincipal(final Object principal) {
+        if (principal instanceof UserI) {
+            log.debug("Found principal for user: {}", ((UserI) principal).getUsername());
+            return (UserI) principal;
+        }
+        try {
+            if (principal instanceof String) {
+                log.debug("Found principal for user: {}", principal);
+                return getUser((String) principal);
+            }
+            log.debug("Didn't find principal for user: {}, returning guest", principal);
+            return Users.getGuest();
+        } catch (UserNotFoundException e) {
+            log.warn("Tried to get guest user but couldn't find it.", e);
+        } catch (UserInitException e) {
+            log.error("Tried to get guest user but got a user init error.", e);
+        }
+        return null;
     }
 
     /**

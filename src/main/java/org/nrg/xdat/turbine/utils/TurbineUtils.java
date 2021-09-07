@@ -25,6 +25,7 @@ import org.apache.velocity.context.Context;
 import org.apache.velocity.exception.ResourceNotFoundException;
 import org.nrg.config.entities.Configuration;
 import org.nrg.config.exceptions.ConfigServiceException;
+import org.nrg.framework.constants.Scope;
 import org.nrg.xdat.XDAT;
 import org.nrg.xdat.om.XdatSecurity;
 import org.nrg.xdat.schema.SchemaElement;
@@ -75,6 +76,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import static org.nrg.config.entities.Configuration.DISABLED_STRING;
 import static org.nrg.xdat.velocity.loaders.CustomClasspathResourceLoader.safeJoin;
 
 /**
@@ -561,7 +563,7 @@ public class TurbineUtils {
     }
 
     public boolean isGuest(final UserI user) {
-        return user == null || StringUtils.equals("guest", user.getLogin());
+        return user == null || user.isGuest();
     }
 
     public boolean canEdit(final UserI user, final XFTItem item) throws Exception {
@@ -824,7 +826,6 @@ public class TurbineUtils {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public static void OutputSessionParameters(RunData data) {
         if (data != null) {
             logger.debug("\n\nSession Parameters");
@@ -1048,7 +1049,7 @@ public class TurbineUtils {
     public boolean resourceExists(String screen){
     	return Velocity.resourceExists(screen);
     }
-    
+
     public String validateTemplate(String screen, String project) {
         if (StringUtils.isNotBlank(project)) {
             final String key = (screen.endsWith(".vm") ? screen.substring(0, screen.length() - 3) : screen) + "_" + project + ".vm";
@@ -1145,38 +1146,14 @@ public class TurbineUtils {
             throw new RuntimeException("Something went wrong invoking the project getDisplayID() method.", e);
         }
     }
-    
-    public String getConfigValue(String project, String toolName, String path, boolean inherit, String _default){
-    	Long projectId=null;
-    	if(project != null){
-    		try {
-				Number p=(Number)PoolDBUtils.ReturnStatisticQuery("SELECT projectData_info FROM xnat_projectData WHERE ID='" + project + "'", "projectdata_info", null, null);
-				if(p!=null){
-					projectId=p.longValue();
-				}
-			} catch (SQLException e) {
-				logger.error("",e);
-			} catch (Exception e) {
-				logger.error("",e);
-			}
-    	}
-		
-    	Configuration config=XDAT.getConfigService().getConfig(toolName, path, projectId);
-    	
-    	if(projectId!=null && config==null && inherit){
-    		config=XDAT.getConfigService().getConfig(toolName, path, null);
-    	}
-    	
-    	if(config==null){
-    		return _default;
-    	}else{
-    		return config.getContents();
-    	}
+
+    public String getConfigValue(final String project, final String toolName, final String path, final boolean inherit, final String defaultValue) {
+        return XDAT.getConfigValue(project, toolName, path, inherit, defaultValue);
     }
-    
+
     public boolean getBooleanConfigValue(String project, String toolName, String path, boolean inherit, boolean _default){
     	String config=this.getConfigValue(project, toolName, path, inherit, null);
-    	
+
     	if(config==null){
     		return _default;
     	}else{
@@ -1186,7 +1163,7 @@ public class TurbineUtils {
     		return this.toBoolean(config);
     	}
     }
-    
+
     public String getConfigValue(String project, String toolName, String path, boolean inherit,String key, String _default){
 		String thevalue=(String)TurbineUtils.GetInstance().getConfigValue(project, toolName, path, inherit, _default);
 		if (StringUtils.equals(_default,thevalue)){
@@ -1195,9 +1172,9 @@ public class TurbineUtils {
 		try{
 			JSONObject obj=new JSONObject(thevalue);
 			if(StringUtils.isEmpty(key)){
-				return thevalue;	
+				return thevalue;
 			}else{
-				
+
 				return obj.getString(key);
 			}
 		}catch(JSONException ex){
@@ -1529,7 +1506,6 @@ public class TurbineUtils {
      * @param filename     The suggested filename for downloaded content.
      * @param isAttachment Indicates whether the content is an attachment or inline.
      */
-    @SuppressWarnings("unchecked")
     public static void setContentDisposition(HttpServletResponse response, String filename, boolean isAttachment) {
         if (response.containsHeader(CONTENT_DISPOSITION)) {
             throw new IllegalStateException("A content disposition header has already been added to this response.");
@@ -1553,15 +1529,10 @@ public class TurbineUtils {
             XDAT.setGuestUserDetails();
             final String destination = data.getTemplateInfo().getScreenTemplate();
             data.getParameters().add("nextPage", destination);
-            if (!data.getAction().equalsIgnoreCase("")) {
-                data.getParameters().add("nextAction", data.getAction());
-            } else {
-                data.getParameters().add("nextAction", Turbine.getConfiguration().getString("action.login"));
-            }
+            data.getParameters().add("nextAction", StringUtils.defaultIfBlank(data.getAction(), Turbine.getConfiguration().getString("action.login")));
             return allowGuestAccess;
-        } else {
-            return !(!allowGuestAccess && user.isGuest());
         }
+        return !(!allowGuestAccess && user.isGuest());
     }
 
     public boolean isNullObject(final Object object) {

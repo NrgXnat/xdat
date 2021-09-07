@@ -53,11 +53,11 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @SuppressWarnings({"unused", "DuplicateThrows"})
 @Service
@@ -85,7 +85,7 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
     }
 
     @Override
-    public CriteriaCollection getCriteriaForXDATRead(final UserI user, final SchemaElement root) throws IllegalAccessException, Exception {
+    public CriteriaCollection getCriteriaForXDATRead(final UserI user, final SchemaElement root) throws Exception {
         final String fullXMLName = root.getFullXMLName();
         if (!ElementSecurity.IsSecureElement(fullXMLName, READ)) {
             return null;
@@ -279,7 +279,7 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
                              action,
                              schemaElement.getFormattedName(),
                              xsiType,
-                             securityValues.toString());
+                             securityValues);
                     return false;
                 }
             }
@@ -424,11 +424,8 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
 
     @Override
     public boolean canAny(final String username, final String elementName, final String action) {
-        if (isGuest(username) && !action.equalsIgnoreCase(READ)) {
-            return false;
-        }
         // consider caching, but this should not hit the database on every call anyways.
-        return !getAllowedValues(username, elementName, action).isEmpty();
+        return (!Users.isGuest(username) || action.equalsIgnoreCase(READ)) && !getAllowedValues(username, elementName, action).isEmpty();
     }
 
     @Override
@@ -867,7 +864,7 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
                 if (getID != null) {
                     itemId = (String) getID.invoke(item);
                 } else {
-                    itemId = "Couldn't determine item's ID, attaching full XML\n" + item.toString();
+                    itemId = "Couldn't determine item's ID, attaching full XML\n" + item;
                 }
             }
         }
@@ -903,10 +900,6 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
         }
     }
 
-    private boolean isGuest(final String username) {
-        return _guest != null ? StringUtils.equalsIgnoreCase(_guest.getUsername(), username) : StringUtils.equalsIgnoreCase(GUEST_USERNAME, username);
-    }
-
     private static boolean test(final String action, final SecurityValues values, final PermissionCriteriaI criterion) {
         try {
             return criterion.canAccess(action, values);
@@ -916,7 +909,6 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
         }
     }
 
-    private static final String GUEST_USERNAME                      = "guest";
     private static final String QUERY_USER_ELEMENT_ACCESS           = "SELECT  " +
                                                                       "  xdat_element_access_id  " +
                                                                       "FROM  " +
