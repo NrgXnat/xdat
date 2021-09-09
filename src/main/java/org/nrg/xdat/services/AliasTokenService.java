@@ -16,14 +16,19 @@
  */
 package org.nrg.xdat.services;
 
+import org.nrg.framework.exceptions.NotFoundException;
 import org.nrg.framework.orm.hibernate.BaseHibernateService;
+import org.nrg.xapi.exceptions.DataFormatException;
+import org.nrg.xapi.exceptions.InsufficientPrivilegesException;
+import org.nrg.xapi.exceptions.NotAuthenticatedException;
 import org.nrg.xdat.entities.AliasToken;
+import org.nrg.xdat.om.XdatUser;
 import org.nrg.xft.security.UserI;
 
 import java.util.List;
 import java.util.Set;
 
-public interface AliasTokenService extends BaseHibernateService<AliasToken> {
+public interface AliasTokenService  extends BaseHibernateService<AliasToken> {
     /**
      * Finds all active tokens for a particular user.
      * @param xdatUserId    The user ID from the XdatUser table.
@@ -127,4 +132,6 @@ public interface AliasTokenService extends BaseHibernateService<AliasToken> {
     void invalidateToken(final AliasToken token);
 
     void invalidateExpiredTokens(String interval);
+    
+    Object findAliasTokenByOperationOrUserNameOrTokenOrSecret(UserI user, String operation, String tokenId, String secret, String requestedUserName) throws DataFormatException, InsufficientPrivilegesException, NotFoundException, NotAuthenticatedException; 
 }
