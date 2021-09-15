@@ -19,7 +19,12 @@
 package org.nrg.xdat.services;
 
 import org.nrg.framework.services.NrgService;
+import org.nrg.xapi.exceptions.InitializationException;
+import org.nrg.xapi.exceptions.NotFoundException;
+import org.nrg.xapi.model.StudyRoutingDto;
+import org.nrg.xft.security.UserI;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -160,4 +165,8 @@ public interface StudyRoutingService extends NrgService {
      * @return The existing routings.
      */
     abstract public Map<String, Map<String, String>> closeAll();
+    
+    List<StudyRoutingDto> findAll(UserI user) throws InitializationException;
+    
+    StudyRoutingDto findByStudyInstanceUid(UserI user, String studyInstanceUid) throws NotFoundException, InitializationException;
 }

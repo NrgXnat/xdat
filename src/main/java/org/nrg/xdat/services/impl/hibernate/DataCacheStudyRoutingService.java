@@ -11,18 +11,30 @@ package org.nrg.xdat.services.impl.hibernate;
 
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.framework.datacache.DataCacheService;
+import org.nrg.xapi.exceptions.InitializationException;
+import org.nrg.xapi.exceptions.InsufficientPrivilegesException;
+import org.nrg.xapi.exceptions.NotFoundException;
+import org.nrg.xapi.model.StudyRoutingDto;
+import org.nrg.xdat.security.helpers.UserHelper;
 import org.nrg.xdat.services.StudyRoutingService;
+import org.nrg.xft.security.UserI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.inject.Inject;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
+@Slf4j
 public class DataCacheStudyRoutingService implements StudyRoutingService {
 
     /**
@@ -289,6 +301,99 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
         _service.put(SERVICE_KEY, getConfigurations());
         return found;
     }
+    
+    @Override
+	public List<StudyRoutingDto> findAll(UserI user) throws InitializationException {
+		return  getAllStudyRouting(user);
+	}
+
+
+	@Override
+	public StudyRoutingDto findByStudyInstanceUid(UserI user, String studyInstanceUid) throws NotFoundException, InitializationException {
+		StudyRoutingDto responce = getAllStudyRoutingByInstanceUid(user, studyInstanceUid);
+		if(Objects.isNull(responce)) {
+			throw new NotFoundException("Study Routing wasn't found");
+		}
+		return responce;
+	}
+	
+	private StudyRoutingDto getAllStudyRoutingByInstanceUid(UserI user, String studyInstanceUid) throws NotFoundException, InitializationException {
+		 final Map<String, String> routing = findStudyRouting(studyInstanceUid);
+         if (routing == null || routing.size() == 0) {
+             log.info("Request made for routing for study instance UID {}, but nothing was found for that value.", studyInstanceUid);
+             throw new NotFoundException("Couldn't find a routing for the study instance UID: " + studyInstanceUid);
+         } else {
+             try {
+                 if (!UserHelper.getUserHelperService(user).hasEditAccessToSessionDataByTag(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.PROJECT))) {
+                     throw new InsufficientPrivilegesException("You do not have sufficient privileges to view the routing for this study instance UID.");
+                 }
+             } catch (Exception e) {
+                 final String message = "An error occurred trying to resolve privileges on the study routing for study instance UID: " + studyInstanceUid;
+                 log.error(message, e);
+                 throw new InitializationException(e.getMessage());
+             }
+             if (log.isDebugEnabled()) {
+                 log.debug("Request made for routing for study instance UID {}, found routing: {}", studyInstanceUid, routing.toString());
+			}
+			return getStudyRoutingByInstanceId(studyInstanceUid, routing);
+		}
+	}
+	
+	private StudyRoutingDto getStudyRoutingByInstanceId(String studyInstanceUid, Map<String, String> routing) {
+		return  StudyRoutingDto.builder()
+    			 .studyInstanceUid(studyInstanceUid)
+    			 .project(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.PROJECT))
+    			 .subject(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.SUBJECT))
+    			 .user(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.USER))
+    			 .created(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.CREATED))
+    			 .accessed(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.ACCESSED))
+    			 .label(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.LABEL))
+    			 .build();
+	}
+
+	private List<StudyRoutingDto> getAllStudyRouting(UserI user) throws InitializationException {
+		List<StudyRoutingDto> response = new ArrayList<>();
+		Map<String, Map<String, String>> routings = findAllRoutings();
+		if (routings != null && routings.size() > 0) {
+			if (log.isDebugEnabled()) {
+				log.debug("Request made for all system routings, found {} results", routings.size());
+			}
+			for(final String studyInstanceUid : routings.keySet()) {
+				final Map<String, String> routing = routings.get(studyInstanceUid);
+				try {
+					if (UserHelper.getUserHelperService(user).hasEditAccessToSessionDataByTag(getRoutingAttribute(routing, StudyRoutingService.PROJECT))) {
+						response = getStudyRouting(studyInstanceUid, routing);
+						return response;
+					}
+				} catch (Exception e) {
+					final String message = "An error occurred trying to resolve privileges on the study routing for study instance UID: " + studyInstanceUid;
+					log.error(message, e);
+					throw new InitializationException(e.getMessage());
+				}
+			}
+		} else if (log.isDebugEnabled()) {
+			log.debug("Request made for all system routings, found no results!");
+		}
+		return response;
+	}
+	
+	private String getRoutingAttribute(final Map<String, String> routing, final String attribute) {
+		return routing.containsKey(attribute) ? routing.get(attribute) : "";
+	}
+	
+	private List<StudyRoutingDto> getStudyRouting(String studyInstanceUid, Map<String, String> routing) {
+		List<StudyRoutingDto> response = new ArrayList<>();
+		 response.add(StudyRoutingDto.builder()
+    			 .studyInstanceUid(studyInstanceUid)
+    			 .project(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.PROJECT))
+    			 .subject(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.SUBJECT))
+    			 .user(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.USER))
+    			 .created(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.CREATED))
+    			 .accessed(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.ACCESSED))
+    			 .label(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.LABEL))
+    			 .build());
+		return response;
+	}
 
     /**
      * Commits the routing configuration for the indicated study instance UID. Returns <b>true</b> if the commit
@@ -327,4 +432,5 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
     private DataCacheService _service;
 
     private HashMap<String, HashMap<String, String>> _configuration;
+
 }
