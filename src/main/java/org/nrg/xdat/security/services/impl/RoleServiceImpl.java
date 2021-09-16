@@ -10,9 +10,19 @@
 package org.nrg.xdat.security.services.impl;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
+import org.nrg.xapi.exceptions.DataFormatException;
+import org.nrg.xapi.exceptions.InitializationException;
+import org.nrg.xapi.exceptions.InsufficientPrivilegesException;
+import org.nrg.xapi.exceptions.NotFoundException;
 import org.nrg.xdat.entities.UserRole;
 import org.nrg.xdat.security.XDATUser;
+import org.nrg.xdat.security.helpers.Roles;
+import org.nrg.xdat.security.helpers.Users;
 import org.nrg.xdat.security.services.RoleServiceI;
+import org.nrg.xdat.security.user.exceptions.UserInitException;
+import org.nrg.xdat.security.user.exceptions.UserNotFoundException;
 import org.nrg.xdat.services.UserRoleService;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +30,15 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
+
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -96,6 +114,81 @@ public class RoleServiceImpl implements RoleServiceI {
     public boolean isNonExpiring(final UserI user) {
         return hasUsernameAndRole(user.getUsername(), UserRole.ROLE_NON_EXPIRING);
     }
+    
+    @Override
+	public Set<String> findAll(UserI authUser, String userId) throws UserNotFoundException, UserInitException, DataFormatException, NotFoundException, InsufficientPrivilegesException {
+    	if (!Roles.isSiteAdmin(authUser)) {
+            throw new InsufficientPrivilegesException("User does not have privileges to access this project.");
+        }
+		Set<String> result = new HashSet<>();
+		if (StringUtils.isBlank(userId)) {
+		 throw new DataFormatException("UserId wasn't found" + userId);
+		}
+		UserI user = getUser(userId);
+		if (Objects.isNull(user)) {
+		throw new NotFoundException("user wasn't found");
+		}
+		for (final String role : Roles.getRoles(user)) {
+			result.add(role);
+		}
+		return result;
+	}
+    
+    @Override
+	public Set<String> createRoles(UserI authUser, String userId,List<String> reqRoles) throws UserNotFoundException, UserInitException, InitializationException, InsufficientPrivilegesException {
+		if (!Roles.isSiteAdmin(authUser)) {
+            throw new InsufficientPrivilegesException("User does not have privileges to access this project.");
+        } 
+		UserI user = getUser(userId);
+		 final Set<String> roles = new HashSet<>();
+		if (reqRoles.size() > 0) {
+			Collections.addAll(roles,reqRoles.toString().split(","));
+		}
+		  try {
+			  final Set<String> existing = new HashSet<>(Roles.getRoles(user));
+	            // If existing and submitted are the same, there's nothing to do.
+	            if (roles.equals(existing)) {
+	               return roles;
+	            }
+	            final Sets.SetView<String> added   = Sets.difference(roles, existing);
+	            final Sets.SetView<String> deleted = Sets.difference(existing, roles);
+	           deleteRoles(deleted, authUser, user, userId);
+	            //add roles and save one at a time so that there is a separate workflow entry for each one
+	          addAndSaveRole(added, authUser, user, userId);
+	          return added;
+		  }catch (Exception e) {
+			  throw new InitializationException(e.getMessage());
+		}
+	}
+    
+    private void addAndSaveRole(SetView<String> added, UserI authUser, UserI user, String userId) throws Exception {
+		 for (final String role : added) {
+            //add role if isn't there
+            if (Roles.addRole(authUser, user, role)) {
+                log.debug("Added role {} to user {}", role, userId);
+            } else {
+                log.warn("Tried to add role {} to user {}, but that didn't happen for some reason", role, userId);
+            }
+            user = Users.getUser(userId);//get fresh db copy
+        }
+		
+	}
+
+	private void deleteRoles(SetView<String> deleted, UserI authUser, UserI user, String userId) throws Exception {
+		 for (final String role : deleted) {
+            if (Roles.deleteRole(authUser, user, role)) {
+                log.debug("Deleted role {} from user {}", role, userId);
+            } else {
+                log.warn("Tried to delete role {} from user {}, but that didn't happen for some reason", role, userId);
+            }
+            user = Users.getUser(userId); //get fresh db copy
+        }
+		
+	}
+
+	private UserI getUser(String userId) throws UserNotFoundException, UserInitException {
+		return Users.getUser(userId);
+	}
 
     /**
      * Checks whether the specified username is assigned the indicated role.
@@ -129,4 +222,5 @@ public class RoleServiceImpl implements RoleServiceI {
 
     private final UserRoleService            _service;
     private final NamedParameterJdbcTemplate _template;
+	
 }
