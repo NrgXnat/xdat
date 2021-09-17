@@ -11,10 +11,15 @@ package org.nrg.xdat.services.impl.hibernate;
 
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.framework.datacache.DataCacheService;
+import org.nrg.xapi.exceptions.DataFormatException;
 import org.nrg.xapi.exceptions.InitializationException;
 import org.nrg.xapi.exceptions.InsufficientPrivilegesException;
 import org.nrg.xapi.exceptions.NotFoundException;
 import org.nrg.xapi.model.StudyRoutingDto;
+import org.nrg.xdat.XDAT;
+import org.nrg.xdat.security.SecurityManager;
+import org.nrg.xdat.security.helpers.Permissions;
+import org.nrg.xdat.security.helpers.Roles;
 import org.nrg.xdat.security.helpers.UserHelper;
 import org.nrg.xdat.services.StudyRoutingService;
 import org.nrg.xft.security.UserI;
@@ -315,6 +320,71 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
 			throw new NotFoundException("Study Routing wasn't found");
 		}
 		return responce;
+	}
+	
+	@Override
+	public void updateStudyRouting(UserI user, String studyInstanceUid, String projectId) throws InitializationException, DataFormatException {
+		 org.nrg.xdat.services.StudyRoutingService routingService = getRoutingService();
+		if (StringUtils.isBlank(studyInstanceUid) || StringUtils.isBlank(projectId)) {
+             throw new DataFormatException("You must specify both a study instance UID and the project ID that you wish to assign.");
+         }
+		try {
+			if (!Permissions.can(user, "xnat:mrSessionData/project", projectId, SecurityManager.EDIT)) {
+				throw new InsufficientPrivilegesException( "You do not have sufficient privileges to modify study routings for this project.");
+			}
+			final Map<String, String> routing = routingService.findStudyRouting(studyInstanceUid);
+			if (routing == null) {
+				if (log.isDebugEnabled()) {
+					log.debug("Creating new study routing assignment for study instance UID {} to project {}, created by user {}", studyInstanceUid, projectId, user.getLogin());
+				}
+				routingService.assign(studyInstanceUid, projectId, user.getLogin());
+			} else if (!StringUtils.equals(routing.get(org.nrg.xdat.services.StudyRoutingService.PROJECT), projectId)) {
+				final String existing = routing.get(org.nrg.xdat.services.StudyRoutingService.PROJECT);
+				if (!Permissions.can(user, "xnat:mrSessionData/project", existing, SecurityManager.EDIT)) {
+					throw new InsufficientPrivilegesException("You are trying to reassign study instance UID " + studyInstanceUid + " from project " + existing + " but do not have sufficient privileges to modify study routings for this project.");
+				}
+				if (log.isDebugEnabled()) {
+					log.debug("Updating routing assignment for study instance UID {} to project {}, updated by user {}", studyInstanceUid, projectId, user.getLogin());
+				}
+				routing.put(org.nrg.xdat.services.StudyRoutingService.PROJECT, projectId);
+				routingService.update(studyInstanceUid, routing);
+			}
+		} catch (Exception e) {
+			log.error("An error occurred checking user permissions", e);
+			throw new InitializationException("An error occurred checking user permissions");
+		}
+	}
+
+	@Override
+	public void deleteStudyRouting(UserI user, String studyInstanceUid) throws InsufficientPrivilegesException, InitializationException {
+		 org.nrg.xdat.services.StudyRoutingService routingService =getRoutingService();
+		if (StringUtils.isBlank(studyInstanceUid)) {
+			if (!Roles.isSiteAdmin(user)) {
+				throw new InsufficientPrivilegesException("You must be a site administrator to delete all study routings for this site.");
+			}
+			log.warn("Closing all study instance UID assignments, per user {}", user.getLogin());
+			routingService.closeAll();
+		} else {
+			try {
+				Map<String, String> routing = routingService.findStudyRouting(studyInstanceUid);
+				if (routing == null) {
+					throw new NotFoundException("Couldn't find a routing for the study instance UID: " + studyInstanceUid);
+				}
+				if (!Permissions.can(user, "xnat:mrSessionData/project",
+						routing.get(org.nrg.xdat.services.StudyRoutingService.PROJECT), SecurityManager.EDIT)) {
+					throw new InsufficientPrivilegesException( "You do not have sufficient privileges to delete study routings for this project.");
+				}
+				log.info("Closing study instance UID {} assignment, per user {}", studyInstanceUid, user.getLogin());
+				routingService.close(studyInstanceUid);
+			} catch (Exception e) {
+				log.error("An error occurred checking user permissions", e);
+				throw new InitializationException("An error occurred checking user permissions");
+			}
+		}
+	}
+
+	private org.nrg.xdat.services.StudyRoutingService getRoutingService() {
+		return  XDAT.getContextService().getBean( org.nrg.xdat.services.StudyRoutingService.class);
 	}
 	
 	private StudyRoutingDto getAllStudyRoutingByInstanceUid(UserI user, String studyInstanceUid) throws NotFoundException, InitializationException {
