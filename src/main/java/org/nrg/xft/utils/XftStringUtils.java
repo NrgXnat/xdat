@@ -15,9 +15,16 @@ import org.nrg.xft.exception.XFTInitException;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
 
 import java.io.File;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 public class XftStringUtils {
+	public static final Pattern       REGEX_VALID_ID            = Pattern.compile("^[A-z0-9_-]+$");
+	public static final DecimalFormat ZERO_PADDED_FLOAT_DISPLAY = new DecimalFormat("#,##0.000");
+
+	public static String displayMillisecondsAsSeconds(final long milliseconds) {
+		return ZERO_PADDED_FLOAT_DISPLAY.format((float) milliseconds / 1000);
+	}
 
 	public static String WhiteSpace(int i)
 	{
@@ -652,7 +659,5 @@ public class XftStringUtils {
 	public static String intern(String s){
 		return (s!=null)?s.intern():s;
 	}
-
-	private static final Pattern REGEX_VALID_ID = Pattern.compile("^[A-z0-9_-]+$");
 }
 

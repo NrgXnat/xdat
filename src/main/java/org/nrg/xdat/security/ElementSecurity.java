@@ -10,8 +10,6 @@
 
 package org.nrg.xdat.security;
 
-import static org.nrg.xft.event.XftItemEventI.CREATE;
-
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
@@ -75,6 +73,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static org.nrg.xft.event.XftItemEventI.CREATE;
+
 /**
  * @author Tim
  */
@@ -111,18 +111,35 @@ public class ElementSecurity extends ItemWrapper {
     /**
      * Reviews the classpath for additional data model definitions.  If those definitions
      * contain references to new data types (that haven't been registered already), they
-     * will be registered now.
+     * will be registered now. You should only call this method if you're sure the XNAT
+     * application context will be fully initialized at the time. Otherwise, you should
+     * call {@link #registerNewTypes(XnatPluginBeanManager, DatabaseHelper)} and pass in
+     * the bean manager and database helper directly.
      *
      * @return Returns true if any new data model definitions were found.
      *
      * @throws Exception When something goes wrong.
      */
     public static List<String> registerNewTypes() throws Exception {
-        final Map<String, ElementSecurity> elements    = GetElementSecurities();
-        final List<String>                 newTypes    = new ArrayList<>();
-        final JdbcTemplate                 template    = XDAT.getContextService().getBean(JdbcTemplate.class);
-        final XnatPluginBeanManager        beanManager = XDAT.getContextService().getBean(XnatPluginBeanManager.class);
-        final DatabaseHelper               helper      = XDAT.getContextService().getBean(DatabaseHelper.class);
+        return registerNewTypes(XDAT.getContextService().getBean(XnatPluginBeanManager.class), XDAT.getContextService().getBean(DatabaseHelper.class));
+    }
+
+    /**
+     * Reviews the classpath for additional data model definitions.  If those definitions
+     * contain references to new data types (that haven't been registered already), they
+     * will be registered now.
+     *
+     * @param beanManager The bean manager
+     * @param helper      The database helper
+     *
+     * @return Returns true if any new data model definitions were found.
+     *
+     * @throws Exception When something goes wrong.
+     */
+    public static List<String> registerNewTypes(final XnatPluginBeanManager beanManager, final DatabaseHelper helper) throws Exception {
+        final JdbcTemplate                 template = helper.getJdbcTemplate();
+        final Map<String, ElementSecurity> elements = GetElementSecurities();
+        final List<String>                 newTypes = new ArrayList<>();
 
         for (final DataModelDefinition dataModelDefinition : XFTManager.discoverDataModelDefs()) {
             for (final String securedElements : dataModelDefinition.getSecuredElements()) {
@@ -146,11 +163,18 @@ public class ElementSecurity extends ItemWrapper {
     public static List<String> checkForReferencedDataModels(final JdbcTemplate template, final XnatPluginBeanManager beanManager) throws Exception {
         synchronized (checkForReferencedDataModels) {
             if (checkForReferencedDataModels.get()) {
+                log.debug("Referenced data models have already been checked for secured but unactivated data models");
                 return Collections.emptyList();
             }
             try {
                 final Set<String> securities = GetElementSecurities().keySet();
-                return beanManager.getPluginBeans().values().stream().map(XnatPluginBean::getDataModelBeans).flatMap(Collection::stream).filter(bean -> isUnconfiguredSecureDataModel(securities, bean)).map(bean -> activateDataType(template, bean)).filter(Objects::nonNull).collect(Collectors.toList());
+                if (securities.isEmpty()) {
+                    log.info("Checked for referenced but unactivated secured data models, didn't find any");
+                    return Collections.emptyList();
+                } else {
+                    log.info("Found {} secured data models referenced but unactivated, processing now", securities.size());
+                    return beanManager.getPluginBeans().values().stream().map(XnatPluginBean::getDataModelBeans).flatMap(Collection::stream).filter(bean -> isUnconfiguredSecureDataModel(securities, bean)).map(bean -> activateDataType(template, bean)).filter(Objects::nonNull).collect(Collectors.toList());
+                }
             } finally {
                 checkForReferencedDataModels.set(true);
             }
@@ -175,6 +199,7 @@ public class ElementSecurity extends ItemWrapper {
      */
     public static void refresh() {
         synchronized (lock) {
+            log.info("Refreshing element security by clearing cached elements locally and in the shared cache");
             elements.clear();
             CacheManager.GetInstance().clearAll();
         }

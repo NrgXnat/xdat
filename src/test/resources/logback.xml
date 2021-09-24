@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d [%t] %-5p %c - %m%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="test" class="ch.qos.logback.core.FileAppender">
+        <file>target/surefire-reports/xdat-core-test.log</file>
+        <encoder>
+            <pattern>%d [%t] %-5p %c - %m%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="db" class="ch.qos.logback.core.FileAppender">
+        <file>target/surefire-reports/xdat-db.log</file>
+        <encoder>
+            <pattern>%d [%t] %-5p %c - %m%n</pattern>
+        </encoder>
+    </appender>
+    <root level="WARN">
+        <appender-ref ref="test"/>
+        <appender-ref ref="console"/>
+    </root>
+    <logger name="org.nrg.xft.db.DatabaseUpdater" additivity="false" level="DEBUG">
+        <appender-ref ref="db"/>
+    </logger>
+    <logger name="org.nrg.xdat.test.extensions" additivity="false" level="DEBUG">
+        <appender-ref ref="db"/>
+    </logger>
+</configuration>

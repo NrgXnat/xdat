@@ -10,7 +10,9 @@
 
 package org.nrg.xft.db;
 
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.StopWatch;
 import org.nrg.xdat.XDAT;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.XFTTable;
@@ -29,9 +31,20 @@ import java.util.Date;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class PoolDBUtils {
 	public static final String QUERY_ITEM_CACHE_ADD_ID = "ALTER TABLE xs_item_cache ADD COLUMN id BIGSERIAL PRIMARY KEY";
+
+	public PoolDBUtils() {
+		this(null);
+	}
+
+	public PoolDBUtils(final DataSource dataSource) {
+		if (_dataSource == null) {
+			_dataSource = Optional.ofNullable(dataSource).orElseGet(XDAT::getDataSource);
+		}
+	}
 
 	/**
 	 * Processes the specified query on the specified db with a pooled connection.
@@ -509,11 +522,15 @@ public class PoolDBUtils {
 	 */
 	private Connection getConnection() throws SQLException {
 		if (_connection == null) {
-			final DataSource dataSource = XDAT.getDataSource();
-			if (dataSource != null) {
-				_connection = dataSource.getConnection();
+			if (_dataSource != null) {
+				_connection = _dataSource.getConnection();
 			} else {
-				logger.warn("Couldn't load the data source to create a connection.");
+				final DataSource dataSource = XDAT.getDataSource();
+				if (dataSource != null) {
+					_connection = dataSource.getConnection();
+				} else {
+					logger.warn("Couldn't load the data source to create a connection.");
+				}
 			}
 		}
 		return _connection;
@@ -676,71 +693,52 @@ public class PoolDBUtils {
      * @throws SQLException
      * @throws DBPoolException
      */
-    @SuppressWarnings("rawtypes")
-	public static void PerformUpdateTrigger(XFTItem item, String login)throws SQLException,DBPoolException{
-        CreateCache(item.getDBName(),login);
+    public static void PerformUpdateTrigger(final XFTItem item, final String login) throws SQLException, DBPoolException {
+		try {
+			PerformUpdateTrigger(Optional.ofNullable(_dataSource).orElseGet(XDAT::getDataSource), item, login);
+		} catch (Exception e) {
+			logger.error("An error occurred trying to retrieve the application data source. This probably means I can't do any of this work anyway.", e);
+		}
+	}
 
-        Connection con = null;
-        CallableStatement st = null;
-        String query = null;
-        try {
-            con = XDAT.getDataSource().getConnection();
-            int           count   =0;
-            StringBuilder ids     = new StringBuilder();
-            ArrayList     keys    = item.getGenericSchemaElement().getAllPrimaryKeys();
-            Iterator      keyIter = keys.iterator();
-            while (keyIter.hasNext())
-            {
-                GenericWrapperField sf = (GenericWrapperField)keyIter.next();
-                Object id = item.getProperty(sf);
+	public static void PerformUpdateTrigger(final DataSource dataSource, final XFTItem item, final String login) throws SQLException, DBPoolException {
+		CreateCache(item.getDBName(), login);
 
-                try {
-	                if(id==null){
-	                	id=item.getProperty(sf.getXMLPathString(item.getGenericSchemaElement().getXSIType()));
-	                }
+		final GenericWrapperElement element;
+		try {
+			element = item.getGenericSchemaElement();
+		} catch (ElementNotFoundException e) {
+			logger.error("An element {} wasn't found while trying to create the update trigger", e.ELEMENT, e);
+			return;
+		}
 
-	                if (count++>0) {
-	                	ids.append(",");
-					}
-					ids.append(DBAction.ValueParser(id, sf, true));
-				} catch (Exception e) {
-					logger.error("",e);
-				}
-            }
-            Date start = Calendar.getInstance().getTime();
+		final String       xsiType = element.getXSIType();
+		final List<String> ids     = element.getAllPrimaryKeys().stream().map(sf -> getIdFromField(sf, item, xsiType)).filter(Objects::nonNull).collect(Collectors.toList());
+		final String       query   = "SELECT update_ls_" + element.getFormattedName() + "(" + String.join(", ", ids) + ", NULL)";
 
-            query = "SELECT update_ls_" + item.getGenericSchemaElement().getFormattedName() + "(" + ids +",NULL)";
-            st = con.prepareCall(query);
+		try (final Connection connection = dataSource.getConnection();
+			 final CallableStatement statement = connection.prepareCall(query)) {
+			final StopWatch stopWatch = StopWatch.createStarted();
+			statement.execute();
+			stopWatch.stop();
+			logger.debug("The following query completed in {} ms ({}): {}", stopWatch.getTime(), login, query);
+		} catch (SQLException e) {
+			logger.error("An error occurred trying to run an SQL query: {}", query, e);
+			throw e;
+		}
+	}
 
-            st.execute();
+	private static String getIdFromField(final GenericWrapperField field, final XFTItem item, final String xsiType) {
+		final Object id = item.getProperty(field);
+		try {
+			return DBAction.ValueParser(ObjectUtils.defaultIfNull(id, item.getProperty(field.getXMLPathString(xsiType))), field, true);
+		} catch (Exception e) {
+			logger.error("An error occurred trying to retrieve an ID", e);
+		}
+		return null;
+	}
 
-			logger.debug("The following query completed in {} ms ({}): {}", getTimeDiff(start, Calendar.getInstance().getTime()), login, query);
-        } catch (ElementNotFoundException e) {
-            logger.error("An element {} wasn't found while running a query", e.ELEMENT, e);
-        } catch (SQLException e) {
-            logger.error(query);
-            throw e;
-        } finally{
-            if (st != null)
-            {
-                try {
-                    st.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (con != null)
-            {
-                try {
-                    con.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private static boolean CUSTOM_SEARCH_LOG_EXISTS=false;
+	private static boolean CUSTOM_SEARCH_LOG_EXISTS=false;
     /**
      * @param dbName
      * @param login
@@ -991,14 +989,25 @@ public class PoolDBUtils {
 		}
 	}
 
-	public static Transaction getTransaction(){
+	public static Transaction getTransaction(final DataSource dataSource) {
+		if (_dataSource == null) {
+			_dataSource = dataSource;
+		}
+		return new Transaction(dataSource);
+	}
+
+	public static Transaction getTransaction() {
 		return new Transaction();
 	}
 
-	public static Transaction open() throws SQLException, DBPoolException {
-		final Transaction transaction = new Transaction();
+	public static Transaction open(final DataSource dataSource) throws SQLException, DBPoolException {
+		final Transaction transaction = new Transaction(dataSource);
 		transaction.start();
 		return transaction;
+	}
+
+	public static Transaction open() throws SQLException, DBPoolException {
+		return open(null);
 	}
 
 	/**
@@ -1008,9 +1017,17 @@ public class PoolDBUtils {
 	 * It maintains a single open connection (locked) until the close method is called.
 	 */
 	public static class Transaction implements Closeable {
-		PoolDBUtils pooledConnection=new PoolDBUtils();//pooled connection manager
+		private final PoolDBUtils pooledConnection;//pooled connection manager
 		Connection con;
 		Statement st;
+
+		private Transaction() {
+			this(null);
+		}
+
+		private Transaction(final DataSource dataSource) {
+			pooledConnection = dataSource != null ? new PoolDBUtils(dataSource) : new PoolDBUtils();
+		}
 
 		public void start() throws SQLException, DBPoolException{
 			con=pooledConnection.getConnection();
@@ -1077,7 +1094,8 @@ public class PoolDBUtils {
 
 	private static Float VERSION = null;
 
-	private Connection       _connection       = null;
-	private Statement        _statement        = null;
-	private DatabaseMetaData _databaseMetaData = null;
+	private static DataSource       _dataSource;
+	private        Connection       _connection       = null;
+	private        Statement        _statement        = null;
+	private        DatabaseMetaData _databaseMetaData = null;
 }

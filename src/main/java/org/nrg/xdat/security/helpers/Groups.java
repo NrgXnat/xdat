@@ -15,6 +15,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.nrg.framework.services.ContextService;
 import org.nrg.framework.utilities.Reflection;
 import org.nrg.xdat.XDAT;
+import org.nrg.xdat.om.XdatUsergroup;
 import org.nrg.xdat.security.ElementSecurity;
 import org.nrg.xdat.security.UserGroupI;
 import org.nrg.xdat.security.UserGroupServiceI;
@@ -412,11 +413,10 @@ public class Groups {
      * Convenience method to create the standard owner, member, and collaborator groups for the specified project. Uses the project ID
      * to create the group IDs and sets the permissions and tags appropriately.
      *
-     * @param projectId       The project for which the group should be created.
-     * @param user            The user creating the project and groups.
+     * @param projectId The project for which the group should be created.
+     * @param user      The user creating the project and groups.
      *
      * @return The newly created groups.
-     *
      */
     @SuppressWarnings("unused")
     public static List<UserGroupI> createOrUpdateProjectGroups(final String projectId, final UserI user) {
@@ -473,7 +473,8 @@ public class Groups {
      * @return The data type for user group objects.
      */
     public static String getGroupDatatype() {
-        return getUserGroupService().getGroupDatatype();
+        final UserGroupServiceI service = getUserGroupService();
+        return service != null ? service.getGroupDatatype() : XdatUsergroup.SCHEMA_ELEMENT_NAME;
     }
 
     /**

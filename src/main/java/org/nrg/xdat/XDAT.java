@@ -36,6 +36,7 @@ import org.nrg.notify.api.SubscriberType;
 import org.nrg.notify.entities.*;
 import org.nrg.notify.exceptions.DuplicateSubscriberException;
 import org.nrg.notify.services.NotificationService;
+import org.nrg.prefs.exceptions.UnknownToolId;
 import org.nrg.xdat.base.BaseElement;
 import org.nrg.xdat.display.DisplayManager;
 import org.nrg.xdat.preferences.NotificationsPreferences;
@@ -65,6 +66,7 @@ import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperUtils;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.FileUtils;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -191,9 +193,14 @@ public class XDAT {
 	}
 
 	public static String getSiteConfigurationProperty(final String property, final String defaultValue) throws ConfigServiceException {
-		final SiteConfigPreferences preferences = getSiteConfigPreferences();
-		final String value = preferences.getValue(property);
-		return StringUtils.defaultIfBlank(value, defaultValue);
+		try {
+			final SiteConfigPreferences preferences = getSiteConfigPreferences();
+			final String value = preferences.getValue(property);
+			return StringUtils.defaultIfBlank(value, defaultValue);
+		} catch (NoSuchBeanDefinitionException e) {
+			log.warn("Couldn't find the site config preferences bean, returning default value {}", defaultValue, e);
+			return defaultValue;
+		}
 	}
 
 	public static boolean getBoolSiteConfigurationProperty(final String property, final boolean defaultValue) {
