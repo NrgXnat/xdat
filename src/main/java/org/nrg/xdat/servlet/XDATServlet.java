@@ -60,9 +60,6 @@ public class XDATServlet extends HttpServlet {
             updater.populateOrUpdateDatabase();
             _shouldUpdateViews = updater.shouldUpdateViews();
             _isDatabasePopulateOrUpdateCompleted = updater.isDatabasePopulateOrUpdateCompleted();
-
-            //call the logic to check if the database is up-to-date.
-            updater.populateOrUpdateDatabase();
         } catch (Exception e) {
             log.error("An error occurred trying to initialize the XDAT servlet", e);
         }

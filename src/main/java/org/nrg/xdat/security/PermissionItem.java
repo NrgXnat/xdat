@@ -10,6 +10,7 @@
 
 package org.nrg.xdat.security;
 
+import lombok.NoArgsConstructor;
 import org.nrg.xft.exception.MetaDataException;
 import org.nrg.xft.utils.XftStringUtils;
 
@@ -21,7 +22,14 @@ import java.util.Comparator;
  *
  * @author Tim
  */
+@NoArgsConstructor
 public class PermissionItem {
+    public PermissionItem(final String fullFieldName, final String displayName, final Object value) {
+        setFullFieldName(fullFieldName);
+        setDisplayName(displayName);
+        setValue(value);
+    }
+
     @SuppressWarnings("RedundantThrows")
     public void set(PermissionCriteriaI c) throws MetaDataException {
         if (c.getField().equalsIgnoreCase(XftStringUtils.StandardizeXMLPath(fullFieldName)) && c.getFieldValue().toString().equalsIgnoreCase(value.toString())) {

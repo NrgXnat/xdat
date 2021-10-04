@@ -168,7 +168,6 @@ public class DatabaseUpdater {
                 } else {
                     log.info("User count was null, which indicates the table doesn't exist yet. Preparing to initialize and populate database");
                     shouldRefreshElementSecurity.set(populateDatabase(generatedSqlLogPath));
-                    processInitSqlScripts();
                 }
             } else {
                 shouldRefreshElementSecurity.set(validateViews());
@@ -244,11 +243,7 @@ public class DatabaseUpdater {
     private void processInitSqlScripts() {
         final Map<String, String> statements = getInitScripts(INIT_SCRIPT_SQL_PATTERN, null);
         if (!statements.isEmpty()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Found {} lines in SQL init scripts, preparing to execute:\n\n{}", statements.size(), String.join("\n", statements.values()));
-            } else {
-                log.info("Found {} lines in SQL init scripts, preparing to execute", statements.size());
-            }
+            log.info("Found {} SQL init scripts, preparing to execute:\n* {}", statements.size(), String.join("\n* ", statements.keySet()));
             try (final PoolDBUtils.Transaction transaction = PoolDBUtils.open()) {
                 for (final String file : statements.keySet()) {
                     try {
@@ -283,8 +278,7 @@ public class DatabaseUpdater {
 
         log.info("Starting processing of all SQL statements now");
         final StopWatch stopWatch = StopWatch.createStarted();
-        //noinspection CallToThreadRun
-        databaseUpdater.run();// start and wait for it
+        databaseUpdater.runUpdate();
         stopWatch.stop();
 
         log.info("========================================================");
@@ -379,10 +373,21 @@ public class DatabaseUpdater {
         }
 
         /**
-         * Runs the SQL statements that have been added to the
+         * Runs the SQL statements that have been added to the database update executor. Note that, because this method
+         * overrides the <pre>Thread.run()</pre> method, this runs asynchronously and returns immediately. To run the
+         * database update synchronously, call the {@link #runUpdate()} method instead.
          */
         @Override
         public void run() {
+            runUpdate();
+        }
+
+        /**
+         * Runs the SQL statements that have been added to the database update executor. Note that this method doesn't
+         * override the <pre>Thread.run()</pre> method, so it runs synchronously and returns only when the update is
+         * completed. To run the database update asynchronously, call the {@link #run()} method instead.
+         */
+        public void runUpdate() {
             final boolean shouldWriteLog = _generatedSqlLogPath != null;
 
             final PoolDBUtils.Transaction transaction = PoolDBUtils.getTransaction(_template.getDataSource());
@@ -433,7 +438,7 @@ public class DatabaseUpdater {
                 log.info("Initializing database functions...");
                 for (final GenericWrapperElement element : GenericUtils.convertToTypedList(XFTManager.GetInstance().getOrderedElements(), GenericWrapperElement.class)) {
                     final List<String>[] functions = GenericWrapperUtils.GetFunctionStatements(element);
-                    log.info("Found {} functions and {} run-after functions for the data type element {}", functions[0].size(), functions[1].size(), element.getName());
+                    log.debug("Found {} functions and {} run-after functions for the data type element {}", functions[0].size(), functions[1].size(), element.getName());
                     execute(transaction, writer, functions[0]);
                     runAfter.addAll(functions[1]);
                 }
@@ -493,6 +498,9 @@ public class DatabaseUpdater {
             } catch (Exception e) {
                 log.error("An error occurred trying to adjust database sequences", e);
             }
+
+            // Process init SQL scripts, which include functions required for data-type registration in next step.
+            processInitSqlScripts();
 
             // code will dynamically register data types
             try {

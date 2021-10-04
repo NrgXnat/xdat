@@ -7,14 +7,9 @@
  * Released under the Simplified BSD.
  */
 
-
 package org.nrg.xdat.security;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -22,6 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.nrg.framework.beans.XnatDataModelBean;
 import org.nrg.framework.beans.XnatPluginBean;
 import org.nrg.framework.beans.XnatPluginBeanManager;
+import org.nrg.framework.generics.GenericUtils;
 import org.nrg.framework.orm.DatabaseHelper;
 import org.nrg.framework.services.ContextService;
 import org.nrg.framework.utilities.BasicXnatResourceLocator;
@@ -64,7 +60,6 @@ import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -141,14 +136,20 @@ public class ElementSecurity extends ItemWrapper {
         final Map<String, ElementSecurity> elements = GetElementSecurities();
         final List<String>                 newTypes = new ArrayList<>();
 
-        for (final DataModelDefinition dataModelDefinition : XFTManager.discoverDataModelDefs()) {
-            for (final String securedElements : dataModelDefinition.getSecuredElements()) {
-                if (StringUtils.isNotBlank(securedElements) && !elements.containsKey(securedElements) && GenericWrapperElement.GetFieldForXMLPath(securedElements + "/project") != null) {
-                    final ElementSecurity elementSecurity = ElementSecurity.newElementSecurity(securedElements);
-                    elementSecurity.initExistingPermissions();
-                    newTypes.add(elementSecurity.getElementName());
+        final List<DataModelDefinition> definitions = XFTManager.discoverDataModelDefs();
+        if (!definitions.isEmpty()) {
+            log.debug("Discovered {} data model definitions, processing now", definitions.size());
+            for (final DataModelDefinition dataModelDefinition : definitions) {
+                for (final String securedElement : dataModelDefinition.getSecuredElements()) {
+                    if (StringUtils.isNotBlank(securedElement) && !elements.containsKey(securedElement) && GenericWrapperElement.GetFieldForXMLPath(securedElement + "/project") != null) {
+                        final ElementSecurity elementSecurity = ElementSecurity.newElementSecurity(securedElement);
+                        elementSecurity.initExistingPermissions();
+                        newTypes.add(elementSecurity.getElementName());
+                    }
                 }
             }
+        } else {
+            log.debug("No data model definitions discovered");
         }
 
         newTypes.addAll(checkForReferencedDataModels(template, beanManager));
@@ -171,10 +172,9 @@ public class ElementSecurity extends ItemWrapper {
                 if (securities.isEmpty()) {
                     log.info("Checked for referenced but unactivated secured data models, didn't find any");
                     return Collections.emptyList();
-                } else {
-                    log.info("Found {} secured data models referenced but unactivated, processing now", securities.size());
-                    return beanManager.getPluginBeans().values().stream().map(XnatPluginBean::getDataModelBeans).flatMap(Collection::stream).filter(bean -> isUnconfiguredSecureDataModel(securities, bean)).map(bean -> activateDataType(template, bean)).filter(Objects::nonNull).collect(Collectors.toList());
                 }
+                log.info("Found {} secured data models referenced but unactivated, processing now", securities.size());
+                return beanManager.getPluginBeans().values().stream().map(XnatPluginBean::getDataModelBeans).flatMap(Collection::stream).filter(bean -> isUnconfiguredSecureDataModel(securities, bean)).map(bean -> activateDataType(template, bean)).filter(Objects::nonNull).collect(Collectors.toList());
             } finally {
                 checkForReferencedDataModels.set(true);
             }
@@ -430,13 +430,8 @@ public class ElementSecurity extends ItemWrapper {
      * @throws Exception When something goes wrong.
      */
     @SuppressWarnings("unused")
-    public static ArrayList<ElementSecurity> GetBrowseableElements() throws Exception {
-        return Lists.newArrayList(Collections2.filter(GetElementSecurities().values(), new Predicate<ElementSecurity>() {
-            @Override
-            public boolean apply(@Nullable final ElementSecurity elementSecurity) {
-                return elementSecurity != null && elementSecurity.isBrowseable();
-            }
-        }));
+    public static List<ElementSecurity> GetBrowseableElements() throws Exception {
+        return GetElementSecurities().values().stream().filter(Objects::nonNull).filter(ElementSecurity::isBrowseable).collect(Collectors.toList());
     }
 
     /**
@@ -517,7 +512,7 @@ public class ElementSecurity extends ItemWrapper {
         } catch (FieldNotFoundException e) {
             log.error("Couldn't find the field {} while trying to create a new element security entry for an item of type {}: {}", e.FIELD, item.getXSIType(), e.MESSAGE, e);
         } catch (Exception e) {
-            log.error("An unexpected error occurred =while trying to create a new element security entry for an item of type {}", e);
+            log.error("An unexpected error occurred while trying to create a new element security entry for an item of type {}", item.getXSIType(), e);
         }
     }
 
@@ -665,7 +660,7 @@ public class ElementSecurity extends ItemWrapper {
         return elementActions;
     }
 
-    public class ElementActionGroup {
+    public static class ElementActionGroup {
         public String                   group   = "";
         public ArrayList<ElementAction> actions = new ArrayList<>();
 
@@ -731,17 +726,12 @@ public class ElementSecurity extends ItemWrapper {
     @SuppressWarnings("unused")
     public String getListingActionsJSON() {
         if (StringUtils.isBlank(listingActionsJson)) {
-            listingActionsJson = "[" + StringUtils.join(Lists.transform(listingActions, new Function<XdatElementSecurityListingAction, String>() {
-                @Override
-                public String apply(final XdatElementSecurityListingAction action) {
-                    return "{action: \"" + action.getElementActionName() + "\", display: \"" + action.getDisplayName() + "\"" +
-                           (action.getPopup() != null ? ", popup: \"" + action.getPopup() + "\"" : "") +
-                           (action.getSequence() != null ? ", sequence: " + action.getSequence() : "") +
-                           (action.getImage() != null ? ", image: \"" + action.getImage() + "\"" : "") +
-                           (action.getParameterstring() != null ? ", params: \"" + action.getParameterstring() + "\"" : "") +
-                           "}";
-                }
-            }), ", ") + "]";
+            listingActionsJson = "[" + listingActions.stream().map(action -> "{action: \"" + action.getElementActionName() + "\", display: \"" + action.getDisplayName() + "\"" +
+                                                                             (action.getPopup() != null ? ", popup: \"" + action.getPopup() + "\"" : "") +
+                                                                             (action.getSequence() != null ? ", sequence: " + action.getSequence() : "") +
+                                                                             (action.getImage() != null ? ", image: \"" + action.getImage() + "\"" : "") +
+                                                                             (action.getParameterstring() != null ? ", params: \"" + action.getParameterstring() + "\"" : "") +
+                                                                             "}").collect(Collectors.joining(", ")) + "]";
         }
         return listingActionsJson;
     }
@@ -757,22 +747,12 @@ public class ElementSecurity extends ItemWrapper {
     }
 
     public List<PermissionItem> getPermissionItemsForTag(String tag) throws XFTInitException, ElementNotFoundException, FieldNotFoundException {
-        List<PermissionItem> tempItems = Lists.newArrayList();
-
-        for (String fieldName : getPrimarySecurityFields()) {
-            if (!fieldName.startsWith(this.getElementName())) {
-                fieldName = this.getElementName() + XFT.PATH_SEPARATOR + fieldName;
-            }
-
-            PermissionItem pi = new PermissionItem();
-            pi.setFullFieldName(fieldName);
-            pi.setDisplayName(tag);
-            pi.setValue(tag);
-            tempItems.add(pi);
-        }
-
-        Collections.sort(tempItems, PermissionItem.GetComparator());
-        return tempItems;
+        final String prefix = getElementName() + XFT.PATH_SEPARATOR;
+        return getPrimarySecurityFields().stream()
+                                         .map(fieldName -> StringUtils.prependIfMissing(fieldName, prefix))
+                                         .map(fieldName -> new PermissionItem(fieldName, tag, tag))
+                                         .sorted(PermissionItem.GetComparator())
+                                         .collect(Collectors.toList());
     }
 
     private List<PermissionItem> permissionItems = null;
@@ -790,22 +770,18 @@ public class ElementSecurity extends ItemWrapper {
                 final String              qualifiedFieldName = fieldName.startsWith(getElementName()) ? fieldName : getElementName() + XFT.PATH_SEPARATOR + fieldName;
                 final GenericWrapperField field              = GenericWrapperElement.GetFieldForXMLPath(qualifiedFieldName);
                 if (field != null) {
-                    final Hashtable hash;
+                    final Map<String, String> hash;
                     if (field.isReference()) {
                         SchemaElementI se = SchemaElement.GetElement(field.getReferenceElementName().getFullForeignType());
-                        hash = GetDistinctIdValuesFor(se.getFullXMLName(), "default", login);
+                        hash = GenericUtils.convertToTypedMap(GetDistinctIdValuesFor(se.getFullXMLName(), "default", login), String.class, String.class);
                     } else {
-                        hash = GetDistinctIdValuesFor(field.getParentElement().getFullXMLName(), qualifiedFieldName, login);
+                        hash = GenericUtils.convertToTypedMap(GetDistinctIdValuesFor(field.getParentElement().getFullXMLName(), qualifiedFieldName, login), String.class, String.class);
                     }
 
-                    Enumeration enumer = hash.keys();
-                    while (enumer.hasMoreElements()) {
-                        final Object id      = enumer.nextElement();
-                        final String display = (String) hash.get(id);
-
+                    for (final String id : hash.keySet()) {
                         final PermissionItem permissionItem = new PermissionItem();
                         permissionItem.setFullFieldName(qualifiedFieldName);
-                        permissionItem.setDisplayName(display);
+                        permissionItem.setDisplayName(hash.get(id));
                         permissionItem.setValue(id);
                         permissionItems.add(permissionItem);
                     }
@@ -814,7 +790,7 @@ public class ElementSecurity extends ItemWrapper {
                 }
             }
 
-            Collections.sort(permissionItems, PermissionItem.GetComparator());
+            permissionItems.sort(PermissionItem.GetComparator());
         }
         return permissionItems;
     }
@@ -876,13 +852,7 @@ public class ElementSecurity extends ItemWrapper {
 
                 if (!hasDefinedIdValuePair) {
                     final StringBuilder query = new StringBuilder("SELECT DISTINCT ON (");
-                    final String cols = StringUtils.join(Lists.transform(se.getAllPrimaryKeys(), new Function<Object, String>() {
-                        @Nullable
-                        @Override
-                        public String apply(final Object object) {
-                            return ((SchemaField) object).getSQLName();
-                        }
-                    }), ", ");
+                    final String        cols  = GenericUtils.convertToTypedList(se.getAllPrimaryKeys(), SchemaField.class).stream().map(SchemaField::getSQLName).collect(Collectors.joining(", "));
 
                     query.append(cols).append(") ").append(cols).append(" FROM ").append(se.getSQLName());
 
@@ -895,7 +865,6 @@ public class ElementSecurity extends ItemWrapper {
                     hash1.put(fieldName, newHash);
                     hash2 = newHash;
                 }
-
             } else {
                 final Hashtable<String, String> newHash = new Hashtable<>();
 
@@ -1607,6 +1576,21 @@ public class ElementSecurity extends ItemWrapper {
         return elementName;
     }
 
+    private List<PermissionItem> getPermissionItemsForField(final GenericWrapperField field, final String login) {
+        final String fieldName = field.getName(true);
+        try {
+            return GenericUtils.convertToTypedMap(field.isReference()
+                                                  ? GetDistinctIdValuesFor(SchemaElement.GetElement(field.getReferenceElementName().getFullForeignType()).getFullXMLName(), "default", login)
+                                                  : GetDistinctIdValuesFor(field.getParentElement().getFullXMLName(), fieldName, login), String.class, String.class)
+                               .entrySet().stream()
+                               .map(entry -> new PermissionItem(fieldName, entry.getValue(), entry.getKey()))
+                               .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("An error occurred trying to get permission items for field {}, returning empty list", fieldName, e);
+            return Collections.emptyList();
+        }
+    }
+
     /**
      * Gets the specified integer property and tests whether the value is 1 (true) or not 1 (false). If the property is null or an exception
      * occurs retrieving the property, the default value is returned.
@@ -1626,6 +1610,7 @@ public class ElementSecurity extends ItemWrapper {
         }
         return defaultValue;
     }
+
 
     private static boolean isUnconfiguredSecureDataModel(final Collection<String> securities, final XnatDataModelBean bean) {
         final String type = bean.getType();
