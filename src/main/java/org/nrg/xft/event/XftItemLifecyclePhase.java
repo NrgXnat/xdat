@@ -5,5 +5,6 @@ public enum XftItemLifecyclePhase {
     Save,
     InitializeGroups,
     InitializeAccessibility,
-    InitializeArcProject
+    InitializeArcProject,
+    Unavailable
 }

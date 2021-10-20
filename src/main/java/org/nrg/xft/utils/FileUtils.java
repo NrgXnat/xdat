@@ -905,6 +905,10 @@ public  class FileUtils {
         return TSDIR_SECONDS_FORMATTER.format(date);
     }
 
+    public static String getPrearchiveTimestamp() {
+        return getTimestamp(new Date());
+    }
+
     public static String BuildRootHistoryPath() {
         final String cache = XDAT.getSiteConfigPreferences().getCachePath();
 		return (StringUtils.isNotBlank(cache) ? StringUtils.appendIfMissing(cache, File.separator) : "/") + ".history/";

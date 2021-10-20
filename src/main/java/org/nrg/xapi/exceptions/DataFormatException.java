@@ -31,11 +31,19 @@ public class DataFormatException extends XapiException {
     }
 
     public DataFormatException(final String message) {
-        super(HttpStatus.BAD_REQUEST, message);
+        this(HttpStatus.BAD_REQUEST, message);
+    }
+
+    public DataFormatException(final HttpStatus status, final String message) {
+        super(status, message);
     }
 
     public DataFormatException(final String message, final Throwable e) {
-        super(HttpStatus.BAD_REQUEST, message, e);
+        this(HttpStatus.BAD_REQUEST, message, e);
+    }
+
+    public DataFormatException(final HttpStatus status, final String message, final Throwable e) {
+        super(status, message, e);
     }
 
     public void addMissingField(final String missing) {
