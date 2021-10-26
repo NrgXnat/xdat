@@ -19,7 +19,9 @@ import org.nrg.xft.security.UserI;
 import javax.servlet.http.HttpServletRequest;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.*;
+import java.util.function.Predicate;
 
 import static org.nrg.xdat.security.helpers.AccessLevel.*;
 
@@ -28,6 +30,8 @@ import static org.nrg.xdat.security.helpers.AccessLevel.*;
  */
 @Slf4j
 public abstract class AbstractXapiAuthorization implements XapiAuthorization {
+    public static final Predicate<Parameter> IS_INTEGER_PARAMETER = parameter -> Integer.TYPE.equals(parameter.getType());
+
     protected abstract boolean checkImpl(final AccessLevel accessLevel, final JoinPoint joinPoint, final UserI user, final HttpServletRequest request) throws InsufficientPrivilegesException, NotFoundException;
 
     protected abstract boolean considerGuests();
