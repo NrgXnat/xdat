@@ -35,8 +35,8 @@ public class XFTMetaManager {
     private static final Logger         logger  = LoggerFactory.getLogger(XFTMetaManager.class);
     private static       XFTMetaManager manager = null;
 
-    private static Map<String, String> URI_TO_PREFIX_MAPPING = new HashMap<>();
-    private static Map<String, String> PREFIX_TO_URI_MAPPING = new HashMap<>();
+    private static final Map<String, String> URI_TO_PREFIX_MAPPING = new HashMap<>();
+    private static final Map<String, String> PREFIX_TO_URI_MAPPING = new HashMap<>();
 
     private Hashtable sqlHash      = new Hashtable();
     private Hashtable javaHash     = new Hashtable();
@@ -118,7 +118,8 @@ public class XFTMetaManager {
      * Singleton reference to the XFTMetaManager instance.
      *
      * @return Returns a singleton reference to the XFTMetaManager instance
-     * @throws XFTInitException
+     *
+     * @throws XFTInitException When an error occurs initializing or accessing XFT
      */
     public static XFTMetaManager GetInstance() throws XFTInitException {
         if (manager == null) {
@@ -138,8 +139,8 @@ public class XFTMetaManager {
 
     public static void clean() {
         manager = null;
-        URI_TO_PREFIX_MAPPING = new Hashtable();
-        PREFIX_TO_URI_MAPPING = new Hashtable();
+        URI_TO_PREFIX_MAPPING.clear();
+        PREFIX_TO_URI_MAPPING.clear();
         XFTElementIDManager.clean();
     }
 
@@ -147,7 +148,8 @@ public class XFTMetaManager {
      * Gets an ArrayList of all the XFTElements in the manager.
      *
      * @return ArrayList of strings
-     * @throws XFTInitException
+     *
+     * @throws XFTInitException When an error occurs initializing or accessing XFT
      */
     public static ArrayList GetElementNames() throws XFTInitException {
         return XFTMetaManager.GetInstance().elementNames;
@@ -158,8 +160,10 @@ public class XFTMetaManager {
      * it searches for an informal Element Type.  If none found, then null is returned.
      *
      * @param s name of element to find
+     *
      * @return XFTElement (null if not found)
-     * @throws XFTInitException
+     *
+     * @throws XFTInitException When an error occurs initializing or accessing XFT
      */
     public static XFTElement FindElement(String s) throws XFTInitException, ElementNotFoundException {
         XFTMetaElement xe = XFTMetaManager.GetInstance().getElementByFullXMLName(s);
@@ -196,8 +200,10 @@ public class XFTMetaManager {
      * Searches for a XFTElement with the matching XMLType.
      *
      * @param t XMLType of Element
+     *
      * @return XFTElement (null if not found)
-     * @throws XFTInitException
+     *
+     * @throws XFTInitException When an error occurs initializing or accessing XFT
      */
     public static XFTElement FindElement(XMLType t) throws XFTInitException, ElementNotFoundException {
         XFTMetaElement xe = XFTMetaManager.GetInstance().getElementByFullXMLName(t.getFullForeignType());
@@ -221,8 +227,10 @@ public class XFTMetaManager {
      *
      * @param name name of item to find.
      * @param uri  Schema URI which maps to a given XFTSchema
+     *
      * @return XFTElement (null if not found)
-     * @throws XFTInitException
+     *
+     * @throws XFTInitException When an error occurs initializing or accessing XFT
      */
     public static XFTElement FindElement(String name, String uri) throws XFTInitException, ElementNotFoundException {
         XFTElement xe = XFTMetaManager.FindElement(name);
@@ -244,7 +252,9 @@ public class XFTMetaManager {
      *
      * @param factory The factory.
      * @param type    The type.
+     *
      * @return The requested element if found, null otherwise.
+     *
      * @throws XFTInitException         When an error occurs in XFT.
      * @throws ElementNotFoundException When a specified element isn't found on the object.
      */
@@ -265,7 +275,9 @@ public class XFTMetaManager {
      * @param factory The factory.
      * @param name    The name.
      * @param uri     Schema URI which maps to a given XFTSchema
+     *
      * @return The requested element if found, null otherwise.
+     *
      * @throws XFTInitException         When an error occurs in XFT.
      * @throws ElementNotFoundException When a specified element isn't found on the object.
      */
@@ -311,7 +323,9 @@ public class XFTMetaManager {
      *
      * @param factory The factory.
      * @param name    The name.
+     *
      * @return The requested element if found, null otherwise.
+     *
      * @throws XFTInitException         When an error occurs in XFT.
      * @throws ElementNotFoundException When a specified element isn't found on the object.
      */
@@ -331,7 +345,9 @@ public class XFTMetaManager {
      *
      * @param factory The factory.
      * @param code    The code.
+     *
      * @return The requested element if found, null otherwise.
+     *
      * @throws XFTInitException         When an error occurs in XFT.
      * @throws ElementNotFoundException When a specified element isn't found on the object.
      */
@@ -348,7 +364,9 @@ public class XFTMetaManager {
      * Gets the ID from the database table XFT_Elements for this element.
      *
      * @param element The element.
+     *
      * @return The ID of the specified element.
+     *
      * @throws XFTInitException When an error occurs in XFT.
      */
     public static Integer GetElementID(GenericWrapperElement element) throws XFTInitException {
@@ -360,7 +378,9 @@ public class XFTMetaManager {
      * Gets the element that matches this id.
      *
      * @param identifier The element identifier.
+     *
      * @return The requested element if found, null otherwise.
+     *
      * @throws XFTInitException When an error occurs in XFT.
      */
     public static ItemI GetElementExtensionItemByID(Integer identifier) throws Exception {
@@ -390,6 +410,7 @@ public class XFTMetaManager {
      * Translates the supplied URI to its corresponding prefix.
      *
      * @param uri Schema URI which maps to a given XFTSchema
+     *
      * @return The translated prefix.
      */
     public static String TranslateURIToPrefix(String uri) {
@@ -411,10 +432,15 @@ public class XFTMetaManager {
      * Translates the supplied prefix to its corresponding URI.
      *
      * @param prefix The prefix to map.
+     *
      * @return The URI corresponding to the prefix.
      */
     public static String TranslatePrefixToURI(String prefix) {
         return PREFIX_TO_URI_MAPPING.get(prefix);
+    }
+
+    public static List<String> getPrefixes() {
+        return new ArrayList<>(PREFIX_TO_URI_MAPPING.keySet());
     }
 
     public static Enumeration getPrefixEnum() {

@@ -13,7 +13,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 import org.nrg.framework.orm.hibernate.BaseHibernateService;
-import org.nrg.xapi.model.FeatureDefinitionUserGroupDto;
+import org.nrg.xapi.model.features.FeatureDefinitionUserGroupModel;
 import org.nrg.xdat.entities.FeatureDefinition;
 import org.nrg.xft.exception.DBPoolException;
 import org.nrg.xft.security.UserI;
@@ -31,6 +31,6 @@ public interface FeatureDefinitionService extends BaseHibernateService<FeatureDe
     
     void findAllByTags(UserI user, String [] tags);
     
-    List<FeatureDefinitionUserGroupDto> findAllByType(UserI user, String type) throws SQLException, DBPoolException ;
+    List<FeatureDefinitionUserGroupModel> findAllByType(UserI user, String type) throws SQLException, DBPoolException ;
     
 }

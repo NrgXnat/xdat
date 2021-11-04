@@ -9,9 +9,9 @@
 
 package org.nrg.xdat.om;
 
-import java.util.ArrayList;
-
 import org.nrg.xft.ItemI;
+
+import java.util.ArrayList;
 
 /**
  * @author XDAT
@@ -48,6 +48,7 @@ public interface XdatStoredSearchI {
      * Sets the value for search_field.
      *
      * @param v Value to Set.
+     *
      * @throws Exception When an error occurs.
      */
     void setSearchField(ItemI v) throws Exception;
@@ -63,6 +64,7 @@ public interface XdatStoredSearchI {
      * Sets the value for search_where.
      *
      * @param v Value to Set.
+     *
      * @throws Exception When an error occurs.
      */
     void setSearchWhere(ItemI v) throws Exception;
@@ -102,9 +104,31 @@ public interface XdatStoredSearchI {
      * Sets the value for allowed_user.
      *
      * @param v Value to Set.
+     *
      * @throws Exception When an error occurs.
      */
     void setAllowedUser(ItemI v) throws Exception;
+
+    void removeAllowedUser(int index);
+
+    /**
+     * allowed_groups/groupID
+     *
+     * @return Returns an ArrayList of org.nrg.xdat.om.XdatStoredSearchGroupidI
+     */
+    ArrayList getAllowedGroups_groupid();
+
+    /**
+     * Sets the value for allowed_groups/groupID.
+     *
+     * @param v Value to Set.
+     *
+     * @throws Exception When an error occurs.
+     */
+    @SuppressWarnings("unused")
+    void setAllowedGroups_groupid(ItemI v) throws Exception;
+
+    void removeAllowedGroups_groupid(int index);
 
     /**
      * @return Returns the ID.
@@ -179,4 +203,16 @@ public interface XdatStoredSearchI {
      * @param v Value to Set.
      */
     void setBriefDescription(String v);
+
+    /**
+     * @return Returns the tag.
+     */
+    String getTag();
+
+    /**
+     * Sets the value for tag.
+     *
+     * @param v Value to Set.
+     */
+    void setTag(String v);
 }

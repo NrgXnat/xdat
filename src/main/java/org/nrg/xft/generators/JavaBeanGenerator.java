@@ -10,17 +10,10 @@
 
 package org.nrg.xft.generators;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.nrg.framework.generics.GenericUtils;
 import org.nrg.xft.XFT;
 import org.nrg.xft.exception.ElementNotFoundException;
 import org.nrg.xft.exception.XFTInitException;
@@ -33,348 +26,329 @@ import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWrapperElement;
 import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWrapperFactory;
 import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWrapperField;
 import org.nrg.xft.schema.design.SchemaElementI;
-import org.nrg.xft.utils.FileUtils;
 import org.nrg.xft.utils.XftStringUtils;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
 
+@Slf4j
 public class JavaBeanGenerator {
     public static final String INTERFACE_PACKAGE = "org.nrg.xdat.model";
-    private String project = "";
-    private enum TYPE {data,single_reference,multi_reference,inline_repeater,LONG_DATA,NO_CHILD}
-    public static boolean VERSION5=true;
-    private String header ="\t";
-    
-    public static void SetVersion5(final boolean ve){
-    	VERSION5=ve;
-    }
-    
+    private             String project           = "";
+
+    private enum TYPE {data, single_reference, multi_reference, inline_repeater, LONG_DATA, NO_CHILD}
+
     /**
-     * @param e
-     * @param location
-     * @throws Exception
+     * @param element  The element
+     * @param location The location where the Java bean file should be written.
+     *
+     * @throws Exception When something goes wrong.
      */
-    public void generateJavaBeanFile(GenericWrapperElement e, String location) throws Exception
-    {
-        
+    public void generateJavaBeanFile(GenericWrapperElement element, String location) throws Exception {
+
         StringBuffer sb = new StringBuffer();
-        
+
         String packageName = project + ".bean";
-        
-        sb.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n *\n */");
-        sb.append("\npackage ").append(packageName).append(";");
+
+        sb.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n * JavaBeanGenerator.generateJavaBeanFile(GenericWrapperElement, String)\n */");
+        sb.append("\npackage ").append(packageName).append(";\n\n");
         //IMPORTS
-        sb.append("\nimport org.apache.log4j.Logger;");
-        sb.append("\nimport org.nrg.xdat.bean.base.BaseElement;");
-        sb.append("\n\nimport java.util.*;");
+        sb.append("import com.fasterxml.jackson.annotation.JsonIgnore;\n");
+        sb.append("import com.fasterxml.jackson.annotation.JsonProperty;\n");
+        sb.append("import org.apache.log4j.Logger;\n");
+        sb.append("import org.nrg.xdat.bean.base.BaseElement;\n\n");
+        sb.append("import javax.xml.bind.annotation.XmlRootElement;\n");
+        sb.append("import javax.xml.bind.annotation.XmlTransient;\n");
+        sb.append("import java.util.*;\n\n");
         sb.append("\n\n/**\n * @author XDAT\n *\n */");
-        
+
         //CLASS
         String extensionName = "BaseElement";
-        if (e.isExtension())
-        {
-           GenericWrapperElement ext = GenericWrapperElement.GetElement(e.getExtensionType());
-           if (!ext.getXSIType().equals(e.getXSIType()))
-            extensionName = getFormattedBean(ext);
+        if (element.isExtension()) {
+            GenericWrapperElement ext = GenericWrapperElement.GetElement(element.getExtensionType());
+            if (!ext.getXSIType().equals(element.getXSIType())) {
+                extensionName = getFormattedBean(ext);
+            }
         }
-        
+
 
         sb.append("/*\n ******************************** \n * DO NOT MODIFY THIS FILE \n *\n ********************************/");
-        
-        sb.append("\n@SuppressWarnings({\"unchecked\",\"rawtypes\"})");
-        
-        sb.append("\npublic class ").append(getFormattedBean(e)).append(" extends ").append(extensionName).append(" implements java.io.Serializable, ").append(INTERFACE_PACKAGE).append(".").append(getFormattedInterface(e)).append(" {");
-        sb.append("\n\tpublic static final Logger logger = Logger.getLogger(").append(getFormattedBean(e)).append(".class);");
-        sb.append("\n\tpublic static final String SCHEMA_ELEMENT_NAME=\"").append(e.getFullXMLName()).append("\";");
+
+        sb.append("\n@SuppressWarnings({\"unchecked\",\"rawtypes\"})\n");
+        sb.append("@XmlRootElement");
+        sb.append("\npublic class ").append(getFormattedBean(element)).append(" extends ").append(extensionName).append(" implements java.io.Serializable, ").append(INTERFACE_PACKAGE).append(".").append(getFormattedInterface(element)).append(" {");
+        sb.append("\n\tpublic static final Logger logger = Logger.getLogger(").append(getFormattedBean(element)).append(".class);");
+        sb.append("\n\tpublic static final String SCHEMA_ELEMENT_NAME=\"").append(element.getFullXMLName()).append("\";");
         //ADD CONSTRUCTORS
 
 
-        
         //ADD SCHEMA METHODS
         sb.append("\n\n");
         sb.append("\t").append("public String getSchemaElementName(){");
-        sb.append("\n\t\t").append("return \"").append(e.getLocalXMLName()).append("\";");
+        sb.append("\n\t\t").append("return \"").append(element.getLocalXMLName()).append("\";");
         sb.append("\n\t}");
         sb.append("\n\n");
         sb.append("\t").append("public String getFullSchemaElementName(){");
-        sb.append("\n\t\t").append("return \"").append(e.getFullXMLName()).append("\";");
+        sb.append("\n\t\t").append("return \"").append(element.getFullXMLName()).append("\";");
         sb.append("\n\t}");
 
-        ArrayList<String> xmlPaths = new ArrayList<String>();
-        ArrayList<TYPE> types = new ArrayList<TYPE>();
-        ArrayList<String> methods = new ArrayList<String>();
-        ArrayList<String> gets = new ArrayList<String>();
-        ArrayList<String> foreignElements = new ArrayList<String>();
-        
-        Iterator fields = e.getAllFields(true,true).iterator();
-        while (fields.hasNext())
-        {
-            GenericWrapperField f= (GenericWrapperField)fields.next();
-            if (f.isReference())
-            {
-                String xmlPath = f.getXMLPathString();
+        ArrayList<String> xmlPaths        = new ArrayList<>();
+        ArrayList<TYPE>   types           = new ArrayList<>();
+        ArrayList<String> methods         = new ArrayList<>();
+        ArrayList<String> gets            = new ArrayList<>();
+        ArrayList<String> foreignElements = new ArrayList<>();
+
+        for (final Object o : element.getAllFields(true, true)) {
+            GenericWrapperField f = (GenericWrapperField) o;
+            if (f.isReference()) {
+                String xmlPath   = f.getXMLPathString();
                 String formatted = formatFieldName(xmlPath);
-                if (formatted.equalsIgnoreCase("USER"))
-                {
+                if (formatted.equalsIgnoreCase("USER")) {
                     formatted = "userProperty";
                 }
                 SchemaElementI foreign = f.getReferenceElement();
-                
-                if (foreign.getGenericXFTElement().getAddin().equals(""))
-                {
+
+                if (foreign.getGenericXFTElement().getAddin().equals("")) {
                     final String foreignClassName = getFormattedBean(foreign.getGenericXFTElement());
-                    final String foreignInterface=getFormattedInterface(foreign.getGenericXFTElement());
-                    
-                    if (f.isMultiple())
-                    {
+                    final String foreignInterface = getFormattedInterface(foreign.getGenericXFTElement());
+
+                    if (f.isMultiple()) {
                         xmlPaths.add(f.getXMLPathString());
-                        if (f.isInLineRepeaterElement())
-                        {
+                        if (f.isInLineRepeaterElement()) {
                             types.add(TYPE.inline_repeater);
-                        }else if(foreign.getGenericXFTElement().isANoChildElement()){
+                        } else if (foreign.getGenericXFTElement().isANoChildElement()) {
                             types.add(TYPE.NO_CHILD);
-                        }else{
+                        } else {
                             types.add(TYPE.multi_reference);
                         }
-                        methods.add("add" +formatted);
-                        gets.add("get" +formatted);
+                        methods.add("add" + formatted);
+                        gets.add("get" + formatted);
                         foreignElements.add(foreign.getGenericXFTElement().getSchemaTargetNamespaceURI() + ":" + foreign.getGenericXFTElement().getLocalXMLName());
-                        
+
                         sb.append("\n\t private List");
-                        if (VERSION5)sb.append("<"+ project + ".bean.").append(foreignClassName).append(">");
-                        sb.append(" _" + formatted + " =new ArrayList");
-                        if (VERSION5)sb.append("<"+ project + ".bean.").append(foreignClassName).append(">");
+                        sb.append("<").append(project).append(".bean.").append(foreignClassName).append(">");
+                        sb.append(" _").append(formatted).append(" =new ArrayList");
+                        sb.append("<").append(project).append(".bean.").append(foreignClassName).append(">");
                         sb.append("();");
                         sb.append("\n");
                         sb.append("\n\t/**");
-                        sb.append("\n\t * " + xmlPath);
-                         sb.append("\n\t * @return Returns an List of "+ project + ".bean.").append(foreignClassName).append("\n\t */");
+                        sb.append("\n\t * ").append(xmlPath);
+                        sb.append("\n\t * @return Returns an List of ").append(project).append(".bean.").append(foreignClassName).append("\n\t */");
                         sb.append("\n\t").append("public ");
-                        if (VERSION5)
-                        	sb.append("<A extends " +INTERFACE_PACKAGE +".").append(foreignInterface).append("> List<A>");
-                        else
-                        	sb.append ("List");
+                        sb.append("<A extends " + INTERFACE_PACKAGE + ".").append(foreignInterface).append("> List<A>");
                         sb.append(" get").append(formatted).append("() {");
-                        sb.append("\n\t\treturn (List<A>) _" + formatted + ";");
+                        sb.append("\n\t\treturn (List<A>) _").append(formatted).append(";");
                         sb.append("\n\t}");
-                        
+
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sb.append("\n\t").append("public void set").append(formatted).append("(ArrayList");
-                        if (VERSION5)sb.append("<"+ project + ".bean.").append(foreignClassName).append(">");
+                        sb.append("<").append(project).append(".bean.").append(foreignClassName).append(">");
                         sb.append(" v){");
-                        sb.append("\n\t\t_" + formatted + "=v;");
+                        sb.append("\n\t\t_").append(formatted).append("=v;");
                         sb.append("\n\t}");
-                        
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Adds the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-                        sb.append("\n\t").append("public void add").append(formatted).append("("+ project + ".bean.").append(foreignClassName).append(" v){");
-                        sb.append("\n\t\t_" + formatted + ".add(v);");
+                        sb.append("\n\t").append("public void add").append(formatted).append("(").append(project).append(".bean.").append(foreignClassName).append(" v){");
+                        sb.append("\n\t\t_").append(formatted).append(".add(v);");
                         sb.append("\n\t}");
-                        
+
                         sb.append("\n");
                         sb.append("\n\t/**");
-                        sb.append("\n\t * " + xmlPath);
+                        sb.append("\n\t * ").append(xmlPath);
                         sb.append("\n\t * Adds org.nrg.xdat.model.").append(foreignInterface).append("\n\t */");
-                        sb.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE +".").append(foreignInterface).append("> void add").append(formatted).append("(A item) throws Exception{"); 
-                        sb.append("\n\t_" + formatted).append(".add").append("(("+project + ".bean.").append(foreignClassName+")item);"); 
+                        sb.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE + ".").append(foreignInterface).append("> void add").append(formatted).append("(A item) throws Exception{");
+                        sb.append("\n\t_").append(formatted).append(".add").append("((").append(project).append(".bean.").append(foreignClassName).append(")item);");
                         sb.append("\n\t}");
-                        
+
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Adds the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sb.append("\n\t").append("public void add").append(formatted).append("(Object v){");
-                        sb.append("\n\t\tif (v instanceof "+ project + ".bean.").append(foreignClassName).append(")");
-                        sb.append("\n\t\t\t_" + formatted + ".add(("+ project + ".bean.").append(foreignClassName).append(")v);");
+                        sb.append("\n\t\tif (v instanceof ").append(project).append(".bean.").append(foreignClassName).append(")");
+                        sb.append("\n\t\t\t_").append(formatted).append(".add((").append(project).append(".bean.").append(foreignClassName).append(")v);");
                         sb.append("\n\t\telse");
-                        sb.append("\n\t\t\tthrow new IllegalArgumentException(\"Must be a valid "+ project + ".bean.").append(foreignClassName).append("\");");
+                        sb.append("\n\t\t\tthrow new IllegalArgumentException(\"Must be a valid ").append(project).append(".bean.").append(foreignClassName).append("\");");
                         sb.append("\n\t}");
-                       
 
-                    }else{
-                        if(!f.getName().equalsIgnoreCase(e.getExtensionFieldName())){
+
+                    } else {
+                        if (!f.getName().equalsIgnoreCase(element.getExtensionFieldName())) {
                             xmlPaths.add(f.getXMLPathString());
-                            if (f.isInLineRepeaterElement())
-                            {
+                            if (f.isInLineRepeaterElement()) {
                                 types.add(TYPE.inline_repeater);
-                            }else if(foreign.getGenericXFTElement().isANoChildElement()){
+                            } else if (foreign.getGenericXFTElement().isANoChildElement()) {
                                 types.add(TYPE.NO_CHILD);
-                            }else{
+                            } else {
                                 types.add(TYPE.single_reference);
                             }
-                            methods.add("set" +formatted);
-                            gets.add("get" +formatted);
+                            methods.add("set" + formatted);
+                            gets.add("get" + formatted);
                             foreignElements.add(foreign.getGenericXFTElement().getSchemaTargetNamespaceURI() + ":" + foreign.getGenericXFTElement().getLocalXMLName());
-                            sb.append("\n\t private "+ project + ".bean." + foreignClassName +" _" + formatted + " =null;");
+                            sb.append("\n\t private ").append(project).append(".bean.").append(foreignClassName).append(" _").append(formatted).append(" =null;");
                             sb.append("\n");
                             sb.append("\n\t/**");
-                            sb.append("\n\t * " + xmlPath);
-                             sb.append("\n\t * @return "+ project + ".bean.").append(foreignClassName).append("\n\t */");
-                            sb.append("\n\t").append("public "+ project + ".bean." + foreignClassName +" get").append(formatted).append("() {");
-                            sb.append("\n\t\treturn _" + formatted +";");
+                            sb.append("\n\t * ").append(xmlPath);
+                            sb.append("\n\t * @return ").append(project).append(".bean.").append(foreignClassName).append("\n\t */");
+                            sb.append("\n\t").append("public ").append(project).append(".bean.").append(foreignClassName).append(" get").append(formatted).append("() {");
+                            sb.append("\n\t\treturn _").append(formatted).append(";");
                             sb.append("\n\t}");
-                            
+
                             sb.append("\n\n");
                             sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-                            sb.append("\n\t").append("public void set").append(formatted).append("("+ project + ".bean." + foreignClassName +" v){");
-                            sb.append("\n\t\t_").append(formatted + " =v;");
+                            sb.append("\n\t").append("@JsonProperty");
+                            sb.append("\n\t").append("public void set").append(formatted).append("(").append(project).append(".bean.").append(foreignClassName).append(" v){");
+                            sb.append("\n\t\t_").append(formatted).append(" =v;");
                             sb.append("\n\t}");
-                            
+
                             sb.append("\n\n");
                             sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                            sb.append("\n\t").append("@XmlTransient");
+                            sb.append("\n\t").append("@JsonIgnore");
                             sb.append("\n\t").append("public void set").append(formatted).append("(Object v) {");
-                            sb.append("\n\t\tif (v instanceof "+ project + ".bean.").append(foreignClassName).append(")");
-                            sb.append("\n\t\t\t_").append(formatted + " =("+ project + ".bean.").append(foreignClassName).append(")v;");
+                            sb.append("\n\t\tif (v instanceof ").append(project).append(".bean.").append(foreignClassName).append(")");
+                            sb.append("\n\t\t\t_").append(formatted).append(" =(").append(project).append(".bean.").append(foreignClassName).append(")v;");
                             sb.append("\n\t\telse");
-                            sb.append("\n\t\t\tthrow new IllegalArgumentException(\"Must be a valid "+ project + ".bean.").append(foreignClassName).append("\");");
+                            sb.append("\n\t\t\tthrow new IllegalArgumentException(\"Must be a valid ").append(project).append(".bean.").append(foreignClassName).append("\");");
                             sb.append("\n\t}");
 
                             sb.append("\n");
                             sb.append("\n\t/**");
-                            sb.append("\n\t * " + xmlPath);
-                            sb.append("\n\t * @return ").append(INTERFACE_PACKAGE +".").append(foreignInterface).append("\n\t */");
-                            sb.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE +".").append(foreignInterface).append("> void set").append(formatted).append("(A item) throws Exception{");
-                            sb.append("\n\t").append("set").append(formatted).append("(("+ project + ".bean." + foreignClassName +")item);");
+                            sb.append("\n\t * ").append(xmlPath);
+                            sb.append("\n\t * @return ").append(INTERFACE_PACKAGE + ".").append(foreignInterface).append("\n\t */");
+                            sb.append("\n\t").append("@XmlTransient");
+                            sb.append("\n\t").append("@JsonIgnore");
+                            sb.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE + ".").append(foreignInterface).append("> void set").append(formatted).append("(A item) throws Exception{");
+                            sb.append("\n\t").append("set").append(formatted).append("((").append(project).append(".bean.").append(foreignClassName).append(")item);");
                             sb.append("\n\t}");
 
-                        
-                            XFTSuperiorReference ref = (XFTSuperiorReference)f.getXFTReference();
-                            Iterator iter=ref.getKeyRelations().iterator();
-                            while (iter.hasNext())
-                            {
-                                XFTRelationSpecification spec = (XFTRelationSpecification) iter.next();
+
+                            final XFTSuperiorReference ref = (XFTSuperiorReference) f.getXFTReference();
+                            for (final XFTRelationSpecification spec : ref.getKeyRelations()) {
                                 String temp = spec.getLocalCol();
 
-                                String type = spec.getSchemaType().getLocalType();
-                                if (type==null){
-                                    type = "";
-                                }
-                                
-                                else if (type.equalsIgnoreCase("integer"))
-                                {
-                                    String reformatted = formatted + "FK";
-                                    sb.append("\n\n\t").append("//FIELD");
-                                    sb.append("\n\n\t").append("private Integer _").append(reformatted);
-                                    sb.append("=null;");
-                                    
-                                    //STANDARD GET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * @return Returns the ").append(e.getXSIType() + "/" + temp).append(".\n\t */");
-                                    sb.append("\n\t").append("public Integer get").append(reformatted).append("(){");
-                                    sb.append("\n\t\treturn _" + reformatted +";");
-                                    sb.append("\n\t}");
-                                    
-                                    //STANDARD SET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * Sets the value for ").append(e.getXSIType() + "/" + temp).append(".\n\t * @param v Value to Set.\n\t */");
-                                    sb.append("\n\t").append("public void set").append(reformatted).append("(Integer v) {");
-                                    sb.append("\n\t\t_").append(reformatted +"=v;");
-                                    sb.append("\n\t}");
-                                }else if (type.equalsIgnoreCase("string"))
-                                {
-                                    String reformatted = formatted + "_" +formatFieldName(temp);
-                                    sb.append("\n\n\t").append("//FIELD");
-                                    sb.append("\n\n\t").append("private String _").append(reformatted);
-                                    sb.append("=null;");
-                                    
-                                    //STANDARD GET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * @return Returns the ").append(e.getXSIType() + "/" + temp).append(".\n\t */");
-                                    sb.append("\n\t").append("public String get").append(reformatted).append("(){");
-                                    sb.append("\n\t\treturn _" + reformatted +";");
-                                    sb.append("\n\t}");
-                                    
-                                    //STANDARD SET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * Sets the value for ").append(e.getXSIType() + "/" + temp).append(".\n\t * @param v Value to Set.\n\t */");
-                                    sb.append("\n\t").append("public void set").append(reformatted).append("(String v){");
-                                    sb.append("\n\t\t_").append(reformatted +"=v;");
-                                    sb.append("\n\t}");
-                                }else if (type.equalsIgnoreCase("date") || type.equalsIgnoreCase("dateTime") ||type.equalsIgnoreCase("timestamp"))
-                                {
-                                    String reformatted = formatted + "_" +formatFieldName(temp);
-                                    sb.append("\n\n\t").append("//FIELD");
-                                    sb.append("\n\n\t").append("private Date _").append(reformatted);
-                                    sb.append("=null;");
-                                    
-                                    //STANDARD GET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * @return Returns the ").append(e.getXSIType() + "/" + temp).append(".\n\t */");
-                                    sb.append("\n\t").append("public Date get").append(reformatted).append("(){");
-                                    sb.append("\n\t\treturn _" + reformatted +";");
-                                    sb.append("\n\t}");
-                                    
-                                    //STANDARD SET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * Sets the value for ").append(e.getXSIType() + "/" + temp).append(".\n\t * @param v Value to Set.\n\t */");
-                                    sb.append("\n\t").append("public void set").append(reformatted).append("(Date v){");
-                                    sb.append("\n\t\t_").append(reformatted +"=v;");
-                                    sb.append("\n\t}");
-                                }else{
-                                    String reformatted = formatted + "_" +formatFieldName(temp);
-                                    sb.append("\n\n\t").append("//FIELD");
-                                    sb.append("\n\n\t").append("private Object _").append(reformatted);
-                                    sb.append("=null;");
-                                    
-                                    //STANDARD GET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * @return Returns the ").append(e.getXSIType() + "/" + temp).append(".\n\t */");
-                                    sb.append("\n\t").append("public Object get").append(reformatted).append("(){");
-                                    sb.append("\n\t\treturn _" + reformatted +";");
-                                    sb.append("\n\t}");
-                                    
-                                    //STANDARD SET METHOD
-                                    sb.append("\n\n");
-                                    sb.append("\t/**\n\t * Sets the value for ").append(e.getXSIType() + "/" + temp).append(".\n\t * @param v Value to Set.\n\t */");
-                                    sb.append("\n\t").append("public void set").append(reformatted).append("(Object v){");
-                                    sb.append("\n\t\t_").append(reformatted +"=v;");
-                                    sb.append("\n\t}");
+                                final String type = spec.getSchemaType().getLocalType();
+                                if (type != null) {
+                                    if (type.equalsIgnoreCase("integer")) {
+                                        String reformatted = formatted + "FK";
+                                        sb.append("\n\n\t").append("//FIELD");
+                                        sb.append("\n\n\t").append("private Integer _").append(reformatted);
+                                        sb.append("=null;");
+
+                                        //STANDARD GET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * @return Returns the ").append(element.getXSIType()).append("/").append(temp).append(".\n\t */");
+                                        sb.append("\n\t").append("public Integer get").append(reformatted).append("(){");
+                                        sb.append("\n\t\treturn _").append(reformatted).append(";");
+                                        sb.append("\n\t}");
+
+                                        //STANDARD SET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * Sets the value for ").append(element.getXSIType()).append("/").append(temp).append(".\n\t * @param v Value to Set.\n\t */");
+                                        sb.append("\n\t").append("public void set").append(reformatted).append("(Integer v) {");
+                                        sb.append("\n\t\t_").append(reformatted).append("=v;");
+                                        sb.append("\n\t}");
+                                    } else if (type.equalsIgnoreCase("string")) {
+                                        String reformatted = formatted + "_" + formatFieldName(temp);
+                                        sb.append("\n\n\t").append("//FIELD");
+                                        sb.append("\n\n\t").append("private String _").append(reformatted);
+                                        sb.append("=null;");
+
+                                        //STANDARD GET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * @return Returns the ").append(element.getXSIType()).append("/").append(temp).append(".\n\t */");
+                                        sb.append("\n\t").append("public String get").append(reformatted).append("(){");
+                                        sb.append("\n\t\treturn _").append(reformatted).append(";");
+                                        sb.append("\n\t}");
+
+                                        //STANDARD SET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * Sets the value for ").append(element.getXSIType()).append("/").append(temp).append(".\n\t * @param v Value to Set.\n\t */");
+                                        sb.append("\n\t").append("public void set").append(reformatted).append("(String v){");
+                                        sb.append("\n\t\t_").append(reformatted).append("=v;");
+                                        sb.append("\n\t}");
+                                    } else if (type.equalsIgnoreCase("date") || type.equalsIgnoreCase("dateTime") || type.equalsIgnoreCase("timestamp")) {
+                                        String reformatted = formatted + "_" + formatFieldName(temp);
+                                        sb.append("\n\n\t").append("//FIELD");
+                                        sb.append("\n\n\t").append("private Date _").append(reformatted);
+                                        sb.append("=null;");
+
+                                        //STANDARD GET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * @return Returns the ").append(element.getXSIType()).append("/").append(temp).append(".\n\t */");
+                                        sb.append("\n\t").append("public Date get").append(reformatted).append("(){");
+                                        sb.append("\n\t\treturn _").append(reformatted).append(";");
+                                        sb.append("\n\t}");
+
+                                        //STANDARD SET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * Sets the value for ").append(element.getXSIType()).append("/").append(temp).append(".\n\t * @param v Value to Set.\n\t */");
+                                        sb.append("\n\t").append("public void set").append(reformatted).append("(Date v){");
+                                        sb.append("\n\t\t_").append(reformatted).append("=v;");
+                                        sb.append("\n\t}");
+                                    } else {
+                                        String reformatted = formatted + "_" + formatFieldName(temp);
+                                        sb.append("\n\n\t").append("//FIELD");
+                                        sb.append("\n\n\t").append("private Object _").append(reformatted);
+                                        sb.append("=null;");
+
+                                        //STANDARD GET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * @return Returns the ").append(element.getXSIType()).append("/").append(temp).append(".\n\t */");
+                                        sb.append("\n\t").append("public Object get").append(reformatted).append("(){");
+                                        sb.append("\n\t\treturn _").append(reformatted).append(";");
+                                        sb.append("\n\t}");
+
+                                        //STANDARD SET METHOD
+                                        sb.append("\n\n");
+                                        sb.append("\t/**\n\t * Sets the value for ").append(element.getXSIType()).append("/").append(temp).append(".\n\t * @param v Value to Set.\n\t */");
+                                        sb.append("\n\t").append("public void set").append(reformatted).append("(Object v){");
+                                        sb.append("\n\t\t_").append(reformatted).append("=v;");
+                                        sb.append("\n\t}");
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }else{
+            } else {
                 String type = f.getXMLType().getLocalType();
-                if (type != null)
-                {
-                    String xmlPath = f.getXMLPathString();
+                if (type != null) {
+                    String xmlPath   = f.getXMLPathString();
                     String formatted = formatFieldName(xmlPath);
-                    if (formatted.equalsIgnoreCase("USER"))
-                    {
+                    if (formatted.equalsIgnoreCase("USER")) {
                         formatted = "userProperty";
                     }
 
                     xmlPaths.add(xmlPath);
-                    if (f.getXMLType().getLocalType().equals("string"))
-                    {
-                        if (f.getSize().equals("")){
+                    if (f.getXMLType().getLocalType().equals("string")) {
+                        if (f.getSize().equals("")) {
                             types.add(TYPE.data);
-                        }else{
-                            int size = Integer.valueOf(f.getSize()).intValue();
-                            if (size > 256)
-                            {
+                        } else {
+                            if (Integer.parseInt(f.getSize()) > 256) {
                                 types.add(TYPE.LONG_DATA);
-                            }else{
+                            } else {
                                 types.add(TYPE.data);
                             }
                         }
-                    }else{
+                    } else {
                         types.add(TYPE.data);
                     }
-                    methods.add("set" +formatted);
-                    gets.add("get" +formatted);
+                    methods.add("set" + formatted);
+                    gets.add("get" + formatted);
                     foreignElements.add("");
-                                        
-                    if (type.equalsIgnoreCase("boolean"))
-                    {
+
+                    if (type.equalsIgnoreCase("boolean")) {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private Boolean _").append(formatted);
                         sb.append("=null;");
-                        
+
 //                      STANDARD GET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sb.append("\n\t").append("public Boolean get").append(formatted).append("() {");
-                        sb.append("\n\t\treturn _" + formatted +";");
+                        sb.append("\n\t\treturn _").append(formatted).append(";");
                         sb.append("\n\t}");
 
 //                        //STANDARD SET METHOD
@@ -389,486 +363,433 @@ public class JavaBeanGenerator {
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sb.append("\n\t").append("public void set").append(formatted).append("(Object v){");
                         sb.append("\n\t\tif(v instanceof Boolean){");
-                        sb.append("\n\t\t\t_").append(formatted +"=(Boolean)v;");
+                        sb.append("\n\t\t\t_").append(formatted).append("=(Boolean)v;");
                         sb.append("\n\t\t}else if(v instanceof String){");
-                        sb.append("\n\t\t\t_").append(formatted +"=formatBoolean((String)v);");
+                        sb.append("\n\t\t\t_").append(formatted).append("=formatBoolean((String)v);");
                         sb.append("\n\t\t}else if(v!=null){");
                         sb.append("\n\t\t\tthrow new IllegalArgumentException();");
                         sb.append("\n\t\t}");
                         sb.append("\n\t}");
-                        
-
-
-//                        //XML SET METHOD
-//                        sb.append("\n\n");
-//                        sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-//                        sb.append("\n\t").append("public void set").append(formatted).append("(String v) {");
-//                        sb.append("\n\t\t_").append(formatted +"=formatBoolean(v);");
-//                        sb.append("\n\t}");
-                     }else if (type.equalsIgnoreCase("integer"))
-                    {
+                    } else if (type.equalsIgnoreCase("integer")) {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private Integer _").append(formatted);
                         sb.append("=null;");
-                        
+
 //                      STANDARD GET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sb.append("\n\t").append("public Integer get").append(formatted).append("(){");
-                        sb.append("\n\t\treturn _" + formatted +";");
-                        sb.append("\n\t}");
-                        
-                        //STANDARD SET METHOD
-                        sb.append("\n\n");
-                        sb.append("\t/**\n\t * Sets the value for ").append(e.getXSIType() + "/" + xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-                        sb.append("\n\t").append("public void set").append(formatted).append("(Integer v) {");
-                        sb.append("\n\t\t_").append(formatted +"=v;");
+                        sb.append("\n\t\treturn _").append(formatted).append(";");
                         sb.append("\n\t}");
 
-                        
                         //STANDARD SET METHOD
                         sb.append("\n\n");
-                        sb.append("\t/**\n\t * Sets the value for ").append(e.getXSIType() + "/" + xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-                        sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
-                        sb.append("\n\t\t_").append(formatted +"=formatInteger(v);");
+                        sb.append("\t/**\n\t * Sets the value for ").append(element.getXSIType()).append("/").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sb.append("\n\t").append("@JsonProperty");
+                        sb.append("\n\t").append("public void set").append(formatted).append("(Integer v) {");
+                        sb.append("\n\t\t_").append(formatted).append("=v;");
                         sb.append("\n\t}");
-                     }else if(type.equalsIgnoreCase("double") || type.equalsIgnoreCase("float")){
+
+
+                        //STANDARD SET METHOD
+                        sb.append("\n\n");
+                        sb.append("\t/**\n\t * Sets the value for ").append(element.getXSIType()).append("/").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sb.append("\n\t").append("@XmlTransient");
+                        sb.append("\n\t").append("@JsonIgnore");
+                        sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
+                        sb.append("\n\t\t_").append(formatted).append("=formatInteger(v);");
+                        sb.append("\n\t}");
+                    } else if (type.equalsIgnoreCase("double") || type.equalsIgnoreCase("float")) {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private Double _").append(formatted);
                         sb.append("=null;");
-                        
+
                         //STANDARD GET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sb.append("\n\t").append("public Double get").append(formatted).append("() {");
-                        sb.append("\n\t\treturn _" + formatted +";");
+                        sb.append("\n\t\treturn _").append(formatted).append(";");
                         sb.append("\n\t}");
-                        
+
                         //STANDARD SET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sb.append("\n\t").append("@JsonProperty");
                         sb.append("\n\t").append("public void set").append(formatted).append("(Double v){");
-                        sb.append("\n\t\t_").append(formatted +"=v;");
+                        sb.append("\n\t\t_").append(formatted).append("=v;");
                         sb.append("\n\t}");
-                        
+
                         //STANDARD SET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sb.append("\n\t").append("@XmlTransient");
+                        sb.append("\n\t").append("@JsonIgnore");
                         sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
-                        sb.append("\n\t\t_").append(formatted +"=formatDouble(v);");
+                        sb.append("\n\t\t_").append(formatted).append("=formatDouble(v);");
                         sb.append("\n\t}");
-                    }else if (type.equalsIgnoreCase("string"))
-                    {
+                    } else if (type.equalsIgnoreCase("string")) {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private String _").append(formatted);
                         sb.append("=null;");
-                        
+
                         //STANDARD GET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sb.append("\n\t").append("public String get").append(formatted).append("(){");
-                        sb.append("\n\t\treturn _" + formatted +";");
+                        sb.append("\n\t\treturn _").append(formatted).append(";");
                         sb.append("\n\t}");
 
                         //STANDARD SET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sb.append("\n\t").append("public void set").append(formatted).append("(String v){");
-                        sb.append("\n\t\t_").append(formatted +"=v;");
+                        sb.append("\n\t\t_").append(formatted).append("=v;");
                         sb.append("\n\t}");
-                    }else if (type.equalsIgnoreCase("date") || type.equalsIgnoreCase("dateTime"))
-                    {
+                    } else if (StringUtils.equalsAnyIgnoreCase(type, "date", "dateTime")) {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private Date _").append(formatted);
                         sb.append("=null;");
-                        
+
                         //STANDARD GET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sb.append("\n\t").append("public Date get").append(formatted).append("(){");
-                        sb.append("\n\t\treturn _" + formatted +";");
+                        sb.append("\n\t\treturn _").append(formatted).append(";");
                         sb.append("\n\t}");
 
                         //STANDARD SET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sb.append("\n\t").append("@JsonProperty");
                         sb.append("\n\t").append("public void set").append(formatted).append("(Date v){");
-                        sb.append("\n\t\t_").append(formatted +"=v;");
+                        sb.append("\n\t\t_").append(formatted).append("=v;");
                         sb.append("\n\t}");
-                        
+
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sb.append("\n\t").append("@XmlTransient");
+                        sb.append("\n\t").append("@JsonIgnore");
                         sb.append("\n\t").append("public void set").append(formatted).append("(Object v){");
                         sb.append("\n\t\tthrow new IllegalArgumentException();");
                         sb.append("\n\t}");
-                        
-                        if(type.equalsIgnoreCase("date")){
+
+                        if (type.equalsIgnoreCase("date")) {
                             sb.append("\n\n");
                             sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                            sb.append("\n\t").append("@XmlTransient");
+                            sb.append("\n\t").append("@JsonIgnore");
                             sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
-                            sb.append("\n\t\t_").append(formatted +"=formatDate(v);");
+                            sb.append("\n\t\t_").append(formatted).append("=formatDate(v);");
                             sb.append("\n\t}");
-                        }else if(type.equalsIgnoreCase("dateTime")){
+                        } else if (type.equalsIgnoreCase("dateTime")) {
                             sb.append("\n\n");
                             sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                            sb.append("\n\t").append("@XmlTransient");
+                            sb.append("\n\t").append("@JsonIgnore");
                             sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
-                            sb.append("\n\t\t_").append(formatted +"=formatDateTime(v);");
-                            sb.append("\n\t}");
-                        }else if(type.equalsIgnoreCase("time")){
-                            sb.append("\n\n");
-                            sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-                            sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
-                            sb.append("\n\t\t_").append(formatted +"=formatTime(v);");
-                            sb.append("\n\t}");
-                        }else if(type.equalsIgnoreCase("timestamp")){
-                            sb.append("\n\n");
-                            sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-                            sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
-                            sb.append("\n\t\t_").append(formatted +"=formatDateTime(v);");
+                            sb.append("\n\t\t_").append(formatted).append("=formatDateTime(v);");
                             sb.append("\n\t}");
                         }
-                    }else{
+                    } else {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private Object _").append(formatted);
                         sb.append("=null;");
-                        
+
                         //STANDARD GET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sb.append("\n\t").append("public Object get").append(formatted).append("(){");
-                        sb.append("\n\t\treturn _" + formatted +";");
+                        sb.append("\n\t\treturn _").append(formatted).append(";");
                         sb.append("\n\t}");
-                        
+
                         //STANDARD SET METHOD
                         sb.append("\n\n");
                         sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sb.append("\n\t").append("public void set").append(formatted).append("(Object v){");
-                        sb.append("\n\t\t_").append(formatted +"=v;");
+                        sb.append("\n\t\t_").append(formatted).append("=v;");
                         sb.append("\n\t}");
                     }
                 }
-                }
+            }
         }
-        
-        if (!e.containsStatedKey()){
-            GenericWrapperField f = (GenericWrapperField)e.getDefaultKey();
-            String xmlPath = f.getXMLPathString();
-            String formatted = formatFieldName(xmlPath);
-            if (formatted.equalsIgnoreCase("USER"))
-            {
+
+        if (!element.containsStatedKey()) {
+            GenericWrapperField f         = (GenericWrapperField) element.getDefaultKey();
+            String              xmlPath   = f.getXMLPathString();
+            String              formatted = formatFieldName(xmlPath);
+            if (formatted.equalsIgnoreCase("USER")) {
                 formatted = "userProperty";
             }
             sb.append("\n\n\t").append("//FIELD");
             sb.append("\n\n\t").append("private Integer _").append(formatted);
             sb.append("=null;");
-            
+
             //STANDARD GET METHOD
             sb.append("\n\n");
             sb.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
             sb.append("\n\t").append("public Integer get").append(formatted).append("() {");
-            sb.append("\n\t\treturn _" + formatted +";");
+            sb.append("\n\t\treturn _").append(formatted).append(";");
             sb.append("\n\t}");
 
             //STANDARD SET METHOD
             sb.append("\n\n");
             sb.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
             sb.append("\n\t").append("public void set").append(formatted).append("(Integer v){");
-            sb.append("\n\t\t_").append(formatted +"=v;");
+            sb.append("\n\t\t_").append(formatted).append("=v;");
             sb.append("\n\t}");
-
         }
 
         //SET DATA FIELD
-            sb.append("\n\n");
-            sb.append("\t/**\n\t * Sets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
-            sb.append("\n\t").append("public void setDataField(String xmlPath,String v) throws BaseElement.UnknownFieldException{");
+        sb.append("\n\n");
+        sb.append("\t/**\n\t * Sets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
+        sb.append("\n\t").append("public void setDataField(String xmlPath,String v) throws BaseElement.UnknownFieldException{");
 
-            if (xmlPaths.size()>0)
-            {
-                int count = 0;
-                for (int i=0; i<xmlPaths.size();i++)
-                {
-                    String xmlPath = xmlPaths.get(i);
-                    TYPE type = types.get(i);
-                    String method = methods.get(i);
-                    
-                    if (type.equals(TYPE.data) || type.equals(TYPE.LONG_DATA)){
-                        if (count==0){
-                            sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }else{
-                            sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }
-                        sb.append("\n\t\t\t").append(method).append("(v);");
-                        count++;
-                    }
-                }
-                
-                if (count>0)
-                {
-                    sb.append("\n\t\t").append("}");
-                    sb.append("\n\t\t").append("else{");
-                     sb.append("\n\t\t\t").append("super.setDataField(xmlPath,v);");
+        if (xmlPaths.size() > 0) {
+            int count = 0;
+            for (int i = 0; i < xmlPaths.size(); i++) {
+                String xmlPath = xmlPaths.get(i);
+                TYPE   type    = types.get(i);
+                String method  = methods.get(i);
 
-                    sb.append("\n\t\t").append("}");
-                }else{
-                    sb.append("\n\t\t\t").append("super.setDataField(xmlPath,v);");
-
-                }
-            }else{
-                sb.append("\n\t\t").append("super.setDataField(xmlPath,v);");
-            }
-            sb.append("\n\t}");
-
-
-            
-            
-            //SET REFERENCE FIELD
-            sb.append("\n\n");
-            sb.append("\t/**\n\t * Sets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
-            sb.append("\n\t").append("public void setReferenceField(String xmlPath,BaseElement v) throws BaseElement.UnknownFieldException{");
-
-            if (xmlPaths.size()>0)
-            {
-                int count = 0;
-                for (int i=0; i<xmlPaths.size();i++)
-                {
-                    String xmlPath = xmlPaths.get(i);
-                    TYPE type = types.get(i);
-                    String method = methods.get(i);
-                    
-                    if (!type.equals(TYPE.data) && !type.equals(TYPE.LONG_DATA)){
-                        if (count==0){
-                            sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }else{
-                            sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }
-                        sb.append("\n\t\t\t").append(method).append("(v);");
-                        count++;
-                    }
-                }
-                
-                if (count>0)
-                {
-                    sb.append("\n\t\t").append("}");
-                    sb.append("\n\t\t").append("else{");
-                    sb.append("\n\t\t\t").append("super.setReferenceField(xmlPath,v);");
-
-                    sb.append("\n\t\t").append("}");
-                }else{
-                    sb.append("\n\t\t\t").append("super.setReferenceField(xmlPath,v);");
-
-                }
-            }else{
-                sb.append("\n\t\t").append("super.setReferenceField(xmlPath,v);");
-            }
-            sb.append("\n\t}");
-        
-
-
-
-            //SET DATA FIELD
-                sb.append("\n\n");
-                sb.append("\t/**\n\t * Gets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
-                sb.append("\n\t").append("public Object getDataFieldValue(String xmlPath) throws BaseElement.UnknownFieldException{");
-
-                if (xmlPaths.size()>0)
-                {
-                    int count = 0;
-                    for (int i=0; i<xmlPaths.size();i++)
-                    {
-                        String xmlPath = xmlPaths.get(i);
-                        TYPE type = types.get(i);
-                        String method = gets.get(i);
-                        
-                        if (type.equals(TYPE.data) || type.equals(TYPE.LONG_DATA)){
-                            if (count==0){
-                                sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                            }else{
-                                sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                            }
-                            sb.append("\n\t\t\treturn ").append(method).append("();");
-                            count++;
-                        }
-                    }
-                    
-                    if (count>0)
-                    {
-                        sb.append("\n\t\t").append("}");
-                        sb.append("\n\t\t").append("else{");
-                         sb.append("\n\t\t\t").append("return super.getDataFieldValue(xmlPath);");
-
-                        sb.append("\n\t\t").append("}");
-                    }else{
-                        sb.append("\n\t\t\t").append("return super.getDataFieldValue(xmlPath);");
-
-                    }
-                }else{
-                    sb.append("\n\t\t").append("return super.getDataFieldValue(xmlPath);");
-                }
-                sb.append("\n\t}");
-                
-            //SET REFERENCE FIELD
-            sb.append("\n\n");
-            sb.append("\t/**\n\t * Gets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
-            sb.append("\n\t").append("public Object getReferenceField(String xmlPath) throws BaseElement.UnknownFieldException{");
-
-            if (xmlPaths.size()>0)
-            {
-                int count = 0;
-                for (int i=0; i<xmlPaths.size();i++)
-                {
-                    String xmlPath = xmlPaths.get(i);
-                    TYPE type = types.get(i);
-                    String method = gets.get(i);
-                    
-                    if (!type.equals(TYPE.data) && !type.equals(TYPE.LONG_DATA)){
-                        if (count==0){
-                            sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }else{
-                            sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }
-                        sb.append("\n\t\t\treturn ").append(method).append("();");
-                        count++;
-                    }
-                }
-                
-                if (count>0)
-                {
-                    sb.append("\n\t\t").append("}");
-                    sb.append("\n\t\t").append("else{");
-                    sb.append("\n\t\t\t").append("return super.getReferenceField(xmlPath);");
-
-                    sb.append("\n\t\t").append("}");
-                }else{
-                    sb.append("\n\t\t\t").append("return super.getReferenceField(xmlPath);");
-
-                }
-            }else{
-                sb.append("\n\t\t").append("return super.getReferenceField(xmlPath);");
-            }
-            sb.append("\n\t}");
-
-            
-            //GET REFERENCE FIELD ELEMENT NAME
-            sb.append("\n\n");
-            sb.append("\t/**\n\t * Gets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
-            sb.append("\n\t").append("public String getReferenceFieldName(String xmlPath) throws BaseElement.UnknownFieldException{");
-
-            if (xmlPaths.size()>0)
-            {
-                int count = 0;
-                for (int i=0; i<xmlPaths.size();i++)
-                {
-                    String xmlPath = xmlPaths.get(i);
-                    TYPE type = types.get(i);
-                    String method = methods.get(i);
-                    String foreign = foreignElements.get(i);
-                    
-                    if (!type.equals(TYPE.data) && !type.equals(TYPE.LONG_DATA)){
-                        if (count==0){
-                            sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }else{
-                            sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                        }
-                        sb.append("\n\t\t\treturn \"" + foreign + "\";");
-                        count++;
-                    }
-                }
-                
-                if (count>0)
-                {
-                    sb.append("\n\t\t").append("}");
-                    sb.append("\n\t\t").append("else{");
-                    sb.append("\n\t\t\t").append("return super.getReferenceFieldName(xmlPath);");
-
-                    sb.append("\n\t\t").append("}");
-                }else{
-                    sb.append("\n\t\t\t").append("return super.getReferenceFieldName(xmlPath);");
-
-                }
-            }else{
-                sb.append("\n\t\t").append("return super.getReferenceFieldName(xmlPath);");
-            }
-            sb.append("\n\t}");
-            
-            
-            //GET FIELD TYPE
-            sb.append("\n\n");
-            sb.append("\t/**\n\t * Returns whether or not this is a reference field\n\t */");
-            sb.append("\n\t").append("public String getFieldType(String xmlPath) throws BaseElement.UnknownFieldException{");
-
-            if (xmlPaths.size()>0)
-            {
-                int count = 0;
-                for (int i=0; i<xmlPaths.size();i++)
-                {
-                    String xmlPath = xmlPaths.get(i);
-                    TYPE type = types.get(i);
-                    String method = methods.get(i);
-
-                    if (i==0){
+                if (type.equals(TYPE.data) || type.equals(TYPE.LONG_DATA)) {
+                    if (count == 0) {
                         sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
-                    }else{
+                    } else {
                         sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
                     }
-                    if (type.equals(TYPE.data)){
-                        sb.append("\n\t\t\treturn BaseElement.field_data;");
-                    }else if (type.equals(TYPE.multi_reference)){
-                        sb.append("\n\t\t\treturn BaseElement.field_multi_reference;");
-                    }else if (type.equals(TYPE.single_reference)){
-                        sb.append("\n\t\t\treturn BaseElement.field_single_reference;");
-                    }else if (type.equals(TYPE.inline_repeater)){
-                        sb.append("\n\t\t\treturn BaseElement.field_inline_repeater;");
-                    }else if (type.equals(TYPE.LONG_DATA)){
-                        sb.append("\n\t\t\treturn BaseElement.field_LONG_DATA;");
-                    }else if (type.equals(TYPE.NO_CHILD)){
-                        sb.append("\n\t\t\treturn BaseElement.field_NO_CHILD;");
-                    }
+                    sb.append("\n\t\t\t").append(method).append("(v);");
+                    count++;
                 }
-                
-                    sb.append("\n\t\t").append("}");
-                    sb.append("\n\t\t").append("else{");
-                        sb.append("\n\t\t\t").append("return super.getFieldType(xmlPath);");
-                    sb.append("\n\t\t").append("}");
-            }else{
-                sb.append("\n\t\t").append("return super.getFieldType(xmlPath);");
             }
-            sb.append("\n\t}");
-        
-            
 
-            
-            //GET All FIELDs
-            sb.append("\n\n");
-            sb.append("\t/**\n\t * Returns arraylist of all fields\n\t */");
-            sb.append("\n\t").append("public ArrayList getAllFields() {");
-            sb.append("\n\t\t").append("ArrayList all_fields=new ArrayList();");
+            if (count > 0) {
+                sb.append("\n\t\t").append("}");
+                sb.append("\n\t\t").append("else{");
+                sb.append("\n\t\t\t").append("super.setDataField(xmlPath,v);");
 
-            if (xmlPaths.size()>0)
-            {
-                int count = 0;
-                for (int i=0; i<xmlPaths.size();i++)
-                {
-                    String xmlPath = xmlPaths.get(i);
-                    TYPE type = types.get(i);
-                    String method = methods.get(i);
+                sb.append("\n\t\t").append("}");
+            } else {
+                sb.append("\n\t\t\t").append("super.setDataField(xmlPath,v);");
 
-                    if (i==0){
-                        sb.append("\n\t\t").append("all_fields.add(\"").append(xmlPath).append("\");");
-                    }else{
-                        sb.append("\n\t\t").append("all_fields.add(\"").append(xmlPath).append("\");");
+            }
+        } else {
+            sb.append("\n\t\t").append("super.setDataField(xmlPath,v);");
+        }
+        sb.append("\n\t}");
+
+
+        //SET REFERENCE FIELD
+        sb.append("\n\n");
+        sb.append("\t/**\n\t * Sets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
+        sb.append("\n\t").append("public void setReferenceField(String xmlPath,BaseElement v) throws BaseElement.UnknownFieldException{");
+
+        if (xmlPaths.size() > 0) {
+            int count = 0;
+            for (int i = 0; i < xmlPaths.size(); i++) {
+                String xmlPath = xmlPaths.get(i);
+                TYPE   type    = types.get(i);
+                String method  = methods.get(i);
+
+                if (!type.equals(TYPE.data) && !type.equals(TYPE.LONG_DATA)) {
+                    if (count == 0) {
+                        sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                    } else {
+                        sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
                     }
-                   
+                    sb.append("\n\t\t\t").append(method).append("(v);");
+                    count++;
                 }
-                
-                sb.append("\n\t\t").append("all_fields.addAll(super.getAllFields());");
-                sb.append("\n\t\t").append("return all_fields;");
-               
-            }else{
-                sb.append("\n\t\t").append("return super.getAllFields();");
             }
-            sb.append("\n\t}");
-        
+
+            if (count > 0) {
+                sb.append("\n\t\t").append("}");
+                sb.append("\n\t\t").append("else{");
+                sb.append("\n\t\t\t").append("super.setReferenceField(xmlPath,v);");
+
+                sb.append("\n\t\t").append("}");
+            } else {
+                sb.append("\n\t\t\t").append("super.setReferenceField(xmlPath,v);");
+
+            }
+        } else {
+            sb.append("\n\t\t").append("super.setReferenceField(xmlPath,v);");
+        }
+        sb.append("\n\t}");
+
+
+        //SET DATA FIELD
+        sb.append("\n\n");
+        sb.append("\t/**\n\t * Gets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
+        sb.append("\n\t").append("public Object getDataFieldValue(String xmlPath) throws BaseElement.UnknownFieldException{");
+
+        if (xmlPaths.size() > 0) {
+            int count = 0;
+            for (int i = 0; i < xmlPaths.size(); i++) {
+                String xmlPath = xmlPaths.get(i);
+                TYPE   type    = types.get(i);
+                String method  = gets.get(i);
+
+                if (type.equals(TYPE.data) || type.equals(TYPE.LONG_DATA)) {
+                    if (count == 0) {
+                        sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                    } else {
+                        sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                    }
+                    sb.append("\n\t\t\treturn ").append(method).append("();");
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                sb.append("\n\t\t").append("}");
+                sb.append("\n\t\t").append("else{");
+                sb.append("\n\t\t\t").append("return super.getDataFieldValue(xmlPath);");
+
+                sb.append("\n\t\t").append("}");
+            } else {
+                sb.append("\n\t\t\t").append("return super.getDataFieldValue(xmlPath);");
+
+            }
+        } else {
+            sb.append("\n\t\t").append("return super.getDataFieldValue(xmlPath);");
+        }
+        sb.append("\n\t}");
+
+        //SET REFERENCE FIELD
+        sb.append("\n\n");
+        sb.append("\t/**\n\t * Gets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
+        sb.append("\n\t").append("public Object getReferenceField(String xmlPath) throws BaseElement.UnknownFieldException{");
+
+        if (xmlPaths.size() > 0) {
+            int count = 0;
+            for (int i = 0; i < xmlPaths.size(); i++) {
+                String xmlPath = xmlPaths.get(i);
+                TYPE   type    = types.get(i);
+                String method  = gets.get(i);
+
+                if (!type.equals(TYPE.data) && !type.equals(TYPE.LONG_DATA)) {
+                    if (count == 0) {
+                        sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                    } else {
+                        sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                    }
+                    sb.append("\n\t\t\treturn ").append(method).append("();");
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                sb.append("\n\t\t").append("}");
+                sb.append("\n\t\t").append("else{");
+                sb.append("\n\t\t\t").append("return super.getReferenceField(xmlPath);");
+
+                sb.append("\n\t\t").append("}");
+            } else {
+                sb.append("\n\t\t\t").append("return super.getReferenceField(xmlPath);");
+
+            }
+        } else {
+            sb.append("\n\t\t").append("return super.getReferenceField(xmlPath);");
+        }
+        sb.append("\n\t}");
+
+
+        //GET REFERENCE FIELD ELEMENT NAME
+        sb.append("\n\n");
+        sb.append("\t/**\n\t * Gets the value for a field via the XMLPATH.\n\t * @param v Value to Set.\n\t */");
+        sb.append("\n\t").append("public String getReferenceFieldName(String xmlPath) throws BaseElement.UnknownFieldException{");
+
+        if (xmlPaths.size() > 0) {
+            int count = 0;
+            for (int i = 0; i < xmlPaths.size(); i++) {
+                String xmlPath = xmlPaths.get(i);
+                TYPE   type    = types.get(i);
+                String foreign = foreignElements.get(i);
+
+                if (!type.equals(TYPE.data) && !type.equals(TYPE.LONG_DATA)) {
+                    if (count == 0) {
+                        sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                    } else {
+                        sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                    }
+                    sb.append("\n\t\t\treturn \"").append(foreign).append("\";");
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                sb.append("\n\t\t").append("}");
+                sb.append("\n\t\t").append("else{");
+                sb.append("\n\t\t\t").append("return super.getReferenceFieldName(xmlPath);");
+
+                sb.append("\n\t\t").append("}");
+            } else {
+                sb.append("\n\t\t\t").append("return super.getReferenceFieldName(xmlPath);");
+
+            }
+        } else {
+            sb.append("\n\t\t").append("return super.getReferenceFieldName(xmlPath);");
+        }
+        sb.append("\n\t}");
+
+
+        //GET FIELD TYPE
+        sb.append("\n\n");
+        sb.append("\t/**\n\t * Returns whether or not this is a reference field\n\t */");
+        sb.append("\n\t").append("public String getFieldType(String xmlPath) throws BaseElement.UnknownFieldException{");
+
+        if (xmlPaths.size() > 0) {
+            for (int i = 0; i < xmlPaths.size(); i++) {
+                String xmlPath = xmlPaths.get(i);
+                TYPE   type    = types.get(i);
+
+                if (i == 0) {
+                    sb.append("\n\t\t").append("if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                } else {
+                    sb.append("\n\t\t").append("}else if (xmlPath.equals(\"").append(xmlPath).append("\")){");
+                }
+                if (type.equals(TYPE.data)) {
+                    sb.append("\n\t\t\treturn BaseElement.field_data;");
+                } else if (type.equals(TYPE.multi_reference)) {
+                    sb.append("\n\t\t\treturn BaseElement.field_multi_reference;");
+                } else if (type.equals(TYPE.single_reference)) {
+                    sb.append("\n\t\t\treturn BaseElement.field_single_reference;");
+                } else if (type.equals(TYPE.inline_repeater)) {
+                    sb.append("\n\t\t\treturn BaseElement.field_inline_repeater;");
+                } else if (type.equals(TYPE.LONG_DATA)) {
+                    sb.append("\n\t\t\treturn BaseElement.field_LONG_DATA;");
+                } else if (type.equals(TYPE.NO_CHILD)) {
+                    sb.append("\n\t\t\treturn BaseElement.field_NO_CHILD;");
+                }
+            }
+
+            sb.append("\n\t\t").append("}");
+            sb.append("\n\t\t").append("else{");
+            sb.append("\n\t\t\t").append("return super.getFieldType(xmlPath);");
+            sb.append("\n\t\t").append("}");
+        } else {
+            sb.append("\n\t\t").append("return super.getFieldType(xmlPath);");
+        }
+        sb.append("\n\t}");
+
+
+        //Get all fields
+        sb.append("\n\n");
+        sb.append("\t/**\n\t * Returns arraylist of all fields\n\t */");
+        sb.append("\n\t").append("public ArrayList getAllFields() {");
+        sb.append("\n\t\t").append("ArrayList all_fields=new ArrayList();");
+
+        if (xmlPaths.size() > 0) {
+            for (final String xmlPath : xmlPaths) {
+                sb.append("\n\t\t").append("all_fields.add(\"").append(xmlPath).append("\");");
+            }
+            sb.append("\n\t\t").append("all_fields.addAll(super.getAllFields());");
+            sb.append("\n\t\t").append("return all_fields;");
+        } else {
+            sb.append("\n\t\t").append("return super.getAllFields();");
+        }
+        sb.append("\n\t}");
+
         //WRITE XML
         sb.append("\n\n");
         sb.append("\n\t").append("public String toString(){");
@@ -877,9 +798,8 @@ public class JavaBeanGenerator {
         sb.append("\n\t\t").append("return sw.toString();");
         sb.append("\n\t").append("}");
 
-        
-        XMLWrapperElement xE = (XMLWrapperElement)XMLWrapperFactory.GetInstance().convertElement(e);
-        
+        XMLWrapperElement xE = (XMLWrapperElement) XMLWrapperFactory.GetInstance().convertElement(element);
+
         //WRITE XML - WRITER
         sb.append("\n\n");
         sb.append("\n\t").append("public void toXML(java.io.Writer writer,boolean prettyPrint) throws java.io.IOException{");
@@ -887,19 +807,16 @@ public class JavaBeanGenerator {
         sb.append("\n\t\t").append("writer.write(\"\\n<").append(getRootName(xE)).append("\");");
         sb.append("\n\t\t").append("TreeMap map = new TreeMap();");
         sb.append("\n\t\t").append("map.putAll(getXMLAtts());");
-        Map map = this.addXMLNSAttributes();
-        Iterator iter = map.keySet().iterator();
-        while(iter.hasNext()){
-            String key = (String)iter.next();
-            sb.append("\n\t\t").append("map.put(\"" + key +"\",\"" + map.get(key) +"\");");
+        final Map<String, String> map = addXMLNSAttributes();
+        for (final String key : map.keySet()) {
+            sb.append("\n\t\t").append("map.put(\"").append(key).append("\",\"").append(map.get(key)).append("\");");
         }
-        
         sb.append("\n\t\t").append("java.util.Iterator iter =map.keySet().iterator();");
         sb.append("\n\t\t").append("while(iter.hasNext()){");
         sb.append("\n\t\t\t").append("String key = (String)iter.next();");
         sb.append("\n\t\t\twriter.write(\" \" + key + \"=\\\"\" + map.get(key) + \"\\\"\");");
         sb.append("\n\t\t").append("}");
-        
+
         sb.append("\n\t\t").append("int header = 0;");
         sb.append("\n\t\t").append("if (prettyPrint)header++;");
         sb.append("\n\t\t").append("writer.write(\">\");");
@@ -909,12 +826,11 @@ public class JavaBeanGenerator {
         sb.append("\n\t\t").append("if (prettyPrint)header--;");
         sb.append("\n\t\t").append("writer.write(\"\\n</").append(getRootName(xE)).append(">\");");
         sb.append("\n\t").append("}");
-        
+
 
         //WRITE XML Attributes - WRITER
         sb.append("\n\n");
         sb.append("\n\t").append("protected void addXMLAtts(java.io.Writer writer) throws java.io.IOException{");
-        Object[] attributesArray = xE.getAttributes().toArray();
         sb.append("\n\t\t").append("TreeMap map = this.getXMLAtts();");
 
         sb.append("\n\t\t").append("java.util.Iterator iter =map.keySet().iterator();");
@@ -922,156 +838,118 @@ public class JavaBeanGenerator {
         sb.append("\n\t\t\t").append("String key = (String)iter.next();");
         sb.append("\n\t\t\twriter.write(\" \" + key + \"=\\\"\" + map.get(key) + \"\\\"\");");
         sb.append("\n\t\t").append("}");
-       
+
         sb.append("\n\t").append("}");
-        
+
 
         //WRITE XML Attributes - WRITER
         sb.append("\n\n");
         sb.append("\n\t").append("protected TreeMap getXMLAtts() {");
-        attributesArray = xE.getAttributes().toArray();
+        final Object[] attributesArray = xE.getAttributes().toArray();
         sb.append("\n\t\t").append("TreeMap map = super.getXMLAtts();");
-        for (int i=0;i<attributesArray.length;i++){
-            XMLWrapperField attField = (XMLWrapperField)attributesArray[i];
-            if (attField.isReference())
-            {
-//                    XFTItem ref = (XFTItem)child.getProperty(attField.getId());
-//                    if (ref != null)
-//                    {
-//                        if((!limited) || (!ref.canBeRootWithBase()))
-//                        {
-//                            addAttributes(ref,atts);
-//                        }
-//                    }   
-            }else
-            {
-                String fieldID = attField.getId();
-                String xmlPath = attField.getXMLPathString();
+        for (final Object o : attributesArray) {
+            XMLWrapperField attField = (XMLWrapperField) o;
+            if (!attField.isReference()) {
+                String xmlPath   = attField.getXMLPathString();
                 String formatted = formatFieldName(xmlPath);
                 sb.append("\n\t\tif (_").append(formatted).append("!=null)");
-                sb.append("\n\t\t\tmap.put(\"").append(attField.getName(false)).append("\",ValueParser(_").append(formatted).append(",\"" + attField.getXMLType().getLocalType() + "\"));");
-                if (attField.isRequired()){
+                sb.append("\n\t\t\tmap.put(\"").append(attField.getName(false)).append("\",ValueParser(_").append(formatted).append(",\"").append(attField.getXMLType().getLocalType()).append("\"));");
+                if (attField.isRequired()) {
                     sb.append("\n\t\telse map.put(\"").append(attField.getName(false)).append("\",\"\");//REQUIRED FIELD\n");
-                }else{
+                } else {
                     sb.append("\n\t\t//NOT REQUIRED FIELD\n");
                 }
             }
         }
         sb.append("\n\t\t").append("return map;");
         sb.append("\n\t").append("}");
-        
+
         //WRITE XML Body tags - WRITER
         sb.append("\n\n");
         sb.append("\n\t").append("protected boolean addXMLBody(java.io.Writer writer, int header) throws java.io.IOException{");
 
         sb.append("\n\t\t").append("super.addXMLBody(writer,header);");
-        int iterCounter =0;
-        Iterator childElements = xE.getChildren().iterator();
-        while(childElements.hasNext())
-        {
-            XMLWrapperField xmlField = (XMLWrapperField)childElements.next();
-            iterCounter =writeFieldToXMLCode(e, xmlField, iterCounter, sb);
+        int iterCounter = 0;
+        for (final Object object : xE.getChildren()) {
+            final XMLWrapperField xmlField = (XMLWrapperField) object;
+            iterCounter = writeFieldToXMLCode(element, xmlField, iterCounter, sb);
         }
-        
-        if (e.isANoChildElement())
+
+        if (element.isANoChildElement()) {
             sb.append("\n\t").append("return false;");
-        else
+        } else {
             sb.append("\n\t").append("return true;");
-        
+        }
+
         sb.append("\n\t").append("}");
-        
 
-
-        
 
         //WRITE HAS XML CONTENT
         sb.append("\n\n");
         sb.append("\n\t").append("protected boolean hasXMLBodyContent(){");
 
-        boolean returned =false;
-        childElements = xE.getChildren().iterator();
-        while(childElements.hasNext() && !returned)
-        {
-            XMLWrapperField xmlField = (XMLWrapperField)childElements.next();
-            if (xmlField.getExpose())
-            {
-                String xmlPath = xmlField.getXMLPathString();
+        boolean returned = false;
+        for (final Object object : xE.getChildren()) {
+            if (returned) {
+                break;
+            }
+            XMLWrapperField xmlField = (XMLWrapperField) object;
+            if (xmlField.getExpose()) {
+                String xmlPath   = xmlField.getXMLPathString();
                 String formatted = formatFieldName(xmlPath);
-                if (formatted.equalsIgnoreCase("USER"))
-                {
+                if (formatted.equalsIgnoreCase("USER")) {
                     formatted = "userProperty";
                 }
-                if (xmlField.isReference())
-                {
-                    try {
-                        XMLWrapperElement foreign = (XMLWrapperElement)xmlField.getReferenceElement();
-                        String foreignClassName = getFormattedBean(foreign.getGenericXFTElement());
-                        if (xmlField.isMultiple())
-                        { 
-                            sb.append("\n\t\t").append("if(_" + formatted + ".size()>0) return true;");
-                        }else
-                        {
-                            if (!e.getExtensionFieldName().equalsIgnoreCase(xmlField.getName())){
-                                sb.append("\n\t\t").append("if (_" + formatted + "!=null){");
-                                sb.append("\n\t\t\t").append("if (_" + formatted + ".hasXMLBodyContent()) return true;");
-                                sb.append("\n\t\t").append("}");
-                                if (! xmlField.getWrapped().getMinOccurs().equalsIgnoreCase("0")){
-                                    sb.append("\n\t\t").append("return true;//REQUIRED " + xmlField.getXMLPathString());
-                                    returned=true;
-                                }else{
-                                    sb.append("\n\t\t").append("//NOT REQUIRED\n");
-                                }
+                if (xmlField.isReference()) {
+                    if (xmlField.isMultiple()) {
+                        sb.append("\n\t\t").append("if(_").append(formatted).append(".size()>0) return true;");
+                    } else {
+                        if (!element.getExtensionFieldName().equalsIgnoreCase(xmlField.getName())) {
+                            sb.append("\n\t\t").append("if (_").append(formatted).append("!=null){");
+                            sb.append("\n\t\t\t").append("if (_").append(formatted).append(".hasXMLBodyContent()) return true;");
+                            sb.append("\n\t\t").append("}");
+                            if (!xmlField.getWrapped().getMinOccurs().equalsIgnoreCase("0")) {
+                                sb.append("\n\t\t").append("return true;//REQUIRED ").append(xmlField.getXMLPathString());
+                                returned = true;
+                            } else {
+                                sb.append("\n\t\t").append("//NOT REQUIRED\n");
                             }
                         }
-                    } catch (XFTInitException e1) {
-                    } catch (ElementNotFoundException e1) {
                     }
-                }else{
+                } else {
                     //NOT A REFERENCE
-                                        
-                    ArrayList attAL = xmlField.getAttributes();
-                    if (attAL.size() > 0)
-                    {   
-                        Iterator attributes = xmlField.getAttributes().iterator();
-                        while (attributes.hasNext())
-                        {
-                            XMLWrapperField attField = (XMLWrapperField)attributes.next();
-                            String fieldID = attField.getId();
-                            String xmlPathATT = attField.getXMLPathString();
-                            String formattedATT = formatFieldName(xmlPathATT);
+                    List<?> attAL = xmlField.getAttributes();
+                    if (!attAL.isEmpty()) {
+                        for (final Object attObject : attAL) {
+                            XMLWrapperField attField     = (XMLWrapperField) attObject;
+                            String          xmlPathATT   = attField.getXMLPathString();
+                            String          formattedATT = formatFieldName(xmlPathATT);
                             sb.append("\n\t\tif (_").append(formattedATT).append("!=null)");
                             sb.append("\n\t\t\treturn true;");
-                            if (attField.isRequired()){
-                                sb.append("\n\t\t").append("return true;//REQUIRED " + attField.getXMLPathString());
-                                returned=true;
+                            if (attField.isRequired()) {
+                                sb.append("\n\t\t").append("return true;//REQUIRED ").append(attField.getXMLPathString());
+                                returned = true;
                                 break;
                             }
                         }
                     }
-                        
-                    if (!returned)
-                    {
-                        if (xmlField.getChildren().size() > 0)
-                        {          
-                            for (Map.Entry<String,String> childVariable : this.getSubVariables(e, xmlField,true).entrySet()){
-                                if (childVariable.getValue().equals("MULTI"))
-                                {
-                                    sb.append("\n\t\t\t").append("if(" + childVariable.getKey() + ".size()>0)return true;");
-                                }else{
-                                    sb.append("\n\t\t\t").append("if(" + childVariable.getKey() + "!=null) return true;");
+
+                    if (!returned) {
+                        if (xmlField.getChildren().size() > 0) {
+                            for (Map.Entry<String, String> childVariable : this.getSubVariables(element, xmlField, true).entrySet()) {
+                                if (childVariable.getValue().equals("MULTI")) {
+                                    sb.append("\n\t\t\t").append("if(").append(childVariable.getKey()).append(".size()>0)return true;");
+                                } else {
+                                    sb.append("\n\t\t\t").append("if(").append(childVariable.getKey()).append("!=null) return true;");
                                 }
                             }
-                        }else
-                        {
+                        } else {
 
-                            if (xmlField.getXMLType()==null){
-                            }else
-                            {
-                                sb.append("\n\t\t").append("if (_" + formatted + "!=null) return true;");
-                                if (xmlField.isRequired())
-                                {
-                                    sb.append("\n\t\t").append("return true;//REQUIRED " + xmlField.getXMLPathString());
-                                    returned=true;
+                            if (xmlField.getXMLType() != null) {
+                                sb.append("\n\t\t").append("if (_").append(formatted).append("!=null) return true;");
+                                if (xmlField.isRequired()) {
+                                    sb.append("\n\t\t").append("return true;//REQUIRED ").append(xmlField.getXMLPathString());
+                                    returned = true;
                                 }
                             }
                         }
@@ -1080,342 +958,290 @@ public class JavaBeanGenerator {
             }
         }
 
-        if (!returned){
+        if (!returned) {
             sb.append("\n\t\t").append("if(super.hasXMLBodyContent())return true;");
 
             sb.append("\n\t\t").append("return false;");
         }
         sb.append("\n\t").append("}");
-        
 
-        
-        
+
         sb.append("\n");
         sb.append("}");
-        
-        if (!location.endsWith(File.separator))
-        {
+
+        if (!location.endsWith(File.separator)) {
             location += File.separator;
         }
-        
+
         File dir = new File(location);
-        if (!dir.exists())
-        {
+        if (!dir.exists()) {
             dir.mkdir();
         }
-        
-        String dirStucture = packageName;
-        String finalLocation = location + File.separator + StringUtils.replace(dirStucture, ".", File.separator);
-        while (dirStucture.indexOf(".")!=-1)
-        {
-            String folder = dirStucture.substring(0,dirStucture.indexOf("."));
-            dirStucture = dirStucture.substring(dirStucture.indexOf(".")+1);
-            
+
+        String dirStructure = packageName;
+        while (dirStructure.contains(".")) {
+            String folder = dirStructure.substring(0, dirStructure.indexOf("."));
+            dirStructure = dirStructure.substring(dirStructure.indexOf(".") + 1);
+
             location = location + folder + File.separator;
             dir = new File(location);
-            if (!dir.exists())
-            {
+            if (!dir.exists()) {
                 dir.mkdir();
             }
         }
-        
-        location = location + dirStucture + File.separator;
+
+        location = location + dirStructure + File.separator;
         dir = new File(location);
-        if (!dir.exists())
-        {
+        if (!dir.exists()) {
             dir.mkdir();
         }
 
-        if (XFT.VERBOSE)
-             System.out.println("Generating File " + location +getFormattedBean(e) +".java...");
-        FileUtils.OutputToFile(sb.toString(),location +getFormattedBean(e) + ".java");
-        
+        if (XFT.VERBOSE) {
+            System.out.println("Generating File " + location + getFormattedBean(element) + ".java...");
+        }
+        try (final FileWriter writer = new FileWriter(location + getFormattedBean(element) + ".java")) {
+            IOUtils.write(sb.toString(), writer);
+        }
     }
-    
-    public Hashtable<String,String> getSubVariables(GenericWrapperElement e,XMLWrapperField xmlField, boolean isRoot)
-    {
-        Hashtable<String,String> subMethods = new Hashtable<String,String>();
 
-        if (xmlField.getExpose())
-        {
-            String xmlPath = xmlField.getXMLPathString();
+    public Hashtable<String, String> getSubVariables(GenericWrapperElement e, XMLWrapperField xmlField, boolean isRoot) {
+        Hashtable<String, String> subMethods = new Hashtable<>();
+
+        if (xmlField.getExpose()) {
+            String xmlPath   = xmlField.getXMLPathString();
             String formatted = formatFieldName(xmlPath);
-            if (formatted.equalsIgnoreCase("USER"))
-            {
+            if (formatted.equalsIgnoreCase("USER")) {
                 formatted = "userProperty";
             }
-            if (xmlField.isReference())
-            {
-                if (xmlField.isMultiple())
-                {
-                    subMethods.put("_" + formatted,"MULTI");
-                }else
-                {
-                    if (!e.getExtensionFieldName().equalsIgnoreCase(xmlField.getName())){
-                        subMethods.put("_" + formatted,"SINGLE");
+            if (xmlField.isReference()) {
+                if (xmlField.isMultiple()) {
+                    subMethods.put("_" + formatted, "MULTI");
+                } else {
+                    if (!e.getExtensionFieldName().equalsIgnoreCase(xmlField.getName())) {
+                        subMethods.put("_" + formatted, "SINGLE");
                     }
                 }
-            }else{
+            } else {
                 //NOT A REFERENCE
-                                    
-                ArrayList attAL = xmlField.getAttributes();
-                if (attAL.size() > 0)
-                {   
-                    Iterator attributes = xmlField.getAttributes().iterator();
-                    while (attributes.hasNext())
-                    {
-                        XMLWrapperField attField = (XMLWrapperField)attributes.next();
-                        String fieldID = attField.getId();
-                        String xmlPathATT = attField.getXMLPathString();
-                        String formattedATT = formatFieldName(xmlPathATT);
-                        if (isRoot)
-                            subMethods.put("_" + formattedATT,"ATT");
-                        else
-                            subMethods.put("_" + formattedATT,"SINGLE");
-                    }
-                }
-                    
-                if (xmlField.getChildren().size() > 0)
-                {          
-                    Iterator childElements2 = xmlField.getChildren().iterator();
-                    while(childElements2.hasNext())
-                    {
-                        XMLWrapperField xwf = (XMLWrapperField)childElements2.next();
-                        if (xwf.getExpose())
-                        {
-                           subMethods.putAll(getSubVariables(e, xwf,false));
+                List<?> attAL = xmlField.getAttributes();
+                if (!attAL.isEmpty()) {
+                    for (final Object attObject : attAL) {
+                        XMLWrapperField attField     = (XMLWrapperField) attObject;
+                        String          xmlPathATT   = attField.getXMLPathString();
+                        String          formattedATT = formatFieldName(xmlPathATT);
+                        if (isRoot) {
+                            subMethods.put("_" + formattedATT, "ATT");
+                        } else {
+                            subMethods.put("_" + formattedATT, "SINGLE");
                         }
                     }
-                }else
-                {
-                    if (xmlField.getXMLType()==null){
-                    }else
-                    {
-                        subMethods.put("_" + formatted,"SINGLE");
+                }
+
+                if (!xmlField.getChildren().isEmpty()) {
+                    for (final Object object : xmlField.getChildren()) {
+                        XMLWrapperField xwf = (XMLWrapperField) object;
+                        if (xwf.getExpose()) {
+                            subMethods.putAll(getSubVariables(e, xwf, false));
+                        }
+                    }
+                } else {
+                    if (xmlField.getXMLType() != null) {
+                        subMethods.put("_" + formatted, "SINGLE");
                     }
                 }
             }
         }
-        
+
         return subMethods;
     }
 
-        
-    private int writeFieldToXMLCode(GenericWrapperElement e,XMLWrapperField xmlField,int iterCounter, StringBuffer sb)
-    {
-        if (xmlField.getExpose())
-        {
-            String xmlPath = xmlField.getXMLPathString();
+
+    private int writeFieldToXMLCode(GenericWrapperElement e, XMLWrapperField xmlField, int iterCounter, StringBuffer sb) {
+        if (xmlField.getExpose()) {
+            String xmlPath   = xmlField.getXMLPathString();
             String formatted = formatFieldName(xmlPath);
-            if (formatted.equalsIgnoreCase("USER"))
-            {
+            if (formatted.equalsIgnoreCase("USER")) {
                 formatted = "userProperty";
             }
-            if (xmlField.isReference())
-            {
-                sb.append("\n\t\t").append("//REFERENCE FROM " + e.getXMLName() + " -> " + xmlField.getXMLPathString());
+            if (xmlField.isReference()) {
+                sb.append("\n\t\t").append("//REFERENCE FROM ").append(e.getXMLName()).append(" -> ").append(xmlField.getXMLPathString());
                 try {
-                    XMLWrapperElement foreign = (XMLWrapperElement)xmlField.getReferenceElement();
-                    String foreignClassName = getFormattedBean(foreign.getGenericXFTElement());
-                    if (xmlField.isMultiple())
-                    { 
-                        if (xmlField.isInLineRepeaterElement())
-                        {
+                    XMLWrapperElement foreign          = (XMLWrapperElement) xmlField.getReferenceElement();
+                    String            foreignClassName = getFormattedBean(foreign.getGenericXFTElement());
+                    if (xmlField.isMultiple()) {
+                        if (xmlField.isInLineRepeaterElement()) {
                             sb.append("\n\t\t").append("//IN-LINE REPEATER");
-                            
-                            sb.append("\n\t\t").append("java.util.Iterator iter" + iterCounter + "=_" + formatted + ".iterator();");
-                            sb.append("\n\t\t").append("while(iter" + iterCounter + ".hasNext()){");
-                            sb.append("\n\t\t\t").append(project + ".bean.").append(foreignClassName).append(" child = ("+ project + ".bean.").append(foreignClassName).append(")iter" + iterCounter++ + ".next();");
+
+                            sb.append("\n\t\t").append("java.util.Iterator iter").append(iterCounter).append("=_").append(formatted).append(".iterator();");
+                            sb.append("\n\t\t").append("while(iter").append(iterCounter).append(".hasNext()){");
+                            sb.append("\n\t\t\t").append(project).append(".bean.").append(foreignClassName).append(" child = (").append(project).append(".bean.").append(foreignClassName).append(")iter").append(iterCounter++).append(".next();");
                             sb.append("\n\t\t\t").append("child.addXMLBody(writer,header);");
-                            sb.append("\n\t\t").append("}");
-                        }else{
-                            sb.append("\n\t\t").append("java.util.Iterator iter" + iterCounter + "=_" + formatted + ".iterator();");
-                            sb.append("\n\t\t").append("while(iter" + iterCounter + ".hasNext()){");
-                            sb.append("\n\t\t\t").append(project + ".bean.").append(foreignClassName).append(" child = ("+ project + ".bean.").append(foreignClassName).append(")iter" + iterCounter++ + ".next();");
-                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<" + xmlField.getName(true) + "\");");
+                        } else {
+                            sb.append("\n\t\t").append("java.util.Iterator iter").append(iterCounter).append("=_").append(formatted).append(".iterator();");
+                            sb.append("\n\t\t").append("while(iter").append(iterCounter).append(".hasNext()){");
+                            sb.append("\n\t\t\t").append(project).append(".bean.").append(foreignClassName).append(" child = (").append(project).append(".bean.").append(foreignClassName).append(")iter").append(iterCounter++).append(".next();");
+                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<").append(xmlField.getName(true)).append("\");");
                             sb.append("\n\t\t\t").append("child.addXMLAtts(writer);");
-                            sb.append("\n\t\t\t").append("if(!child.getFullSchemaElementName().equals(\"" + xmlField.getXMLType().getFullForeignType() + "\")){");
+                            sb.append("\n\t\t\t").append("if(!child.getFullSchemaElementName().equals(\"").append(xmlField.getXMLType().getFullForeignType()).append("\")){");
                             sb.append("\n\t\t\t\t").append("writer.write(\" xsi:type=\\\"\" + child.getFullSchemaElementName() + \"\\\"\");");
                             sb.append("\n\t\t\t").append("}");
                             sb.append("\n\t\t\t").append("if (child.hasXMLBodyContent()){");
                             sb.append("\n\t\t\t\t").append("writer.write(\">\");");
-                            sb.append("\n\t\t\t\t").append("boolean return" + iterCounter + " =child.addXMLBody(writer,header);");
-                            sb.append("\n\t\t\t\t").append("if(return" + iterCounter + "){");
-                            sb.append("\n\t\t\t\t\t").append("writer.write(\"\\n\" + createHeader(--header) + \"</" + xmlField.getName(true) + ">\");");
+                            sb.append("\n\t\t\t\t").append("boolean return").append(iterCounter).append(" =child.addXMLBody(writer,header);");
+                            sb.append("\n\t\t\t\t").append("if(return").append(iterCounter).append("){");
+                            sb.append("\n\t\t\t\t\t").append("writer.write(\"\\n\" + createHeader(--header) + \"</").append(xmlField.getName(true)).append(">\");");
                             sb.append("\n\t\t\t\t").append("}else{");
-                            sb.append("\n\t\t\t\t\t").append("writer.write(\"</" + xmlField.getName(true) + ">\");");
+                            sb.append("\n\t\t\t\t\t").append("writer.write(\"</").append(xmlField.getName(true)).append(">\");");
                             sb.append("\n\t\t\t\t\t").append("header--;");
                             sb.append("\n\t\t\t\t").append("}");
                             sb.append("\n\t\t\t").append("}else {writer.write(\"/>\");header--;}");
-                            
-                                
-                            sb.append("\n\t\t").append("}");
                         }
-                    }else
-                    {
-                        if (!e.getExtensionFieldName().equalsIgnoreCase(xmlField.getName())){
-                            sb.append("\n\t\t").append("//DATA-FIELD FROM " + e.getXMLName() + " -> " + xmlField.getXMLPathString());
-                            sb.append("\n\t\t").append("if (_" + formatted + "!=null){");
+                        sb.append("\n\t\t").append("}");
+                    } else {
+                        if (!e.getExtensionFieldName().equalsIgnoreCase(xmlField.getName())) {
+                            sb.append("\n\t\t").append("//DATA-FIELD FROM ").append(e.getXMLName()).append(" -> ").append(xmlField.getXMLPathString());
+                            sb.append("\n\t\t").append("if (_").append(formatted).append("!=null){");
 
-                            boolean isNewElement= true;
-                            if (! xmlField.isChildXMLNode())
-                            {
-                                isNewElement= false;
-                            }
+                            boolean isNewElement = xmlField.isChildXMLNode();
 
-                            if (! isNewElement){
+                            if (!isNewElement) {
                                 sb.append("\n\t\t").append("//NOT A NEW ELEMENT");
-                                sb.append("\n\t\t\t").append("_" + formatted + ".addXMLBody(writer,header);");
-                            }else{
+                                sb.append("\n\t\t\t").append("_").append(formatted).append(".addXMLBody(writer,header);");
+                            } else {
                                 sb.append("\n\t\t").append("//NEW ELEMENT");
-                                sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<" + xmlField.getName(true) + "\");");
-                                sb.append("\n\t\t\t").append("_" + formatted + ".addXMLAtts(writer);");
-                                sb.append("\n\t\t\t").append("if(!_" + formatted + ".getFullSchemaElementName().equals(\"" + xmlField.getXMLType().getFullForeignType() + "\")){");
-                                sb.append("\n\t\t\t\t").append("writer.write(\" xsi:type=\\\"\" + _" + formatted + ".getFullSchemaElementName() + \"\\\"\");");
+                                sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<").append(xmlField.getName(true)).append("\");");
+                                sb.append("\n\t\t\t").append("_").append(formatted).append(".addXMLAtts(writer);");
+                                sb.append("\n\t\t\t").append("if(!_").append(formatted).append(".getFullSchemaElementName().equals(\"").append(xmlField.getXMLType().getFullForeignType()).append("\")){");
+                                sb.append("\n\t\t\t\t").append("writer.write(\" xsi:type=\\\"\" + _").append(formatted).append(".getFullSchemaElementName() + \"\\\"\");");
                                 sb.append("\n\t\t\t").append("}");
 
-                                sb.append("\n\t\t\t").append("if (_" + formatted + ".hasXMLBodyContent()){");
+                                sb.append("\n\t\t\t").append("if (_").append(formatted).append(".hasXMLBodyContent()){");
                                 sb.append("\n\t\t\t\t").append("writer.write(\">\");");
-                                sb.append("\n\t\t\t\t").append("boolean return" + iterCounter + " =_" + formatted + ".addXMLBody(writer,header);");
-                                sb.append("\n\t\t\t\t").append("if(return" + iterCounter + "){");
-                                sb.append("\n\t\t\t\t\t").append("writer.write(\"\\n\" + createHeader(--header) + \"</" + xmlField.getName(true) + ">\");");
+                                sb.append("\n\t\t\t\t").append("boolean return").append(iterCounter).append(" =_").append(formatted).append(".addXMLBody(writer,header);");
+                                sb.append("\n\t\t\t\t").append("if(return").append(iterCounter).append("){");
+                                sb.append("\n\t\t\t\t\t").append("writer.write(\"\\n\" + createHeader(--header) + \"</").append(xmlField.getName(true)).append(">\");");
                                 sb.append("\n\t\t\t\t").append("}else{");
-                                sb.append("\n\t\t\t\t\t").append("writer.write(\"</" + xmlField.getName(true) + ">\");");
+                                sb.append("\n\t\t\t\t\t").append("writer.write(\"</").append(xmlField.getName(true)).append(">\");");
                                 sb.append("\n\t\t\t\t\t").append("header--;");
                                 sb.append("\n\t\t\t\t").append("}");
                                 sb.append("\n\t\t\t").append("}else {writer.write(\"/>\");header--;}");
                             }
                             sb.append("\n\t\t").append("}");
-                            if (! xmlField.getWrapped().getMinOccurs().equalsIgnoreCase("0")){
+                            if (!xmlField.getWrapped().getMinOccurs().equalsIgnoreCase("0")) {
                                 sb.append("\n\t\t").append("else{");
-                                sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header) + \"<" + xmlField.getName(true) + "/>\");//REQUIRED");
+                                sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header) + \"<").append(xmlField.getName(true)).append("/>\");//REQUIRED");
                                 sb.append("\n\t\t").append("}");
-                            }else{
+                            } else {
                                 sb.append("\n\t\t").append("//NOT REQUIRED\n");
                             }
                         }
                     }
-                } catch (XFTInitException e1) {
-                } catch (ElementNotFoundException e1) {
+                } catch (XFTInitException | ElementNotFoundException ignored) {
                 }
-            }else{
+            } else {
                 //NOT A REFERENCE
-                ArrayList attAL = xmlField.getAttributes();
-                if (attAL.size() > 0)
-                {   
-                    sb.append("\n\t\tTreeMap " + formatted + "ATTMap = new TreeMap();");
-                    sb.append("\n\t\tString " + formatted + "ATT = new String();");
-                    Iterator attributes = xmlField.getAttributes().iterator();
-                    while (attributes.hasNext())
-                    {
-                        XMLWrapperField attField = (XMLWrapperField)attributes.next();
-                        String fieldID = attField.getId();
-                        String xmlPathATT = attField.getXMLPathString();
-                        String formattedATT = formatFieldName(xmlPathATT);
+                final List<?> attAL = xmlField.getAttributes();
+                if (!attAL.isEmpty()) {
+                    sb.append("\n\t\tTreeMap ").append(formatted).append("ATTMap = new TreeMap();");
+                    sb.append("\n\t\tString ").append(formatted).append("ATT = new String();");
+                    for (final Object object : attAL) {
+                        XMLWrapperField attField     = (XMLWrapperField) object;
+                        String          xmlPathATT   = attField.getXMLPathString();
+                        String          formattedATT = formatFieldName(xmlPathATT);
                         sb.append("\n\t\tif (_").append(formattedATT).append("!=null)");
-                        sb.append("\n\t\t\t" + formatted + "ATTMap.put(\"").append(attField.getName(false)).append("\",ValueParser(_").append(formattedATT).append(",\"" + attField.getXMLType().getLocalType() + "\"));");
-                        if (attField.isRequired()){
-                            sb.append("\n\t\telse " +formatted + "ATTMap.put(\"").append(attField.getName(false)).append("\",ValueParser(_").append(formattedATT).append(",\"" + attField.getXMLType().getLocalType() + "\"));//REQUIRED FIELD\n");
+                        sb.append("\n\t\t\t").append(formatted).append("ATTMap.put(\"").append(attField.getName(false)).append("\",ValueParser(_").append(formattedATT).append(",\"").append(attField.getXMLType().getLocalType()).append("\"));");
+                        if (attField.isRequired()) {
+                            sb.append("\n\t\telse ").append(formatted).append("ATTMap.put(\"").append(attField.getName(false)).append("\",ValueParser(_").append(formattedATT).append(",\"").append(attField.getXMLType().getLocalType()).append("\"));//REQUIRED FIELD\n");
                         }
                     }
-                    sb.append("\n\t\t").append("java.util.Iterator iter" + iterCounter + " =" + formatted + "ATTMap.keySet().iterator();");
-                    sb.append("\n\t\t").append("while(iter" + iterCounter + ".hasNext()){");
-                    sb.append("\n\t\t\t").append("String key = (String)iter" + iterCounter++ + ".next();");
-                    sb.append("\n\t\t\t" + formatted + "ATT +=\" \" + key + \"=\\\"\" + " + formatted + "ATTMap.get(key) + \"\\\"\";");
+                    sb.append("\n\t\t").append("java.util.Iterator iter").append(iterCounter).append(" =").append(formatted).append("ATTMap.keySet().iterator();");
+                    sb.append("\n\t\t").append("while(iter").append(iterCounter).append(".hasNext()){");
+                    sb.append("\n\t\t\t").append("String key = (String)iter").append(iterCounter++).append(".next();");
+                    sb.append("\n\t\t\t").append(formatted).append("ATT +=\" \" + key + \"=\\\"\" + ").append(formatted).append("ATTMap.get(key) + \"\\\"\";");
                     sb.append("\n\t\t").append("}");
                 }
-                    
-                if (xmlField.getChildren().size() > 0)
-                {          
-                    sb.append("\n\t\t\t").append("int child"+iterCounter + "=0;");
-                    sb.append("\n\t\t\t").append("int att"+iterCounter + "=0;");
-                    for (Map.Entry<String,String> childVariable : this.getSubVariables(e, xmlField,true).entrySet()){
-                        if (childVariable.getValue().equals("MULTI"))
-                        {
-                            sb.append("\n\t\t\t").append("child"+iterCounter + "+=" + childVariable.getKey() + ".size();");
-                        }else if(childVariable.getValue().equals("ATT")){
-                            sb.append("\n\t\t\t").append("if(" + childVariable.getKey() + "!=null)");
-                            sb.append("\n\t\t\t").append("att"+iterCounter + "++;");
-                        }else{
-                            sb.append("\n\t\t\t").append("if(" + childVariable.getKey() + "!=null)");
-                            sb.append("\n\t\t\t").append("child"+iterCounter + "++;");
+
+                if (xmlField.getChildren().size() > 0) {
+                    sb.append("\n\t\t\t").append("int child").append(iterCounter).append("=0;");
+                    sb.append("\n\t\t\t").append("int att").append(iterCounter).append("=0;");
+                    for (Map.Entry<String, String> childVariable : this.getSubVariables(e, xmlField, true).entrySet()) {
+                        if (childVariable.getValue().equals("MULTI")) {
+                            sb.append("\n\t\t\t").append("child").append(iterCounter).append("+=").append(childVariable.getKey()).append(".size();");
+                        } else if (childVariable.getValue().equals("ATT")) {
+                            sb.append("\n\t\t\t").append("if(").append(childVariable.getKey()).append("!=null)");
+                            sb.append("\n\t\t\t").append("att").append(iterCounter).append("++;");
+                        } else {
+                            sb.append("\n\t\t\t").append("if(").append(childVariable.getKey()).append("!=null)");
+                            sb.append("\n\t\t\t").append("child").append(iterCounter).append("++;");
                         }
                     }
 
-                    sb.append("\n\t\t\t").append("if(child"+iterCounter + ">0 || att"+iterCounter + ">0){");
+                    sb.append("\n\t\t\t").append("if(child").append(iterCounter).append(">0 || att").append(iterCounter).append(">0){");
 
                     int tempCounter = iterCounter;
                     iterCounter++;
                     StringBuffer childCode = new StringBuffer();
-                    Iterator childElements2 = xmlField.getChildren().iterator();
-                    while(childElements2.hasNext())
-                    {
-                        XMLWrapperField xwf = (XMLWrapperField)childElements2.next();
-                        if (xwf.getExpose())
-                        {
-                           iterCounter =  writeFieldToXMLCode(e, xwf, iterCounter, childCode);
+                    for (final Object object : xmlField.getChildren()) {
+                        XMLWrapperField xwf = (XMLWrapperField) object;
+                        if (xwf.getExpose()) {
+                            iterCounter = writeFieldToXMLCode(e, xwf, iterCounter, childCode);
                         }
                     }
-                    
-                    sb.append("\n\t\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<" + xmlField.getName(true) + "\");");
-                    if (attAL.size() > 0)
-                    {   
-                        sb.append("\n\t\t\t\t").append("writer.write(" + formatted + "ATT);");
+
+                    sb.append("\n\t\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<").append(xmlField.getName(true)).append("\");");
+                    if (attAL.size() > 0) {
+                        sb.append("\n\t\t\t\t").append("writer.write(").append(formatted).append("ATT);");
                     }
-                    sb.append("\n\t\t\t").append("if(child"+tempCounter + "==0){");
+                    sb.append("\n\t\t\t").append("if(child").append(tempCounter).append("==0){");
                     sb.append("\n\t\t\t\t").append("writer.write(\"/>\");");
                     sb.append("\n\t\t\t").append("}else{");
 
                     sb.append("\n\t\t\t\t").append("writer.write(\">\");");
-                    
+
                     sb.append(childCode);
-                    
-                    sb.append("\n\t\t\t\t").append("writer.write(\"\\n\" + createHeader(--header) + \"</" + xmlField.getName(true) + ">\");");
+
+                    sb.append("\n\t\t\t\t").append("writer.write(\"\\n\" + createHeader(--header) + \"</").append(xmlField.getName(true)).append(">\");");
 
                     sb.append("\n\t\t\t").append("}");
                     sb.append("\n\t\t\t").append("}\n");
-                }else
-                {
+                } else {
 
-                    if (xmlField.getXMLType()==null){
-                        sb.append("\n\t\t").append("if(!" + formatted + "ATT.equals(\"\")){");
-                        sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header) + \"<" + xmlField.getName(true) + "\");");
-                        if (attAL.size() > 0)
-                        {   
-                            sb.append("\n\t\t\t").append("writer.write(" + formatted + "ATT);");
+                    if (xmlField.getXMLType() == null) {
+                        sb.append("\n\t\t").append("if(!").append(formatted).append("ATT.equals(\"\")){");
+                        sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header) + \"<").append(xmlField.getName(true)).append("\");");
+                        if (attAL.size() > 0) {
+                            sb.append("\n\t\t\t").append("writer.write(").append(formatted).append("ATT);");
                         }
                         sb.append("\n\t\t\t").append("writer.write(\"/>\");");
                         sb.append("\n\t\t").append("}\n");
-                    }else
-                    {
-                        sb.append("\n\t\t").append("if (_" + formatted + "!=null){");
-                        if (!e.isANoChildElement()){
-                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<" + xmlField.getName(true) + "\");");
-                            if (attAL.size() > 0)
-                            {   
-                                sb.append("\n\t\t\t").append("writer.write(" + formatted + "ATT);");
+                    } else {
+                        sb.append("\n\t\t").append("if (_").append(formatted).append("!=null){");
+                        if (!e.isANoChildElement()) {
+                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<").append(xmlField.getName(true)).append("\");");
+                            if (attAL.size() > 0) {
+                                sb.append("\n\t\t\t").append("writer.write(").append(formatted).append("ATT);");
                             }
                             sb.append("\n\t\t\t").append("writer.write(\">\");");
                         }
-                        sb.append("\n\t\t\t").append("writer.write(ValueParser(_").append(formatted).append(",\"" + xmlField.getXMLType().getLocalType() + "\"));");
-                        if (!e.isANoChildElement())sb.append("\n\t\t\t").append("writer.write(\"</" + xmlField.getName(true) + ">\");");
+                        sb.append("\n\t\t\t").append("writer.write(ValueParser(_").append(formatted).append(",\"").append(xmlField.getXMLType().getLocalType()).append("\"));");
+                        if (!e.isANoChildElement()) {
+                            sb.append("\n\t\t\t").append("writer.write(\"</").append(xmlField.getName(true)).append(">\");");
+                        }
                         sb.append("\n\t\t\t").append("header--;");
                         sb.append("\n\t\t").append("}");
-                        if (xmlField.isRequired())
-                        {
+                        if (xmlField.isRequired()) {
                             sb.append("\n\t\t").append("else{");
-                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<" + xmlField.getName(true) + "\");");
-                            if (attAL.size() > 0)
-                            {   
-                                sb.append("\n\t\t\t").append("writer.write(" + formatted + "ATT);");
+                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<").append(xmlField.getName(true)).append("\");");
+                            if (attAL.size() > 0) {
+                                sb.append("\n\t\t\t").append("writer.write(").append(formatted).append("ATT);");
                             }
                             sb.append("\n\t\t\t").append("writer.write(\"/>\");");
                             sb.append("\n\t\t\t").append("header--;");
                             sb.append("\n\t\t").append("}\n");
-                        }else if (attAL.size() > 0){
-                            sb.append("\n\t\t").append("else if(!" + formatted + "ATT.equals(\"\")){");
-                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<" + xmlField.getName(true) + "\");");
-                            sb.append("\n\t\t\t").append("writer.write(" + formatted + "ATT);");
+                        } else if (attAL.size() > 0) {
+                            sb.append("\n\t\t").append("else if(!").append(formatted).append("ATT.equals(\"\")){");
+                            sb.append("\n\t\t\t").append("writer.write(\"\\n\" + createHeader(header++) + \"<").append(xmlField.getName(true)).append("\");");
+                            sb.append("\n\t\t\t").append("writer.write(").append(formatted).append("ATT);");
                             sb.append("\n\t\t\t").append("writer.write(\"/>\");");
                             sb.append("\n\t\t\t").append("header--;");
                             sb.append("\n\t\t").append("}\n");
@@ -1424,62 +1250,43 @@ public class JavaBeanGenerator {
                 }
             }
         }
-        
+
         return iterCounter;
     }
-    
-    public TreeMap addXMLNSAttributes(){
-//      ADD SCHEMA SPECIFICATION ATTRIBUTES
-        TreeMap map = new TreeMap();
-        Enumeration enumer = XFTMetaManager.getPrefixEnum();
-        while(enumer.hasMoreElements())
-        {
-            String prefix = (String)enumer.nextElement();
-            String uri = XFTMetaManager.TranslatePrefixToURI(prefix);
-            map.put("xmlns:"+prefix,uri);
+
+    public Map<String, String> addXMLNSAttributes() {
+        //      ADD SCHEMA SPECIFICATION ATTRIBUTES
+        final TreeMap<String, String> map      = new TreeMap<>();
+        final Enumeration<?>          prefixes = XFTMetaManager.getPrefixEnum();
+        while (prefixes.hasMoreElements()) {
+            String prefix = (String) prefixes.nextElement();
+            String uri    = XFTMetaManager.TranslatePrefixToURI(prefix);
+            map.put("xmlns:" + prefix, uri);
         }
-        map.put("xmlns:xsi","http://www.w3.org/2001/XMLSchema-instance");
-        
+        map.put("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+
         return map;
     }
-    
-    public String getRootName(XMLWrapperElement element)
-    {
-        String rootName=null;
-        String alias = element.getProperName();
-        if ((alias != null) && (!alias.equalsIgnoreCase("")))
-        {
-            if(alias.indexOf(":")!=-1)
-            {
-                rootName=alias;
-            
-            }else{
-                rootName = element.getSchemaTargetNamespacePrefix() +":" + alias;
-            }
-        }else
-        {
-            rootName = element.getFullXMLName();
-        }
-        
-        return rootName;
+
+    public String getRootName(final XMLWrapperElement element) {
+        final String alias = element.getProperName();
+        return StringUtils.isNotBlank(alias) ? (alias.contains(":") ? alias : element.getSchemaTargetNamespacePrefix() + ":" + alias) : element.getFullXMLName();
     }
 
-    
-    public static String getFormattedBean(GenericWrapperElement e)
-    {
+    public static String getFormattedBean(GenericWrapperElement e) {
         return XftStringUtils.FormatStringToClassName(e.getFormattedName()) + "Bean";
     }
-    
-    public static String getFormattedInterface(GenericWrapperElement e)
-    {
+
+    public static String getFormattedInterface(GenericWrapperElement e) {
         return XftStringUtils.FormatStringToClassName(e.getFormattedName()) + "I";
     }
+
     /**
-     * @param s    The file name.
+     * @param s The file name.
+     *
      * @return The formatted field name.
      */
-    private String formatFieldName(String s)
-    {
+    private String formatFieldName(String s) {
         return XftStringUtils.FormatStringToMethodSignature(s);
     }
 
@@ -1491,514 +1298,198 @@ public class JavaBeanGenerator {
         return project;
     }
 
-    public void generateBaseFile(String location){
-        StringBuffer sb = new StringBuffer();
-        sb.append("/*\n * GENERATED FILE\n * Created on " + Calendar.getInstance().getTime() + "\n *\n */");
-
-        String packageName = project + ".bean";
-        sb.append("\npackage " + packageName + ";");
-        sb.append(getBaseTemplate());
-        
-        File dir = new File(location);
-        if (!dir.exists())
-        {
-            dir.mkdir();
-        }
-        
-        String dirStucture = packageName;
-        String finalLocation = location + File.separator + StringUtils.replace(dirStucture, ".", File.separator);
-        while (dirStucture.indexOf(".")!=-1)
-        {
-            String folder = dirStucture.substring(0,dirStucture.indexOf("."));
-            dirStucture = dirStucture.substring(dirStucture.indexOf(".")+1);
-            
-            location = location + folder + File.separator;
-            dir = new File(location);
-            if (!dir.exists())
-            {
-                dir.mkdir();
-            }
-        }
-        
-        location = location + dirStucture + File.separator;
-        dir = new File(location);
-        if (!dir.exists())
-        {
-            dir.mkdir();
-        }
-
-        if (XFT.VERBOSE)
-             System.out.println("Generating File " + location +"BaseElement.java...");
-        FileUtils.OutputToFile(sb.toString(),location +"BaseElement.java");
-    }
-
     /**
      * @param project the project to set
      */
     public void setProject(String project) {
         this.project = project;
     }
-    
 
-    public static void GenerateJavaFiles(String name, String javalocation, boolean skipXDAT, String packag, String propsLocation) throws Exception
-    {
-
+    @SuppressWarnings("unused")
+    public static void GenerateJavaFiles(final String name, final String javaLocation, final boolean skipXDAT, final String packageName, final String propsLocation) throws Exception {
         JavaBeanGenerator generator = new JavaBeanGenerator();
-        generator.setProject(packag);
-        List<String> al = XFTMetaManager.GetElementNames();
-                
-        generator.generateJavaFiles(al, name, javalocation, packag, propsLocation);
+        generator.setProject(packageName);
+        generator.generateJavaFiles(GenericUtils.convertToTypedList(XFTMetaManager.GetElementNames(), String.class), name, javaLocation, packageName, propsLocation);
     }
-    
-    public void generateJavaFiles(List<String> elementList, String name, String javalocation, String rootPackage, String propsLocation) throws Exception
-    {
-        Hashtable<String,String> elements =new Hashtable<String,String>();
-    	for (String s: elementList)
-        {
+
+    public void generateJavaFiles(List<String> elementList, String name, String javaLocation, String rootPackage, String propsLocation) throws Exception {
+        Hashtable<String, String> elements = new Hashtable<>();
+        for (String s : elementList) {
             GenericWrapperElement e = GenericWrapperElement.GetElement(s);
-            if (e.getAddin().equalsIgnoreCase(""))
-            {
-                elements.put(e.getSchemaTargetNamespaceURI() + ":" + e.getLocalXMLName(), rootPackage + ".bean." + this.getFormattedBean(e));
-                if (!e.getProperName().equals(e.getFullXMLName()))
-                {
-                    elements.put(e.getSchemaTargetNamespaceURI() + ":" + e.getProperName(), rootPackage + ".bean." + this.getFormattedBean(e));
+            if (e.getAddin().equalsIgnoreCase("")) {
+                elements.put(e.getSchemaTargetNamespaceURI() + ":" + e.getLocalXMLName(), rootPackage + ".bean." + getFormattedBean(e));
+                if (!e.getProperName().equals(e.getFullXMLName())) {
+                    elements.put(e.getSchemaTargetNamespaceURI() + ":" + e.getProperName(), rootPackage + ".bean." + getFormattedBean(e));
                 }
-                this.generateJavaBeanFile(e,javalocation);
-                this.generateJavaInterface(e,javalocation);
+                this.generateJavaBeanFile(e, javaLocation);
+                this.generateJavaInterface(e, javaLocation);
             }
         }
-                
+
         StringBuilder sb          = new StringBuilder();
         String        packageName = rootPackage + ".bean";
         for (Map.Entry<String, String> entry : elements.entrySet()) {
-            sb.append("").append(entry.getKey().replace(":", "\\:")).append("=").append(entry.getValue()).append("\n");
+            sb.append(entry.getKey().replace(":", "\\:")).append("=").append(entry.getValue()).append("\n");
         }
-          
-        outputToFile(propsLocation,sb.toString(),name+"-bean-definition.properties",packageName);
+
+        outputToFile(propsLocation, sb.toString(), name + "-bean-definition.properties", packageName);
     }
-    
-    public static void outputToFile(String location,String contents, String fileName, String packageName){
+
+    public static void outputToFile(String location, String contents, String fileName, String packageName) {
         File dir = new File(location);
-        if (!dir.exists())
-        {
+        if (!dir.exists()) {
             dir.mkdir();
         }
-        
-        String dirStucture = packageName;
-        String finalLocation = location + File.separator + StringUtils.replace(dirStucture, ".", File.separator);
-        while (dirStucture.indexOf(".")!=-1)
-        {
-            String folder = dirStucture.substring(0,dirStucture.indexOf("."));
-            dirStucture = dirStucture.substring(dirStucture.indexOf(".")+1);
-            
+
+        String dirStructure = packageName;
+        while (dirStructure.contains(".")) {
+            String folder = dirStructure.substring(0, dirStructure.indexOf("."));
+            dirStructure = dirStructure.substring(dirStructure.indexOf(".") + 1);
+
             location = location + folder + File.separator;
             dir = new File(location);
-            if (!dir.exists())
-            {
+            if (!dir.exists()) {
                 dir.mkdir();
             }
         }
-        
-        location = location + dirStucture + File.separator;
+
+        location = location + dirStructure + File.separator;
         dir = new File(location);
-        if (!dir.exists())
-        {
+        if (!dir.exists()) {
             dir.mkdir();
         }
 
-        if (XFT.VERBOSE)
-             System.out.println("Generating File " + location +fileName);
-        FileUtils.OutputToFile(contents,location +fileName);
+        if (XFT.VERBOSE) {
+            System.out.println("Generating File " + location + fileName);
+        }
+        try (final FileWriter writer = new FileWriter(location + fileName)) {
+            IOUtils.write(contents, writer);
+        } catch (IOException e) {
+            log.error("An error occurred trying to write the file {} to the folder {}", fileName, location, e);
+        }
     }
-    
-    public String getBaseTemplate(){
-        StringBuffer sb =  new StringBuffer();
 
-        sb.append("\n").append("import java.text.DateFormat;");
-        sb.append("\n").append("import java.text.ParseException;");
-        sb.append("\n").append("import java.text.SimpleDateFormat;");
-        sb.append("\n").append("import java.util.*;");
-        sb.append("\n\n\n").append("public abstract class BaseElement{");
-        sb.append("\n").append("    public final static String field_data=\"DATA\";");
-        sb.append("\n").append("public final static String field_single_reference=\"SINGLE\";");
-        sb.append("\n").append("public final static String field_multi_reference=\"MULTI\";");
-        sb.append("\n").append("public final static String field_inline_repeater=\"INLINE\";");
-        sb.append("\n").append("public final static String field_LONG_DATA=\"LONG_DATA\";");
-        sb.append("\n").append("public final static String field_NO_CHILD=\"NO_CHILD\";");
-        sb.append("\n").append("    public Date formatDate(String s) {");
-        sb.append("\n").append("        try {");
-        sb.append("\n").append("            return parseDate(s);");
-        sb.append("\n").append("        } catch (ParseException e) {");
-        sb.append("\n").append("            throw new IllegalArgumentException(e);");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public Date formatDateTime(String s) {");
-        sb.append("\n").append("        try {");
-        sb.append("\n").append("            return parseDateTime(s);");
-        sb.append("\n").append("        } catch (ParseException e) {");
-        sb.append("\n").append("            throw new IllegalArgumentException(e);");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public Date formatTime(String s) {");
-        sb.append("\n").append("        try {");
-        sb.append("\n").append("            return parseTime(s);");
-        sb.append("\n").append("        } catch (ParseException e) {");
-        sb.append("\n").append("            throw new IllegalArgumentException(e);");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public Double formatDouble(String s) {");
-        sb.append("\n").append("       try {");
-        sb.append("\n").append("            return Double.valueOf(s);");
-        sb.append("\n").append("        } catch (NumberFormatException e) {");
-        sb.append("\n").append("            throw new IllegalArgumentException(e);");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public Integer formatInteger(String s) {");
-        sb.append("\n").append("        try {");
-        sb.append("\n").append("            return Integer.valueOf(s);");
-        sb.append("\n").append("        } catch (NumberFormatException e) {");
-        sb.append("\n").append("            throw new IllegalArgumentException(e);");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    ");
-        sb.append("\n").append("    public Boolean formatBoolean(String s) {");
-        sb.append("\n").append("        if (s.equals(\"0\") || s.equalsIgnoreCase(\"false\")|| s.equalsIgnoreCase(\"f\"))");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            return Boolean.FALSE;");
-        sb.append("\n").append("        }else if (s.equals(\"1\") || s.equalsIgnoreCase(\"true\")|| s.equalsIgnoreCase(\"t\"))");
-        sb.append("\n").append("       {");
-        sb.append("\n").append("            return Boolean.TRUE;");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("        throw new IllegalArgumentException(\"Unable to translate '\" + s + \"' to a boolean value.\");");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public class UnknownFieldException extends Exception{");
-        sb.append("\n").append("        public UnknownFieldException(String s)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            super(s);");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("        public UnknownFieldException(Exception s)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            super(s);");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("        public UnknownFieldException(String s,Exception e)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            super(s,e);");
-        sb.append("\n").append("       }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public static Date parseDate(String s) throws ParseException");
-        sb.append("\n").append("    {");
-        sb.append("\n").append("        if (s.indexOf(\"'\")!= -1)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            s = ReplaceStr(s,\"'\",\"\");");
-                sb.append("\n").append("        }");
-        sb.append("\n").append("        if (s==null)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            return null;");
-        sb.append("\n").append("        }else{");
-        sb.append("\n").append("            try {");
-        sb.append("\n").append("                return DateFormat.getInstance().parse(s);");
-        sb.append("\n").append("            } catch (ParseException e) {");
-        sb.append("\n").append("                SimpleDateFormat sdf = new SimpleDateFormat(\"yyyy-MM-dd\", Locale.US);");
-        sb.append("\n").append("                try {");
-        sb.append("\n").append("                    return sdf.parse(s);");
-        sb.append("\n").append("                } catch (ParseException e1) {");
-        sb.append("\n").append("                    sdf = new SimpleDateFormat(\"EEE MMM dd HH:mm:ss z yyyy\", Locale.US);");
-        sb.append("\n").append("                    try {");
-        sb.append("\n").append("                        return sdf.parse(s);");
-        sb.append("\n").append("                    } catch (ParseException e2) {");
-        sb.append("\n").append("                        sdf = new SimpleDateFormat(\"MM/dd/yyyy\", Locale.US);");
-        sb.append("\n").append("                        try {");
-        sb.append("\n").append("                            return sdf.parse(s);");
-        sb.append("\n").append("                        } catch (ParseException e3) {");
-        sb.append("\n").append("                            sdf = new SimpleDateFormat(\"MM.dd.yyyy\", Locale.US);");
-        sb.append("\n").append("                            return sdf.parse(s);");
-        sb.append("\n").append("                        }");
-        sb.append("\n").append("                    }");
-        sb.append("\n").append("                }");
-        sb.append("\n").append("           }");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public static String ReplaceStr(String _base, String _old, String _new)");
-        sb.append("\n").append("    {");
-        sb.append("\n").append("        if (_base.indexOf(_old)==-1)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            return _base;");
-        sb.append("\n").append("        }else{");
-        sb.append("\n").append("            StringBuffer sb = new StringBuffer();");
-        sb.append("\n").append("                while(_base.indexOf(_old) != -1)");
-        sb.append("\n").append("                {");
-        sb.append("\n").append("  ");
-        sb.append("\n").append("                    String pre = _base.substring(0,_base.indexOf(_old));");
-        sb.append("\n").append("                    String post;");
-        sb.append("\n").append("                    try {");
-        sb.append("\n").append("                        post = _base.substring(_base.indexOf(_old) + _old.length());");
-        sb.append("\n").append("                    } catch (RuntimeException e) {");
-        sb.append("\n").append("                        post = \"\";");
-        sb.append("\n").append("                    }");
-        sb.append("\n").append("    ");
-        sb.append("\n").append("                    sb.append(pre).append(_new);");
-        sb.append("\n").append("                    _base = post;");
-        sb.append("\n").append("                }");
-        sb.append("\n").append("                sb.append(_base);");
-        sb.append("\n").append("  ");
-        sb.append("\n").append("            return sb.toString();");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("   }");
-        sb.append("\n").append("    public static Date parseDateTime(String s) throws ParseException");
-        sb.append("\n").append("    {");
-        sb.append("\n").append("        if (s.indexOf(\"'\")!= -1)");
-                sb.append("\n").append("        {");
-        sb.append("\n").append("            s = ReplaceStr(s,\"'\",\"\");");
-                sb.append("\n").append("        }");
-        sb.append("\n").append("        if (s==null)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("            return null;");
-        sb.append("\n").append("        }else{");
-        sb.append("\n").append("            try {");
-        sb.append("\n").append("                return DateFormat.getInstance().parse(s);");
-        sb.append("\n").append("            } catch (ParseException e) {");
-        sb.append("\n").append("                SimpleDateFormat sdf = new SimpleDateFormat(\"EEE MMM dd HH:mm:ss z yyyy\", Locale.US);");
-        sb.append("\n").append("                try {");
-        sb.append("\n").append("                    return sdf.parse(s);");
-        sb.append("\n").append("                } catch (ParseException e1) {");
-        sb.append("\n").append("                    sdf = new SimpleDateFormat(\"yyyy-MM-dd HH:mm:ss\", Locale.US);");
-        sb.append("\n").append("                    try {");
-        sb.append("\n").append("                        return sdf.parse(s);");
-        sb.append("\n").append("                    } catch (ParseException e2) {");
-        sb.append("\n").append("                        sdf = new SimpleDateFormat(\"EEE MMM dd HH:mm:ss\", Locale.US);");
-        sb.append("\n").append("                        try {");
-        sb.append("\n").append("                            return sdf.parse(s);");
-        sb.append("\n").append("                        } catch (ParseException e6) {");
-        sb.append("\n").append("                            sdf = new SimpleDateFormat(\"EEE MMM dd HH:mm:ss.S\", Locale.US);");
-        sb.append("\n").append("                            try {");
-        sb.append("\n").append("                                return sdf.parse(s);");
-        sb.append("\n").append("                            } catch (ParseException e3) {");
-        sb.append("\n").append("                                sdf = new SimpleDateFormat(\"yyyy-MM-dd HH:mm:ss z\", Locale.US);");
-        sb.append("\n").append("                                try {");
-        sb.append("\n").append("                                    return sdf.parse(s);");
-        sb.append("\n").append("                                } catch (ParseException e4) {");
-        sb.append("\n").append("                                    sdf = new SimpleDateFormat(\"yyyy-MM-dd HH:mm:ss.S\", Locale.US);");
-        sb.append("\n").append("                                    try {");
-        sb.append("\n").append("                                        return sdf.parse(s);");
-        sb.append("\n").append("                                    } catch (ParseException e5) {");
-        sb.append("\n").append("                                        sdf = new SimpleDateFormat(\"EEE MMM dd HH:mm:ss z\", Locale.US);");
-        sb.append("\n").append("                                        try {");
-        sb.append("\n").append("                                            return sdf.parse(s);");
-        sb.append("\n").append("                                        } catch (ParseException e7) {");
-        sb.append("\n").append("                                            sdf = new SimpleDateFormat(\"yyyy-MM-dd'T'HH:mm:ss\", Locale.US);");
-        sb.append("\n").append("                                            try {");
-        sb.append("\n").append("                                                return sdf.parse(s);");
-        sb.append("\n").append("                                            } catch (ParseException e8) {");
-        sb.append("\n").append("                                                sdf = new SimpleDateFormat(\"MM/dd/yyyy\", Locale.US);");
-        sb.append("\n").append("                                                try {");
-        sb.append("\n").append("                                                    return sdf.parse(s);");
-        sb.append("\n").append("                                                } catch (ParseException e9) {");
-        sb.append("\n").append("                                                    sdf = new SimpleDateFormat(\"MM/dd/yyyy\", Locale.US);");
-        sb.append("\n").append("                                                    try {");
-        sb.append("\n").append("                                                        return sdf.parse(s);");
-        sb.append("\n").append("                                                    } catch (ParseException e10) {");
-        sb.append("\n").append("                                                        sdf = new SimpleDateFormat(\"yyyy-MM-dd\", Locale.US);");
-        sb.append("\n").append("                                                        return sdf.parse(s);");
-        sb.append("\n").append("                                                    }");
-        sb.append("\n").append("                                                }");
-        sb.append("\n").append("                                            }");
-        sb.append("\n").append("                                        }");
-        sb.append("\n").append("                                    }");
-        sb.append("\n").append("                                }");
-        sb.append("\n").append("                            }");
-        sb.append("\n").append("                            ");
-        sb.append("\n").append("                        }");
-        sb.append("\n").append("                        ");
-        sb.append("\n").append("                    }");
-        sb.append("\n").append("                }");
-        sb.append("\n").append("            }");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("");
-        sb.append("\n").append("    public static Date parseTime(String s) throws ParseException");
-        sb.append("\n").append("    {");
-        sb.append("\n").append("        if (s.indexOf(\"'\")!= -1)");
-                sb.append("\n").append("        {");
-        sb.append("\n").append("            s = ReplaceStr(s,\"'\",\"\");");
-                sb.append("\n").append("        }");
-        sb.append("\n").append("        if (s==null)");
-        sb.append("\n").append("        {");
-        sb.append("\n").append("           return null;");
-        sb.append("\n").append("        }else{");
-        sb.append("\n").append("            try {");
-        sb.append("\n").append("                return DateFormat.getInstance().parse(s);");
-        sb.append("\n").append("            } catch (ParseException e) {");
-        sb.append("\n").append("                SimpleDateFormat sdf = new SimpleDateFormat(\"HH:mm:ss\", Locale.US);");
-        sb.append("\n").append("                try {");
-        sb.append("\n").append("                    return sdf.parse(s);");
-        sb.append("\n").append("                } catch (ParseException e1) {");
-        sb.append("\n").append("                    sdf = new SimpleDateFormat(\"HH:mm:ss z\", Locale.US);");
-        sb.append("\n").append("                    return sdf.parse(s);");
-        sb.append("\n").append("                }");
-        sb.append("\n").append("            }");
-        sb.append("\n").append("        }");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public void setDataField(String xmlPath,String s) throws UnknownFieldException");
-        sb.append("\n").append("    {");
-        sb.append("\n").append("        throw new UnknownFieldException(xmlPath);");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public void setReferenceField(String xmlPath,BaseElement s) throws UnknownFieldException");
-        sb.append("\n").append("    {");
-        sb.append("\n").append("        throw new UnknownFieldException(xmlPath);");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("    public String getFieldType(String xmlPath) throws UnknownFieldException");
-        sb.append("\n").append("    {");
-        sb.append("\n").append("        throw new UnknownFieldException(xmlPath);");
-        sb.append("\n").append("    }");
-        sb.append("\n").append("}");
-
-        
-        return sb.toString();
-    }
-    
     /**
-     * @param e
-     * @param location
-     * @throws Exception
+     * @param element  The element
+     * @param location The location where the Java interface file should be written.
+     *
+     * @throws Exception When something goes wrong.
      */
-    public void generateJavaInterface(GenericWrapperElement e, String location) throws Exception
-    {
-        StringBuffer sbI = new StringBuffer();
-        
-        String packageName = INTERFACE_PACKAGE;
-        
-        sbI.append("/*\n * GENERATED FILE\n * Created on " + Calendar.getInstance().getTime() + "\n *\n */");
+    public void generateJavaInterface(GenericWrapperElement element, String location) throws Exception {
+        //INTERFACE
+        final String interfaceExtensionName = element.isExtension() ? getFormattedInterface(GenericWrapperElement.GetElement(element.getExtensionType())) : null;
+        final String interfaceName          = getFormattedInterface(element);
+        final String beanName               = getFormattedBean(element);
+
+        final StringBuilder sbI = new StringBuilder();
+
+        sbI.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n * JavaBeanGenerator.generateJavaInterface(GenericWrapperElement, String)\n */");
         sbI.append("\npackage " + INTERFACE_PACKAGE + ";");
+
         //IMPORTS
+        sbI.append("\n\nimport com.fasterxml.jackson.databind.annotation.JsonDeserialize;");
+        sbI.append("\nimport org.nrg.xdat.bean.").append(beanName).append(";");
         sbI.append("\n\nimport java.util.List;");
         sbI.append("\n\n/**\n * @author XDAT\n *\n */");
-        
-        //INTERFACE
-        String interfaceExtensionName = null;
-        if (e.isExtension())
-        {
-           GenericWrapperElement ext = GenericWrapperElement.GetElement(e.getExtensionType());
-           interfaceExtensionName = getFormattedInterface(ext);
-}
-        
-        String interfaceName = getFormattedInterface(e);
+
+        sbI.append("\n@JsonDeserialize(as = ").append(beanName).append(".class)");
         sbI.append("\npublic interface ").append(interfaceName);
-        if (interfaceExtensionName==null)
-        {
+        if (interfaceExtensionName == null) {
             sbI.append(" {");
-        }else{
-            sbI.append(" extends " + interfaceExtensionName + " {");
+        } else {
+            sbI.append(" extends ").append(interfaceExtensionName).append(" {");
         }
-                
+
         sbI.append("\n\n");
         sbI.append("\t").append("public String getXSIType();");
         sbI.append("\n\n");
         sbI.append("\t").append("public void toXML(java.io.Writer writer) throws java.lang.Exception;");
-        
-        
-        
-        Iterator fields = e.getAllFields(true,true).iterator();
-        while (fields.hasNext())
-        {
-            GenericWrapperField f= (GenericWrapperField)fields.next();
-            if (f.isReference())
-            {
-                String xmlPath = f.getXMLPathString();
+
+
+        for (final Object object : element.getAllFields(true, true)) {
+            GenericWrapperField f = (GenericWrapperField) object;
+            if (f.isReference()) {
+                String xmlPath   = f.getXMLPathString();
                 String formatted = formatFieldName(xmlPath);
-                if (formatted.equalsIgnoreCase("USER"))
-                {
+                if (formatted.equalsIgnoreCase("USER")) {
                     formatted = "userProperty";
                 }
                 SchemaElementI foreign = f.getReferenceElement();
-                
-                if (foreign.getGenericXFTElement().getAddin().equals(""))
-                {
+
+                if (foreign.getGenericXFTElement().getAddin().equals("")) {
                     String foreignClassName = getFormattedInterface(foreign.getGenericXFTElement());
-                    
-                    if (f.isMultiple())
-                    {               
+
+                    if (f.isMultiple()) {
                         sbI.append("\n");
                         sbI.append("\n\t/**");
-                        sbI.append("\n\t * " + xmlPath);
+                        sbI.append("\n\t * ").append(xmlPath);
                         sbI.append("\n\t * @return Returns an List of org.nrg.xdat.model.").append(foreignClassName).append("\n\t */");
-                        sbI.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE +".").append(foreignClassName).append("> List<A> get").append(formatted).append("();");                        
+                        sbI.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE + ".").append(foreignClassName).append("> List<A> get").append(formatted).append("();");
 
                         sbI.append("\n");
                         sbI.append("\n\t/**");
-                        sbI.append("\n\t * " + xmlPath);
+                        sbI.append("\n\t * ").append(xmlPath);
                         sbI.append("\n\t * @return Returns an List of org.nrg.xdat.model.").append(foreignClassName).append("\n\t */");
-                        sbI.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE +".").append(foreignClassName).append("> void add").append(formatted).append("(A item) throws Exception;"); 
-                    }else{
-                        
-                        if(!f.getName().equalsIgnoreCase(e.getExtensionFieldName())){
-                        	sbI.append("\n");
+                        sbI.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE + ".").append(foreignClassName).append("> void add").append(formatted).append("(A item) throws Exception;");
+                    } else {
+
+                        if (!f.getName().equalsIgnoreCase(element.getExtensionFieldName())) {
+                            sbI.append("\n");
                             sbI.append("\n\t/**");
-                            sbI.append("\n\t * " + xmlPath);
-                            sbI.append("\n\t * @return ").append(INTERFACE_PACKAGE +".").append(foreignClassName).append("\n\t */");
-                            sbI.append("\n\t").append("public ").append(INTERFACE_PACKAGE +".").append(foreignClassName).append(" get").append(formatted).append("();");
-                            
-                        	sbI.append("\n");
+                            sbI.append("\n\t * ").append(xmlPath);
+                            sbI.append("\n\t * @return ").append(INTERFACE_PACKAGE + ".").append(foreignClassName).append("\n\t */");
+                            sbI.append("\n\t").append("public ").append(INTERFACE_PACKAGE + ".").append(foreignClassName).append(" get").append(formatted).append("();");
+
+                            sbI.append("\n");
                             sbI.append("\n\t/**");
-                            sbI.append("\n\t * " + xmlPath);
-                            sbI.append("\n\t * @return ").append(INTERFACE_PACKAGE +".").append(foreignClassName).append("\n\t */");
-                            sbI.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE +".").append(foreignClassName).append("> void set").append(formatted).append("(A item) throws Exception;");
-                            
-                            XFTSuperiorReference ref = (XFTSuperiorReference)f.getXFTReference();
-                            Iterator iter=ref.getKeyRelations().iterator();
-                            while (iter.hasNext())
-                            {
-                                XFTRelationSpecification spec = (XFTRelationSpecification) iter.next();
+                            sbI.append("\n\t * ").append(xmlPath);
+                            sbI.append("\n\t * @return ").append(INTERFACE_PACKAGE + ".").append(foreignClassName).append("\n\t */");
+                            sbI.append("\n\t").append("public <A extends ").append(INTERFACE_PACKAGE + ".").append(foreignClassName).append("> void set").append(formatted).append("(A item) throws Exception;");
+
+                            for (final XFTRelationSpecification spec : ((XFTSuperiorReference) f.getXFTReference()).getKeyRelations()) {
                                 String temp = spec.getLocalCol();
-
                                 String type = spec.getSchemaType().getLocalType();
-                                if (type==null){
-                                    type = "";
-                                }
-                                
-                                else if (type.equalsIgnoreCase("integer"))
-                                {
-                                    String reformatted = formatted + "FK";                                    
+                                if (type != null) {
+                                    if (type.equalsIgnoreCase("integer")) {
+                                        String reformatted = formatted + "FK";
 
-                                    //STANDARD GET METHOD
-                                    sbI.append("\n\n");
-                                    sbI.append("\t/**\n\t * @return Returns the ").append(e.getXSIType() + "/" + temp).append(".\n\t */");
-                                    sbI.append("\n\t").append("public Integer get").append(reformatted).append("();");
-                                    
-                                }else if (type.equalsIgnoreCase("string"))
-                                {
-                                    String reformatted = formatted + "_" +formatFieldName(temp);                                    
+                                        //STANDARD GET METHOD
+                                        sbI.append("\n\n");
+                                        sbI.append("\t/**\n\t * @return Returns the ").append(element.getXSIType()).append("/").append(temp).append(".\n\t */");
+                                        sbI.append("\n\t").append("public Integer get").append(reformatted).append("();");
 
-                                    //STANDARD GET METHOD
-                                    sbI.append("\n\n");
-                                    sbI.append("\t/**\n\t * @return Returns the ").append(e.getXSIType() + "/" + temp).append(".\n\t */");
-                                    sbI.append("\n\t").append("public String get").append(reformatted).append("();");
-                                    
-                                }else{
-                                    String reformatted = formatted + "_" +formatFieldName(temp);                                    
+                                    } else if (type.equalsIgnoreCase("string")) {
+                                        String reformatted = formatted + "_" + formatFieldName(temp);
 
-                                    //STANDARD GET METHOD
-                                    sbI.append("\n\n");
-                                    sbI.append("\t/**\n\t * @return Returns the ").append(e.getXSIType() + "/" + temp).append(".\n\t */");
-                                    sbI.append("\n\t").append("public Object get").append(reformatted).append("();");
-                                    
+                                        //STANDARD GET METHOD
+                                        sbI.append("\n\n");
+                                        sbI.append("\t/**\n\t * @return Returns the ").append(element.getXSIType()).append("/").append(temp).append(".\n\t */");
+                                        sbI.append("\n\t").append("public String get").append(reformatted).append("();");
+
+                                    } else {
+                                        String reformatted = formatted + "_" + formatFieldName(temp);
+
+                                        //STANDARD GET METHOD
+                                        sbI.append("\n\n");
+                                        sbI.append("\t/**\n\t * @return Returns the ").append(element.getXSIType()).append("/").append(temp).append(".\n\t */");
+                                        sbI.append("\n\t").append("public Object get").append(reformatted).append("();");
+
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }else{
+            } else {
                 String type = f.getXMLType().getLocalType();
-                if (type != null)
-                {
-                    String xmlPath = f.getXMLPathString();
+                if (type != null) {
+                    String xmlPath   = f.getXMLPathString();
                     String formatted = formatFieldName(xmlPath);
-                    if (formatted.equalsIgnoreCase("USER"))
-                    {
+                    if (formatted.equalsIgnoreCase("USER")) {
                         formatted = "userProperty";
                     }
-                                        
-                    if (type.equalsIgnoreCase("boolean"))
-                    {                    
+
+                    if (type.equalsIgnoreCase("boolean")) {
 //                      STANDARD GET METHOD
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
@@ -2009,30 +1500,28 @@ public class JavaBeanGenerator {
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sbI.append("\n\t").append("public void set").append(formatted).append("(Object v);");
-                    }else if (type.equalsIgnoreCase("integer"))
-                    {                        
+                    } else if (type.equalsIgnoreCase("integer")) {
                         //STANDARD GET METHOD
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sbI.append("\n\t").append("public Integer get").append(formatted).append("();");
 
                         sbI.append("\n\n");
-                        sbI.append("\t/**\n\t * Sets the value for ").append(e.getXSIType() + "/" + xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sbI.append("\t/**\n\t * Sets the value for ").append(element.getXSIType()).append("/").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sbI.append("\n\t").append("public void set").append(formatted).append("(Integer v) ;");
 
-                   }else if(type.equalsIgnoreCase("double") || type.equalsIgnoreCase("float")){   
+                    } else if (type.equalsIgnoreCase("double") || type.equalsIgnoreCase("float")) {
                         //STANDARD GET METHOD
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sbI.append("\n\t").append("public Double get").append(formatted).append("();");
-                        
+
                         //STANDARD SET METHOD
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sbI.append("\n\t").append("public void set").append(formatted).append("(Double v);");
-                        
-                    }else if (type.equalsIgnoreCase("string"))
-                    {
+
+                    } else if (type.equalsIgnoreCase("string")) {
                         //STANDARD GET METHOD
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
@@ -2043,42 +1532,41 @@ public class JavaBeanGenerator {
                         sbI.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sbI.append("\n\t").append("public void set").append(formatted).append("(String v);");
 
-                    }else if (type.equalsIgnoreCase("date") || type.equalsIgnoreCase("dateTime")){                        
-                        //STANDARD GET METHOD
-                    	sbI.append("\n\n");
-                    	sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
-                        sbI.append("\n\t").append("public Object get").append(formatted).append("();");
-
-                        //STANDARD SET METHOD
-                        sbI.append("\n\n");
-                        sbI.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
-                        sbI.append("\n\t").append("public void set").append(formatted).append("(Object v);");
-
-                    }else{
+                    } else if (type.equalsIgnoreCase("date") || type.equalsIgnoreCase("dateTime")) {
                         //STANDARD GET METHOD
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
                         sbI.append("\n\t").append("public Object get").append(formatted).append("();");
-                        
+
                         //STANDARD SET METHOD
                         sbI.append("\n\n");
                         sbI.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sbI.append("\n\t").append("public void set").append(formatted).append("(Object v);");
-                        
+
+                    } else {
+                        //STANDARD GET METHOD
+                        sbI.append("\n\n");
+                        sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
+                        sbI.append("\n\t").append("public Object get").append(formatted).append("();");
+
+                        //STANDARD SET METHOD
+                        sbI.append("\n\n");
+                        sbI.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
+                        sbI.append("\n\t").append("public void set").append(formatted).append("(Object v);");
+
                     }
                 }
             }
         }
-        
-        if (!e.containsStatedKey()){
-            GenericWrapperField f = (GenericWrapperField)e.getDefaultKey();
-            String xmlPath = f.getXMLPathString();
-            String formatted = formatFieldName(xmlPath);
-            if (formatted.equalsIgnoreCase("USER"))
-            {
+
+        if (!element.containsStatedKey()) {
+            GenericWrapperField f         = (GenericWrapperField) element.getDefaultKey();
+            String              xmlPath   = f.getXMLPathString();
+            String              formatted = formatFieldName(xmlPath);
+            if (formatted.equalsIgnoreCase("USER")) {
                 formatted = "userProperty";
             }
-            
+
             //STANDARD GET METHOD
             sbI.append("\n\n");
             sbI.append("\t/**\n\t * @return Returns the ").append(xmlPath).append(".\n\t */");
@@ -2086,41 +1574,40 @@ public class JavaBeanGenerator {
         }
         sbI.append("\n");
         sbI.append("}");
-        
-        if (!location.endsWith(File.separator))
-        {
+
+        if (!location.endsWith(File.separator)) {
             location += File.separator;
         }
-        
+
         File dir = new File(location);
-        if (!dir.exists())
-        {
-            dir.mkdir();
-        }
-        
-        String dirStucture = packageName;
-        while (dirStucture.indexOf(".")!=-1)
-        {
-            String folder = dirStucture.substring(0,dirStucture.indexOf("."));
-            dirStucture = dirStucture.substring(dirStucture.indexOf(".")+1);
-            
-            location = location + folder + File.separator;
-            dir = new File(location);
-            if (!dir.exists())
-            {
-                dir.mkdir();
-            }
-        }
-        
-        location = location + dirStucture + File.separator;
-        dir = new File(location);
-        if (!dir.exists())
-        {
+        if (!dir.exists()) {
             dir.mkdir();
         }
 
-        if (XFT.VERBOSE)
-             System.out.println("Generating File " + location +getFormattedInterface(e) +".java...");
-        FileUtils.OutputToFile(sbI.toString(),location +getFormattedInterface(e) + ".java");
+        String dirStructure = INTERFACE_PACKAGE;
+        while (dirStructure.contains(".")) {
+            String folder = dirStructure.substring(0, dirStructure.indexOf("."));
+            dirStructure = dirStructure.substring(dirStructure.indexOf(".") + 1);
+
+            location = location + folder + File.separator;
+            dir = new File(location);
+            if (!dir.exists()) {
+                dir.mkdir();
+            }
+        }
+
+        location = location + dirStructure + File.separator;
+        dir = new File(location);
+        if (!dir.exists()) {
+            dir.mkdir();
+        }
+
+        if (XFT.VERBOSE) {
+            System.out.println("Generating File " + location + getFormattedInterface(element) + ".java...");
+        }
+        try (final FileWriter writer = new FileWriter(location + getFormattedInterface(element) + ".java")) {
+            IOUtils.write(sbI.toString(), writer);
+        }
     }
 }
+

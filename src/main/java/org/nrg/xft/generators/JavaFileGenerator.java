@@ -68,9 +68,9 @@ public class JavaFileGenerator {
         StringBuffer sb = new StringBuffer();
         
         String packageName = "org.nrg.xdat.om.base.auto";
-        
-        sb.append("/*\n * GENERATED FILE\n *\n */");
-        sb.append("\npackage " + packageName + ";");
+
+        sb.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n * JavaFileGenerator.generateJavaFile(GenericWrapperElement, String, String)\n */");
+        sb.append("\npackage ").append(packageName).append(";");
         //IMPORTS
         sb.append("\nimport org.apache.log4j.Logger;");
         sb.append("\nimport org.nrg.xft.*;");
@@ -843,7 +843,7 @@ public class JavaFileGenerator {
             if ((! file.exists()) && (!(new File(baseDir2Check,getBaseClassName(e)+".java").exists())))
             {
                 sb = new StringBuffer();
-                sb.append("/*\n * GENERATED FILE\n *\n */");
+                sb.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n * JavaFileGenerator.generateJavaFile(GenericWrapperElement, String, String)\n */");
                 sb.append("\npackage org.nrg.xdat.om.base;");
                 sb.append("\nimport org.nrg.xdat.om.base.auto.*;");
                 sb.append("\nimport org.nrg.xft.*;");
@@ -905,7 +905,7 @@ public class JavaFileGenerator {
             if ((! file.exists()) && (! ((new File(omDir2Check,getSQLClassName(e)+".java")).exists())))
             {
                 sb = new StringBuffer();
-                sb.append("/*\n * GENERATED FILE\n *\n */");
+                sb.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n * JavaFileGenerator.generateJavaFile(GenericWrapperElement, String, String)\n */");
                 sb.append("\npackage org.nrg.xdat.om;");
                 sb.append("\nimport org.nrg.xft.*;");
                 sb.append("\nimport org.nrg.xdat.om.base.*;");
@@ -1100,7 +1100,7 @@ public class JavaFileGenerator {
             // GENERATE JAVA REPORT
             StringBuffer sb = new StringBuffer();
             
-            sb.append("/*\n * GENERATED FILE\n * Created on " + Calendar.getInstance().getTime() + "\n *\n */");
+            sb.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n * JavaFileGenerator.generateJavaEditFile(GenericWrapperElement, String)\n */");
             sb.append("\npackage org.nrg.xdat.turbine.modules.screens;");
             //IMPORTS
             sb.append("\nimport org.apache.turbine.util.RunData;");
@@ -1190,7 +1190,7 @@ public class JavaFileGenerator {
             // GENERATE JAVA REPORT
             StringBuffer sb = new StringBuffer();
             
-            sb.append("/*\n * GENERATED FILE\n * Created on " + Calendar.getInstance().getTime() + "\n *\n */");
+            sb.append("/*\n * GENERATED FILE\n * Created on ").append(Calendar.getInstance().getTime()).append("\n * JavaFileGenerator.generateJavaReportFile(GenericWrapperElement, String)\n */");
             sb.append("\npackage org.nrg.xdat.turbine.modules.screens;");
             //IMPORTS
             sb.append("\nimport org.apache.turbine.util.RunData;");

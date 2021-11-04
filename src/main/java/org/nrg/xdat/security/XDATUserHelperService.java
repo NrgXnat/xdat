@@ -136,7 +136,7 @@ public class XDATUserHelperService extends UserHelperServiceI implements Seriali
     }
 
     @Override
-    public boolean hasEditAccessToSessionDataByTag(final String tag) throws Exception {
+    public boolean hasEditAccessToSessionDataByTag(final String tag) {
         return ((XDATUser)getUser()).hasAccessTo(tag);
     }
     

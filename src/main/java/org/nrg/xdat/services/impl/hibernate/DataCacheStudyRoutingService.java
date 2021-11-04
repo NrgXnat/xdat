@@ -9,38 +9,34 @@
 
 package org.nrg.xdat.services.impl.hibernate;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.framework.datacache.DataCacheService;
 import org.nrg.xapi.exceptions.DataFormatException;
 import org.nrg.xapi.exceptions.InitializationException;
 import org.nrg.xapi.exceptions.InsufficientPrivilegesException;
 import org.nrg.xapi.exceptions.NotFoundException;
-import org.nrg.xapi.model.StudyRoutingDto;
-import org.nrg.xdat.XDAT;
+import org.nrg.xapi.model.dicom.StudyRoutingModel;
 import org.nrg.xdat.security.SecurityManager;
 import org.nrg.xdat.security.helpers.Permissions;
 import org.nrg.xdat.security.helpers.Roles;
 import org.nrg.xdat.security.helpers.UserHelper;
 import org.nrg.xdat.services.StudyRoutingService;
 import org.nrg.xft.security.UserI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import lombok.extern.slf4j.Slf4j;
-
-import javax.inject.Inject;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class DataCacheStudyRoutingService implements StudyRoutingService {
+    @Autowired
+    public DataCacheStudyRoutingService(final DataCacheService dataCacheService) {
+        _dataCacheService = dataCacheService;
+    }
 
     /**
      * Creates a new routing configuration for the indicated attributes.
@@ -53,6 +49,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
      * @param studyInstanceUid The study instance UID to be assigned.
      * @param projectId        The ID of the destination project.
      * @param userId           The login name for the user who created the routing configurations.
+     *
      * @return This method returns <b>true</b> when the configuration was successfully created, <b>false</b> otherwise.
      * The <b>false</b> return value usually indicates that a routing configuration for the submitted study
      * instance UID already exists.
@@ -74,6 +71,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
      * @param projectId        The ID of the destination project.
      * @param subjectId        The ID of the destination subject.
      * @param userId           The login name for the user who created the routing configurations.
+     *
      * @return This method returns <b>true</b> when the configuration was successfully created, <b>false</b> otherwise.
      * The <b>false</b> return value usually indicates that a routing configuration for the submitted study
      * instance UID already exists.
@@ -96,6 +94,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
      * @param subjectId        The ID of the destination subject.
      * @param label            The label for the session.
      * @param userId           The login name for the user who created the routing configurations.
+     *
      * @return This method returns <b>true</b> when the configuration was successfully created, <b>false</b> otherwise.
      * The <b>false</b> return value usually indicates that a routing configuration for the submitted study
      * instance UID already exists.
@@ -103,9 +102,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
     @Override
     public boolean assign(final String studyInstanceUid, final String projectId, final String subjectId, final String label, final String userId) {
         if (getConfigurations().containsKey(studyInstanceUid)) {
-            if (_log.isWarnEnabled()) {
-                _log.warn("Attempt to assign new routing configuration for study instance UID: " + studyInstanceUid + " (configuration already exists!)");
-            }
+            log.warn("Attempt to assign new routing configuration for study instance UID: {} (configuration already exists!)", studyInstanceUid);
             return false;
         }
         if (StringUtils.isBlank(studyInstanceUid)) {
@@ -118,8 +115,8 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
             throw new RuntimeException("You must specify at least one of a project ID, subject ID, or label to create a new routing configuration.");
         }
 
-        HashMap<String, String> configuration = new HashMap<String, String>();
-        String now = FORMATTER.format(new Date());
+        final HashMap<String, String> configuration = new HashMap<>();
+        final String                  now           = FORMATTER.format(new Date());
 
         configuration.put(USER, userId);
         configuration.put(CREATED, now);
@@ -135,9 +132,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
             configuration.put(LABEL, label);
         }
 
-        if (_log.isDebugEnabled()) {
-            _log.debug("Updated routing configuration for study instance UID: " + studyInstanceUid + "\n" + configuration.toString());
-        }
+        log.debug("Updated routing configuration for study instance UID: {}\n{}", studyInstanceUid, configuration);
 
         return commit(studyInstanceUid, configuration);
     }
@@ -154,6 +149,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
      *
      * @param studyInstanceUid The study instance UID of the configuration to be updated.
      * @param configuration    The attribute keys and values to be updated.
+     *
      * @return This method returns <b>true</b> when the configuration was successfully updated, <b>false</b> otherwise.
      * The <b>false</b> return value usually indicates that a routing configuration for the submitted study
      * instance UID doesn't exist to be updated.
@@ -161,9 +157,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
     @Override
     public boolean update(final String studyInstanceUid, final Map<String, String> configuration) {
         if (!getConfigurations().containsKey(studyInstanceUid)) {
-            if (_log.isWarnEnabled()) {
-                _log.warn("Attempt to update non-existent routing configuration for study instance UID: " + studyInstanceUid);
-            }
+            log.warn("Attempt to update non-existent routing configuration for study instance UID: {}", studyInstanceUid);
             return false;
         }
 
@@ -172,18 +166,10 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
         for (final String key : configuration.keySet()) {
             final String value = configuration.get(key);
             if (value == null && existing.containsKey(key)) {
-                if (_log.isDebugEnabled()) {
-                    _log.debug("Removing key " + key + " from configuration for study instance UID: " + studyInstanceUid);
-                }
+                log.debug("Removing key {} from configuration for study instance UID: {}", key, studyInstanceUid);
                 existing.remove(key);
             } else {
-                if (_log.isDebugEnabled()) {
-                    if (existing.containsKey(key)) {
-                        _log.debug("Updating existing key " + key + " in configuration for study instance UID: " + studyInstanceUid);
-                    } else {
-                        _log.debug("Creating new key " + key + " in configuration for study instance UID: " + studyInstanceUid);
-                    }
-                }
+                log.debug(existing.containsKey(key) ? "Updating existing key {} in configuration for study instance UID: {}" : "Creating new key {} in configuration for study instance UID: {}", key, studyInstanceUid);
                 existing.put(key, value);
             }
         }
@@ -198,6 +184,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
      * configuration for that study instance UID, this method returns <b>null</b>.
      *
      * @param studyInstanceUid The study instance UID to query.
+     *
      * @return The active routing configuration, if any, for the indicated study instance UID. Returns <b>null</b> if
      * there is no active routing configuration for that study.
      */
@@ -208,11 +195,12 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
 
     /**
      * Finds all active routing configurations for a particular project. This returns as a map of maps. The containing
-     * map is keyed on the study instance UIDs for the study configurations. The contained maps include all of the
-     * attributes for each routing configuration. The project ID configured for all routing configurations wil be the
-     * same as the requested project ID parameter.
+     * map is keyed on the study instance UIDs for the study configurations. The contained maps include all the attributes
+     * for each routing configuration. The project ID configured for all routing configurations wil be the same as the requested
+     * project ID parameter.
      *
      * @param projectId The ID of the destination project.
+     *
      * @return A list of the routing configurations for the indicated project.
      */
     @Override
@@ -222,11 +210,12 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
 
     /**
      * Finds all active routing configurations created by a particular user. This returns as a map of maps. The
-     * containing map is keyed on the study instance UIDs for the routing configurations. The contained maps include all
-     * of the attributes for each routing configuration. The user ID configured for all routing configurations wil be
+     * containing map is keyed on the study instance UIDs for the routing configurations. The contained maps include
+     * all the attributes for each routing configuration. The user ID configured for all routing configurations will be
      * the same as the requested project ID parameter.
      *
      * @param userId The login name for the user who created the routing configurations.
+     *
      * @return A list of the routing configurations for the indicated user.
      */
     @Override
@@ -237,15 +226,17 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
     /**
      * Finds all active routing configurations for a particular value of a particular attribute. This returns as a map
      * of maps. The containing map is keyed on the study instance UIDs for the study configurations. The contained maps
-     * include all of the attributes for each routing configuration. The value for the requested attribute configured
-     * for all routing configurations wil be the same as the requested attribute value.
-     * @param attribute    The key for the attribute on which you wish to search.
-     * @param value        The value of the attribute on which you wish to search.
+     * include all the attributes for each routing configuration. The value for the requested attribute configured for all
+     * routing configurations wil be the same as the requested attribute value.
+     *
+     * @param attribute The key for the attribute on which you wish to search.
+     * @param value     The value of the attribute on which you wish to search.
+     *
      * @return A list of the routing configurations for the indicated attribute key and value.
      */
     @Override
     public Map<String, Map<String, String>> findRoutingsByAttribute(final String attribute, final String value) {
-        Map<String, Map<String, String>> found = new HashMap<String, Map<String, String>>();
+        Map<String, Map<String, String>> found = new HashMap<>();
         for (final Map.Entry<String, HashMap<String, String>> entry : getConfigurations().entrySet()) {
             if (entry.getValue().containsKey(attribute) && entry.getValue().get(attribute).equals(value)) {
                 found.put(entry.getKey(), entry.getValue());
@@ -261,21 +252,18 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
      */
     @Override
     public Map<String, Map<String, String>> findAllRoutings() {
-        Map<String, Map<String, String>> found = new HashMap<String, Map<String, String>>();
-        for (final Map.Entry<String, HashMap<String, String>> entry : getConfigurations().entrySet()) {
-            found.put(entry.getKey(), entry.getValue());
-        }
-        return found;
+        return new HashMap<>(getConfigurations());
     }
 
     /**
      * Closes the routing configuration for the indicated study instance UID. This should only be done when the study
      * has been fully received and archived. Any DICOM data for the study received later will not have the routing
-     * configuration available any more, which could lead to split sessions. This method returns <b>true</b> if the
+     * configuration available anymore, which could lead to split sessions. This method returns <b>true</b> if the
      * specified study instance UID exists in the routing configuration map and is closed successfully, and <b>false</b>
      * otherwise.
      *
      * @param studyInstanceUid The UID of the routing configuration to close.
+     *
      * @return <b>true</b> if the specified study instance UID exists in the routing configuration map and is closed
      * successfully, and <b>false</b> otherwise.
      */
@@ -287,7 +275,7 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
         getConfigurations().remove(studyInstanceUid);
 
         // The return value just checks for a non-zero object ID for the updated record.
-        return _service.put(SERVICE_KEY, getConfigurations()) > 0;
+        return _dataCacheService.put(SERVICE_KEY, getConfigurations()) > 0;
     }
 
     /**
@@ -298,209 +286,151 @@ public class DataCacheStudyRoutingService implements StudyRoutingService {
      */
     @Override
     public Map<String, Map<String, String>> closeAll() {
-        final Map<String, Map<String, String>> found = new HashMap<String, Map<String, String>>();
-        for (final Map.Entry<String, HashMap<String, String>> entry : getConfigurations().entrySet()) {
-            found.put(entry.getKey(), entry.getValue());
-        }
+        final Map<String, Map<String, String>> found = new HashMap<>(getConfigurations());
         getConfigurations().clear();
-        _service.put(SERVICE_KEY, getConfigurations());
+        _dataCacheService.put(SERVICE_KEY, getConfigurations());
         return found;
     }
-    
+
     @Override
-	public List<StudyRoutingDto> findAll(UserI user) throws InitializationException {
-		return  getAllStudyRouting(user);
-	}
+    public List<StudyRoutingModel> findAll(final UserI user) {
+        return getAllStudyRouting(user);
+    }
 
 
-	@Override
-	public StudyRoutingDto findByStudyInstanceUid(UserI user, String studyInstanceUid) throws NotFoundException, InitializationException {
-		StudyRoutingDto responce = getAllStudyRoutingByInstanceUid(user, studyInstanceUid);
-		if(Objects.isNull(responce)) {
-			throw new NotFoundException("Study Routing wasn't found");
-		}
-		return responce;
-	}
-	
-	@Override
-	public void updateStudyRouting(UserI user, String studyInstanceUid, String projectId) throws InitializationException, DataFormatException {
-		 org.nrg.xdat.services.StudyRoutingService routingService = getRoutingService();
-		if (StringUtils.isBlank(studyInstanceUid) || StringUtils.isBlank(projectId)) {
-             throw new DataFormatException("You must specify both a study instance UID and the project ID that you wish to assign.");
-         }
-		try {
-			if (!Permissions.can(user, "xnat:mrSessionData/project", projectId, SecurityManager.EDIT)) {
-				throw new InsufficientPrivilegesException( "You do not have sufficient privileges to modify study routings for this project.");
-			}
-			final Map<String, String> routing = routingService.findStudyRouting(studyInstanceUid);
-			if (routing == null) {
-				if (log.isDebugEnabled()) {
-					log.debug("Creating new study routing assignment for study instance UID {} to project {}, created by user {}", studyInstanceUid, projectId, user.getLogin());
-				}
-				routingService.assign(studyInstanceUid, projectId, user.getLogin());
-			} else if (!StringUtils.equals(routing.get(org.nrg.xdat.services.StudyRoutingService.PROJECT), projectId)) {
-				final String existing = routing.get(org.nrg.xdat.services.StudyRoutingService.PROJECT);
-				if (!Permissions.can(user, "xnat:mrSessionData/project", existing, SecurityManager.EDIT)) {
-					throw new InsufficientPrivilegesException("You are trying to reassign study instance UID " + studyInstanceUid + " from project " + existing + " but do not have sufficient privileges to modify study routings for this project.");
-				}
-				if (log.isDebugEnabled()) {
-					log.debug("Updating routing assignment for study instance UID {} to project {}, updated by user {}", studyInstanceUid, projectId, user.getLogin());
-				}
-				routing.put(org.nrg.xdat.services.StudyRoutingService.PROJECT, projectId);
-				routingService.update(studyInstanceUid, routing);
-			}
-		} catch (Exception e) {
-			log.error("An error occurred checking user permissions", e);
-			throw new InitializationException("An error occurred checking user permissions");
-		}
-	}
+    @Override
+    public Optional<StudyRoutingModel> findByStudyInstanceUid(UserI user, String studyInstanceUid) throws InsufficientPrivilegesException {
+        return Optional.ofNullable(getAllStudyRoutingByInstanceUid(user, studyInstanceUid));
+    }
 
-	@Override
-	public void deleteStudyRouting(UserI user, String studyInstanceUid) throws InsufficientPrivilegesException, InitializationException {
-		 org.nrg.xdat.services.StudyRoutingService routingService =getRoutingService();
-		if (StringUtils.isBlank(studyInstanceUid)) {
-			if (!Roles.isSiteAdmin(user)) {
-				throw new InsufficientPrivilegesException("You must be a site administrator to delete all study routings for this site.");
-			}
-			log.warn("Closing all study instance UID assignments, per user {}", user.getLogin());
-			routingService.closeAll();
-		} else {
-			try {
-				Map<String, String> routing = routingService.findStudyRouting(studyInstanceUid);
-				if (routing == null) {
-					throw new NotFoundException("Couldn't find a routing for the study instance UID: " + studyInstanceUid);
-				}
-				if (!Permissions.can(user, "xnat:mrSessionData/project",
-						routing.get(org.nrg.xdat.services.StudyRoutingService.PROJECT), SecurityManager.EDIT)) {
-					throw new InsufficientPrivilegesException( "You do not have sufficient privileges to delete study routings for this project.");
-				}
-				log.info("Closing study instance UID {} assignment, per user {}", studyInstanceUid, user.getLogin());
-				routingService.close(studyInstanceUid);
-			} catch (Exception e) {
-				log.error("An error occurred checking user permissions", e);
-				throw new InitializationException("An error occurred checking user permissions");
-			}
-		}
-	}
+    @Override
+    public void updateStudyRouting(UserI user, String studyInstanceUid, String projectId) throws InitializationException, DataFormatException {
+        if (StringUtils.isBlank(studyInstanceUid) || StringUtils.isBlank(projectId)) {
+            throw new DataFormatException("You must specify both a study instance UID and the project ID that you wish to assign.");
+        }
+        try {
+            if (!Permissions.can(user, "xnat:mrSessionData/project", projectId, SecurityManager.EDIT)) {
+                throw new InsufficientPrivilegesException("You do not have sufficient privileges to modify study routings for this project.");
+            }
+            final Map<String, String> routing = findStudyRouting(studyInstanceUid);
+            if (routing == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Creating new study routing assignment for study instance UID {} to project {}, created by user {}", studyInstanceUid, projectId, user.getLogin());
+                }
+                assign(studyInstanceUid, projectId, user.getLogin());
+            } else if (!StringUtils.equals(routing.get(StudyRoutingService.PROJECT), projectId)) {
+                final String existing = routing.get(StudyRoutingService.PROJECT);
+                if (!Permissions.can(user, "xnat:mrSessionData/project", existing, SecurityManager.EDIT)) {
+                    throw new InsufficientPrivilegesException("You are trying to reassign study instance UID " + studyInstanceUid + " from project " + existing + " but do not have sufficient privileges to modify study routings for this project.");
+                }
+                log.debug("Updating routing assignment for study instance UID {} to project {}, updated by user {}", studyInstanceUid, projectId, user.getLogin());
+                routing.put(StudyRoutingService.PROJECT, projectId);
+                update(studyInstanceUid, routing);
+            }
+        } catch (Exception e) {
+            log.error("An error occurred checking user permissions", e);
+            throw new InitializationException("An error occurred checking user permissions");
+        }
+    }
 
-	private org.nrg.xdat.services.StudyRoutingService getRoutingService() {
-		return  XDAT.getContextService().getBean( org.nrg.xdat.services.StudyRoutingService.class);
-	}
-	
-	private StudyRoutingDto getAllStudyRoutingByInstanceUid(UserI user, String studyInstanceUid) throws NotFoundException, InitializationException {
-		 final Map<String, String> routing = findStudyRouting(studyInstanceUid);
-         if (routing == null || routing.size() == 0) {
-             log.info("Request made for routing for study instance UID {}, but nothing was found for that value.", studyInstanceUid);
-             throw new NotFoundException("Couldn't find a routing for the study instance UID: " + studyInstanceUid);
-         } else {
-             try {
-                 if (!UserHelper.getUserHelperService(user).hasEditAccessToSessionDataByTag(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.PROJECT))) {
-                     throw new InsufficientPrivilegesException("You do not have sufficient privileges to view the routing for this study instance UID.");
-                 }
-             } catch (Exception e) {
-                 final String message = "An error occurred trying to resolve privileges on the study routing for study instance UID: " + studyInstanceUid;
-                 log.error(message, e);
-                 throw new InitializationException(e.getMessage());
-             }
-             if (log.isDebugEnabled()) {
-                 log.debug("Request made for routing for study instance UID {}, found routing: {}", studyInstanceUid, routing.toString());
-			}
-			return getStudyRoutingByInstanceId(studyInstanceUid, routing);
-		}
-	}
-	
-	private StudyRoutingDto getStudyRoutingByInstanceId(String studyInstanceUid, Map<String, String> routing) {
-		return  StudyRoutingDto.builder()
-    			 .studyInstanceUid(studyInstanceUid)
-    			 .project(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.PROJECT))
-    			 .subject(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.SUBJECT))
-    			 .user(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.USER))
-    			 .created(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.CREATED))
-    			 .accessed(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.ACCESSED))
-    			 .label(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.LABEL))
-    			 .build();
-	}
+    @Override
+    public void deleteStudyRouting(UserI user, String studyInstanceUid) throws InsufficientPrivilegesException, InitializationException {
+        if (StringUtils.isBlank(studyInstanceUid)) {
+            if (!Roles.isSiteAdmin(user)) {
+                throw new InsufficientPrivilegesException("You must be a site administrator to delete all study routings for this site.");
+            }
+            log.warn("Closing all study instance UID assignments, per user {}", user.getLogin());
+            closeAll();
+        } else {
+            try {
+                Map<String, String> routing = findStudyRouting(studyInstanceUid);
+                if (routing == null) {
+                    throw new NotFoundException("Couldn't find a routing for the study instance UID: " + studyInstanceUid);
+                }
+                if (!Permissions.can(user, "xnat:mrSessionData/project",
+                                     routing.get(StudyRoutingService.PROJECT), SecurityManager.EDIT)) {
+                    throw new InsufficientPrivilegesException("You do not have sufficient privileges to delete study routings for this project.");
+                }
+                log.info("Closing study instance UID {} assignment, per user {}", studyInstanceUid, user.getLogin());
+                close(studyInstanceUid);
+            } catch (Exception e) {
+                log.error("An error occurred checking user permissions", e);
+                throw new InitializationException("An error occurred checking user permissions");
+            }
+        }
+    }
 
-	private List<StudyRoutingDto> getAllStudyRouting(UserI user) throws InitializationException {
-		List<StudyRoutingDto> response = new ArrayList<>();
-		Map<String, Map<String, String>> routings = findAllRoutings();
-		if (routings != null && routings.size() > 0) {
-			if (log.isDebugEnabled()) {
-				log.debug("Request made for all system routings, found {} results", routings.size());
-			}
-			for(final String studyInstanceUid : routings.keySet()) {
-				final Map<String, String> routing = routings.get(studyInstanceUid);
-				try {
-					if (UserHelper.getUserHelperService(user).hasEditAccessToSessionDataByTag(getRoutingAttribute(routing, StudyRoutingService.PROJECT))) {
-						response = getStudyRouting(studyInstanceUid, routing);
-						return response;
-					}
-				} catch (Exception e) {
-					final String message = "An error occurred trying to resolve privileges on the study routing for study instance UID: " + studyInstanceUid;
-					log.error(message, e);
-					throw new InitializationException(e.getMessage());
-				}
-			}
-		} else if (log.isDebugEnabled()) {
-			log.debug("Request made for all system routings, found no results!");
-		}
-		return response;
-	}
-	
-	private String getRoutingAttribute(final Map<String, String> routing, final String attribute) {
-		return routing.containsKey(attribute) ? routing.get(attribute) : "";
-	}
-	
-	private List<StudyRoutingDto> getStudyRouting(String studyInstanceUid, Map<String, String> routing) {
-		List<StudyRoutingDto> response = new ArrayList<>();
-		 response.add(StudyRoutingDto.builder()
-    			 .studyInstanceUid(studyInstanceUid)
-    			 .project(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.PROJECT))
-    			 .subject(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.SUBJECT))
-    			 .user(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.USER))
-    			 .created(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.CREATED))
-    			 .accessed(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.ACCESSED))
-    			 .label(getRoutingAttribute(routing, org.nrg.xdat.services.StudyRoutingService.LABEL))
-    			 .build());
-		return response;
-	}
+    private StudyRoutingModel getAllStudyRoutingByInstanceUid(final UserI user, final String studyInstanceUid) throws InsufficientPrivilegesException {
+        final Map<String, String> routing = findStudyRouting(studyInstanceUid);
+        if (routing == null || routing.size() == 0) {
+            log.info("Request made for routing for study instance UID {}, but nothing was found for that value.", studyInstanceUid);
+            return null;
+        }
+        if (!UserHelper.getUserHelperService(user).hasEditAccessToSessionDataByTag(routing.getOrDefault(StudyRoutingService.PROJECT, ""))) {
+            throw new InsufficientPrivilegesException("You do not have sufficient privileges to view the routing for this study instance UID.");
+        }
+        log.debug("Request made for routing for study instance UID {}, found routing: {}", studyInstanceUid, routing);
+        return getStudyRouting(studyInstanceUid, routing);
+    }
+
+    private List<StudyRoutingModel> getAllStudyRouting(final UserI user) {
+        final Map<String, Map<String, String>> routings = findAllRoutings();
+        if (routings == null || routings.size() <= 0) {
+            log.debug("Request made for all system routings, found no results!");
+            return Collections.emptyList();
+        }
+        log.debug("Request made for all system routings, found {} results", routings.size());
+        return routings.entrySet().stream()
+                       .filter(entry -> UserHelper.getUserHelperService(user).hasEditAccessToSessionDataByTag(entry.getValue().getOrDefault(StudyRoutingService.PROJECT, "")))
+                       .map(entry -> getStudyRouting(entry.getKey(), entry.getValue()))
+                       .collect(Collectors.toList());
+    }
+
+    private StudyRoutingModel getStudyRouting(String studyInstanceUid, Map<String, String> routing) {
+        return StudyRoutingModel.builder()
+                                .studyInstanceUid(studyInstanceUid)
+                                .project(routing.getOrDefault(StudyRoutingService.PROJECT, ""))
+                                .subject(routing.getOrDefault(StudyRoutingService.SUBJECT, ""))
+                                .user(routing.getOrDefault(StudyRoutingService.USER, ""))
+                                .created(routing.getOrDefault(StudyRoutingService.CREATED, ""))
+                                .accessed(routing.getOrDefault(StudyRoutingService.ACCESSED, ""))
+                                .label(routing.getOrDefault(StudyRoutingService.LABEL, ""))
+                                .build();
+    }
 
     /**
      * Commits the routing configuration for the indicated study instance UID. Returns <b>true</b> if the commit
      * completed successfully, <b>false</b> otherwise.
-     * @param studyInstanceUid    The study instance UID of the configuration to be created or updated.
-     * @param configuration       The configuration itself.
+     *
+     * @param studyInstanceUid The study instance UID of the configuration to be created or updated.
+     * @param configuration    The configuration itself.
+     *
      * @return <b>true</b> if the commit completed successfully, <b>false</b> otherwise.
      */
     private boolean commit(final String studyInstanceUid, final HashMap<String, String> configuration) {
-        if (_log.isDebugEnabled()) {
-            _log.debug(getConfigurations().containsKey(studyInstanceUid) ? "Updated existing" : "Created new" + " routing configuration for study instance UID: " + studyInstanceUid + "\n" + configuration.toString());
-        }
+        log.debug(getConfigurations().containsKey(studyInstanceUid) ? "Updated existing" : "Created new" + " routing configuration for study instance UID: " + studyInstanceUid + "\n" + configuration.toString());
 
         getConfigurations().put(studyInstanceUid, configuration);
 
         // The return value just checks for a non-zero object ID for the updated record.
-        return _service.put(SERVICE_KEY, getConfigurations()) > 0;
+        return _dataCacheService.put(SERVICE_KEY, getConfigurations()) > 0;
     }
 
     private HashMap<String, HashMap<String, String>> getConfigurations() throws RuntimeException {
         if (_configuration == null) {
-            _configuration = _service.get(SERVICE_KEY);
+            _configuration = _dataCacheService.get(SERVICE_KEY);
             if (_configuration == null) {
-                _configuration = new HashMap<String, HashMap<String, String>>();
-                _service.put(SERVICE_KEY, _configuration);
+                _dataCacheService.put(SERVICE_KEY, new HashMap<>());
+                _configuration = _dataCacheService.get(SERVICE_KEY);
             }
         }
         return _configuration;
     }
 
-    private static final String SERVICE_KEY = DataCacheStudyRoutingService.class.getName();
-    private static final SimpleDateFormat FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss a");
-    private static final Logger _log = LoggerFactory.getLogger(DataCacheStudyRoutingService.class);
-
-    @Inject
-    private DataCacheService _service;
+    private static final String           SERVICE_KEY = DataCacheStudyRoutingService.class.getName();
+    private static final SimpleDateFormat FORMATTER   = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss a");
 
     private HashMap<String, HashMap<String, String>> _configuration;
 
+    private final DataCacheService _dataCacheService;
 }

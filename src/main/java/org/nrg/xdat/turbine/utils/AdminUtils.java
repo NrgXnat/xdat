@@ -15,6 +15,7 @@ import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.context.Context;
+import org.nrg.framework.generics.GenericUtils;
 import org.nrg.mail.api.MailMessage;
 import org.nrg.mail.api.NotificationType;
 import org.nrg.xdat.XDAT;
@@ -363,7 +364,8 @@ public class AdminUtils {
 			body = body.replaceAll("USER_PHONE", phone);
 			body = body.replaceAll("LAB_NAME", lab);
 			body = body.replaceAll("USER_COMMENTS", comments);
-			body = body.replaceAll("PROJECT_ACCESS_REQUESTS", "");
+			final String pars = context.containsKey("pars") ? "<ul><li>" + String.join("</li><li>", GenericUtils.convertToTypedList((List<?>) context.get("pars"), String.class)) + "</li></ul>" : "";
+			body = body.replaceAll("PROJECT_ACCESS_REQUESTS", pars);
 
 			String url = TurbineUtils.GetFullServerPath()+ "/app/action/DisplayItemAction/search_value/" + user.getUsername() + "/search_element/xdat:user/search_field/xdat:user.login";
 

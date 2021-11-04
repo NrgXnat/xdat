@@ -15,8 +15,8 @@ import java.util.Collection;
 import java.util.List;
 
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntityService;
-import org.nrg.xapi.model.FeatureDefinitionUserGroupDto;
-import org.nrg.xapi.model.FeatureUserGroupDto;
+import org.nrg.xapi.model.features.FeatureDefinitionUserGroupModel;
+import org.nrg.xapi.model.features.FeatureUserGroupModel;
 import org.nrg.xdat.daos.FeatureDefinitionDAO;
 import org.nrg.xdat.entities.FeatureDefinition;
 import org.nrg.xdat.security.helpers.FeatureDefinitionI;
@@ -79,51 +79,51 @@ public class HibernateFeatureDefinitionService extends AbstractHibernateEntitySe
 	}
 
 	@Override
-	public List<FeatureDefinitionUserGroupDto> findAllByType(UserI user, String type) throws SQLException, DBPoolException {
+	public List<FeatureDefinitionUserGroupModel> findAllByType(UserI user, String type) throws SQLException, DBPoolException {
 		Collection<String> siteWideEnabled=Features.getEnabledFeatures();
     	Collection<String> siteWideBanned=Features.getBannedFeatures();
     	
-		List<FeatureDefinitionUserGroupDto> groups = new ArrayList<>();
-		XFTTable t= XFTTable.Execute(XDAT_USER_GROUP, null, null);
-        List<Object> groupTypes=t.convertColumnToArrayList("displayname");
+		List<FeatureDefinitionUserGroupModel> groups     = new ArrayList<>();
+		XFTTable                              t          = XFTTable.Execute(XDAT_USER_GROUP, null, null);
+        List<Object>                          groupTypes =t.convertColumnToArrayList("displayname");
         
-        FeatureDefinitionUserGroupDto userGroup = getFeatureUserGroup(groupTypes);
+        FeatureDefinitionUserGroupModel userGroup = getFeatureUserGroup(groupTypes);
         userGroup.setId(Features.SITE_WIDE);
         userGroup.setBanned(siteWideBanned);
         userGroup.setOnByDefault(siteWideEnabled);
         groups.add(userGroup);
         
-        FeatureDefinitionUserGroupDto userGroupWithRole = getFeatureUserGroupWithRole(groupTypes);
+        FeatureDefinitionUserGroupModel userGroupWithRole = getFeatureUserGroupWithRole(groupTypes);
         groups.add(userGroupWithRole);
         
         return groups;
 	}
 	
-	private FeatureDefinitionUserGroupDto getFeatureUserGroupWithRole(List<Object> groupTypes) {
-		FeatureDefinitionUserGroupDto userGroup = new FeatureDefinitionUserGroupDto();
+	private FeatureDefinitionUserGroupModel getFeatureUserGroupWithRole(List<Object> groupTypes) {
+		FeatureDefinitionUserGroupModel userGroup = new FeatureDefinitionUserGroupModel();
 		 for(RoleDefinitionI role : Roles.getRoles()){
-	        	List<FeatureUserGroupDto> group = new ArrayList<>();
-	        	String key="role:"+role.getKey();
-	        	group.add(FeatureUserGroupDto.builder()
-	        			.id(key)
-	        			.display("Role: " + role.getName())
-	        			.isRole(true)
-	        			.features(Features.getEnabledFeaturesForGroupType(key))
-	        			.blocked(Features.getBannedFeaturesForGroupType(key)).build());
+	        	List<FeatureUserGroupModel> group = new ArrayList<>();
+	        	String                      key   ="role:"+role.getKey();
+	        	group.add(FeatureUserGroupModel.builder()
+                                               .id(key)
+                                               .display("Role: " + role.getName())
+                                               .isRole(true)
+                                               .features(Features.getEnabledFeaturesForGroupType(key))
+                                               .blocked(Features.getBannedFeaturesForGroupType(key)).build());
 	        	userGroup.setGroups(group);
 	        }
 		return userGroup;
 	}
 	
-	private FeatureDefinitionUserGroupDto getFeatureUserGroup(List<Object> groupTypes) {
-		 FeatureDefinitionUserGroupDto userGroup = new FeatureDefinitionUserGroupDto();
+	private FeatureDefinitionUserGroupModel getFeatureUserGroup(List<Object> groupTypes) {
+		 FeatureDefinitionUserGroupModel userGroup = new FeatureDefinitionUserGroupModel();
 		for(Object gType:groupTypes){
-       	List<FeatureUserGroupDto> group = new ArrayList<>();
-       	group.add(FeatureUserGroupDto.builder()
-       			.id(gType.toString())
-       			.display(gType.toString())
-       			.features(Features.getEnabledFeaturesForGroupType((String)gType))
-       			.blocked(Features.getBannedFeaturesForGroupType((String)gType)).build());
+       	List<FeatureUserGroupModel> group = new ArrayList<>();
+       	group.add(FeatureUserGroupModel.builder()
+                                       .id(gType.toString())
+                                       .display(gType.toString())
+                                       .features(Features.getEnabledFeaturesForGroupType((String)gType))
+                                       .blocked(Features.getBannedFeaturesForGroupType((String)gType)).build());
        	userGroup.setGroups(group);
 		}
 		return userGroup;

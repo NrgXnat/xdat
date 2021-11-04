@@ -176,7 +176,7 @@ public abstract class UserHelperServiceI {
         return fe != null;
     }
     
-    public abstract boolean hasEditAccessToSessionDataByTag(String tag) throws Exception;
+    public abstract boolean hasEditAccessToSessionDataByTag(String tag);
 
     private static final Logger logger = LoggerFactory.getLogger(UserHelperServiceI.class);
 }
