@@ -1960,6 +1960,32 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "")
+    public String getAnonScriptResourceProviderWhiteList() {
+        return getValue("anonScriptResourceProviderWhiteList");
+    }
+
+    public void setAnonScriptResourceProviderWhiteList(final String list) {
+        try {
+            set(list, "anonScriptResourceProviderWhiteList");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'anonScriptResourceProviderWhiteList': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "false")
+    public boolean getAnonScriptResourceProviderWhiteListEnabled() {
+        return getBooleanValue("anonScriptResourceProviderWhiteListEnabled");
+    }
+
+    public void setAnonScriptResourceProviderWhiteListEnabled(final boolean anonScriptResourceProviderWhiteListEnabled) {
+        try {
+            setBooleanValue(anonScriptResourceProviderWhiteListEnabled, "anonScriptResourceProviderWhiteListEnabled");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'anonScriptResourceProviderWhiteListEnabled': something is very wrong here.", e);
+        }
+    }
+
     public boolean isComplete() {
         return getMissingInitSettings().size() == 0;
     }
