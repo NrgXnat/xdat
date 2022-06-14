@@ -13,6 +13,7 @@ package org.nrg.xft.collections;
 import java.util.Hashtable;
 import java.util.Iterator;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.nrg.xft.exception.DuplicateKeyException;
 import org.nrg.xft.exception.ItemNotFoundException;
 import org.nrg.xft.identifier.Identifier;
@@ -26,6 +27,7 @@ public abstract class XFTCollection {
     private boolean allowReplacement = false;
     private boolean allowItemNotFoundError = true;
 
+    @JsonIgnore
     protected Object getStoredItem(String id) {
         Object o = coll.get(id);
         if (o == null && allowItemNotFoundError) {
@@ -70,10 +72,12 @@ public abstract class XFTCollection {
         }
     }
 
+    @JsonIgnore
     protected Iterator getItemIterator() {
         return coll.values().iterator();
     }
 
+    @JsonIgnore
     protected Hashtable getItemHash() {
         return coll;
     }

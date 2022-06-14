@@ -1673,8 +1673,10 @@ public class DisplaySearch implements TableSearchI {
                     Iterator iter = dv.getDisplayFieldRefIterator();
                     while (iter.hasNext()) {
                         DisplayFieldRef ref = (DisplayFieldRef) iter.next();
+                        String id = (ref.getId().indexOf("=")>0)?StringUtils.substringBefore(ref.getId(),"="):ref.getId();
+                        String value = (ref.getId().indexOf("=")>0)?StringUtils.substringAfter(ref.getId(),"="):null;
                         try {
-                            if (ref.getDisplayField() != null) {
+                            if (ref.getParentElement().getDisplayField(id) != null) {
                                 XdatSearchField xsf = new XdatSearchField();
                                 if (ref.getElementName() != null) {
                                     xsf.setElementName(ref.getElementName());
@@ -1686,10 +1688,13 @@ public class DisplaySearch implements TableSearchI {
                                     xsf.setHeader("  ");
                                 else
                                     xsf.setHeader(ref.getHeader());
-                                xsf.setType(ref.getDisplayField().getDataType());
+                                xsf.setType(ref.getParentElement().getDisplayField(id).getDataType());
                                 xsf.setSequence(sequence++);
-                                if (ref.getValue() != null && !ref.getValue().equals(""))
+                                if (ref.getValue() != null && !ref.getValue().equals("")) {
                                     xsf.setValue(ref.getValue().toString());
+                                }else if(value!=null){
+                                    xsf.setValue(value);
+                                }
                                 if (!ref.isVisible()) {
                                     xsf.setVisible(false);
                                 }

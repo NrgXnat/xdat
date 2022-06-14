@@ -10,6 +10,8 @@
 
 package org.nrg.xdat.display;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.velocity.app.Velocity;
 import org.nrg.xdat.collections.DisplayFieldCollection;
@@ -26,7 +28,9 @@ import java.util.Map.Entry;
  * @author Tim
  */
 public class ElementDisplay extends DisplayFieldCollection {
+    @JsonIgnore
     static Logger logger = Logger.getLogger(ElementDisplay.class);
+
     private String elementName = "";
     private String valueField = "";
     private String displayField = "";
@@ -34,12 +38,12 @@ public class ElementDisplay extends DisplayFieldCollection {
     private String briefDescription = "";
     private String fullDescription = "";
     private Hashtable<String, DisplayVersion> versions = new Hashtable<>();
-    private Hashtable views = new Hashtable();
     private Hashtable arcs = new Hashtable();
     private Hashtable schemaLinks = new Hashtable();
 
     private Hashtable viewLinks = new Hashtable();
 
+    @JsonIgnore
     private SchemaElement schemaElement = null;
 
     private String lightColor = null;
@@ -135,33 +139,6 @@ public class ElementDisplay extends DisplayFieldCollection {
         } else {
             return null;
         }
-    }
-
-    /**
-     * @return A table of all of the views.
-     */
-    public Hashtable getViews() {
-        return views;
-    }
-
-    /**
-     * @param views The views to set.
-     */
-    public void setViews(Hashtable views) {
-        this.views = views;
-    }
-
-    @SuppressWarnings("unchecked")
-    public void addView(SQLView sv) {
-        views.put(sv.getName(), sv);
-    }
-
-    @SuppressWarnings("unchecked")
-    public ArrayList getSortedViews() {
-        ArrayList temp = new ArrayList();
-        temp.addAll(getViews().values());
-        Collections.sort(temp, SQLView.SequenceComparator);
-        return temp;
     }
 
     /**
@@ -488,7 +465,6 @@ public class ElementDisplay extends DisplayFieldCollection {
     }
 
     public String getVersionsXML() {
-
         StringBuilder sb = new StringBuilder();
         sb.append("<DisplayVersions ");
         sb.append("element_name=\"").append(this.getElementName()).append("\">");
@@ -671,6 +647,49 @@ public class ElementDisplay extends DisplayFieldCollection {
         }
 
         return null;
+    }
+
+    public void merge(ElementDisplay ed){
+        if (StringUtils.isNotBlank(ed.getValueField())) {
+            this.setValueField(ed.getValueField());
+        }
+        if (StringUtils.isNotBlank(ed.getDisplayField())) {
+            this.setDisplayField(ed.getDisplayField());
+        }
+        if (StringUtils.isNotBlank(ed.getDisplayLabel())) {
+            this.setDisplayLabel(ed.getDisplayLabel());
+        }
+        if (StringUtils.isNotBlank(ed.getBriefDescription())) {
+            this.setBriefDescription(ed.getBriefDescription());
+        }
+        if (StringUtils.isNotBlank(ed.getFullDescription())) {
+            this.setFullDescription(ed.getFullDescription());
+        }
+
+        for(DisplayField newDF: ed.getSortedFields()){
+            DisplayField existingDF = this.getDisplayField(newDF.getId());
+            if(existingDF==null){
+                newDF.setParentDisplay(this);
+                this.addDisplayField(newDF);
+            }else{
+                existingDF.setHeader(newDF.getHeader());
+                existingDF.setSearchable(newDF.isSearchable());
+                existingDF.setDescription(newDF.getDescription());
+            }
+        }
+
+        for(DisplayVersion dv: ed.getVersions().values()){
+            dv.setParentElementDisplay(this);
+            this.addVersion(dv);
+        }
+
+        for(Object arcO: ed.getArcs().values()){
+            this.addArc((Arc)arcO);
+        }
+
+        for(Object viewLinkO : ed.getViewLinks().values()){
+            this.addViewLink((ViewLink)viewLinkO);
+        }
     }
 }
 

@@ -9,6 +9,7 @@
 
 package org.nrg.xdat.display;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xdat.collections.DisplayFieldCollection.DisplayFieldNotFoundException;
 import org.nrg.xdat.schema.SchemaElement;
@@ -54,6 +55,7 @@ public class DisplayField implements Identifier, SequentialObject {
     private HTMLCell htmlCell = new HTMLCell();
     private HTMLImage htmlImage = new HTMLImage();
 
+    @JsonIgnore
     private ElementDisplay parentDisplay = null;
 
     private int sortIndex = 0;
@@ -61,9 +63,10 @@ public class DisplayField implements Identifier, SequentialObject {
     private final List<String> possibleValues = new ArrayList<>();
 
     public String generatedFor = "";
+    private String parentDisplayStr = "";
 
     public DisplayField(ElementDisplay ed) {
-        parentDisplay = ed;
+        this.setParentDisplay(ed);
     }
 
     /**
@@ -145,6 +148,7 @@ public class DisplayField implements Identifier, SequentialObject {
         return content;
     }
 
+    @JsonIgnore
     /**
      * Builds and returns the SQL content of the display field based on the {@link QueryOrganizerI query organizer}.
      *
@@ -200,6 +204,7 @@ public class DisplayField implements Identifier, SequentialObject {
         return content;
     }
 
+    @JsonIgnore
     /**
      * Gets a summary of field content.
      *
@@ -374,15 +379,26 @@ public class DisplayField implements Identifier, SequentialObject {
         htmlImage = image;
     }
 
+    @JsonIgnore
     /**
      * Gets the parent element display for this display field.
      *
      * @return The parent element display for this display field.
      */
     public ElementDisplay getParentDisplay() {
+        if(parentDisplay==null){
+            parentDisplay=DisplayManager.GetElementDisplay(parentDisplayStr);
+        }
+
         return parentDisplay;
     }
 
+    public void setParentDisplay(ElementDisplay ed){
+        parentDisplay = ed;
+        this.parentDisplayStr=ed.getElementName();
+    }
+
+    @JsonIgnore
     /**
      * Gets the primary schema field associated with this display field.
      *
@@ -398,6 +414,7 @@ public class DisplayField implements Identifier, SequentialObject {
         }
     }
 
+    @JsonIgnore
     /**
      * @return ArrayList of Object[String path, SchemaFieldI sf]
      */
@@ -598,6 +615,7 @@ public class DisplayField implements Identifier, SequentialObject {
         setSortIndex(sequence);
     }
 
+    @JsonIgnore
     /**
      * Gets the enumeration from the display field, if available.
      *
@@ -637,8 +655,7 @@ public class DisplayField implements Identifier, SequentialObject {
     public String toString() {
         return this.getParentDisplay().getElementName() + ":" + this.getId();
     }
-
-    /**
+   /**
      * @return Returns the htmlContent.
      */
     public boolean isHtmlContent() {
@@ -660,6 +677,7 @@ public class DisplayField implements Identifier, SequentialObject {
         this.description = description;
     }
 
+    @JsonIgnore
     public static DisplayField getDisplayFieldForUnknownPath(String s) throws Exception {
         if (s.contains(".")) {
             String keyElement = s.substring(0, s.indexOf("."));
@@ -673,6 +691,7 @@ public class DisplayField implements Identifier, SequentialObject {
         }
     }
 
+    @JsonIgnore
     public static DisplayField getDisplayFieldForDFIdOrXPath(String s) throws Exception {
         final String elementName1 = XftStringUtils.GetRootElementName(s);
         final String field = XftStringUtils.GetFieldText(s);
@@ -703,6 +722,43 @@ public class DisplayField implements Identifier, SequentialObject {
         } else {
             return "UNKNOWN";
         }
+    }
+
+    public DisplayField clone(){
+        DisplayField df;
+        if(this instanceof SQLQueryField){
+            df = new SQLQueryField(parentDisplay);
+            ((SQLQueryField)df).setSubQuery(((SQLQueryField) this).getSubQuery());
+            ((SQLQueryField)df).setValue(((SQLQueryField) this).getValue());
+
+            for(SQLQueryField.QueryMappingColumn mapping: ((SQLQueryField)df).getMappingColumns()){
+                ((SQLQueryField)df).addMappingColumn(mapping.getSchemaField(), mapping.getQueryField());
+            }
+        }else{
+            df = new DisplayField(parentDisplay);
+        }
+
+        df.setHeader(this.getHeader());
+        df.setDescription(this.getDescription());
+        df.setId(this.getId());
+        df.setDataType(this.getDataType());
+        df.getContent().putAll(this.getContent());
+        df.setHtmlLink(this.getHtmlLink());
+        df.setVisible(this.isVisible());
+        df.setSortOrder(this.getSortOrder());
+        df.setSortBy(this.getSortBy());
+        df.setSortIndex(this.getSortIndex());
+        df.setSearchable(this.isSearchable());
+        df.setImage(this.isImage());
+        df.setHtmlContent(this.isHtmlContent());
+        df.setHtmlCell(this.getHtmlCell());
+        df.setHtmlImage(this.getHtmlImage());
+
+        for(DisplayFieldElement dfe : this.getElements()){
+            df.addDisplayFieldElement(dfe.clone());
+        }
+
+        return df;
     }
 }
 
