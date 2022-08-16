@@ -10,7 +10,9 @@
 package org.nrg.xft;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.Maps;
 import org.apache.commons.collections.Predicate;
+import org.apache.commons.lang3.CharUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.nrg.xdat.security.SecurityManager;
@@ -82,6 +84,11 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	private static final String STATUS = _STATUS;
 	private static final String META_STATUS = "meta/status";
 	private static final Logger logger = Logger.getLogger(XFTItem.class);
+	public static final String POP_ITEM_START = "Item:(";
+	public static final String POP_OPEN_EQUALS_CLOSE = ")=(";
+	public static final String POP_OPEN_CLOSE = ")(";
+	public static final char POP_OPEN = '(';
+	public static final char POP_CLOSE = ')';
 	private static Hashtable PRE_FORMATTED_ITEMS = new Hashtable();
 	public final static String EXTENDED_FIELD_NAME = "extension";
 	public final static String EXTENDED_ITEM = "extension_item";
@@ -7002,18 +7009,18 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	    {
 	        return value;
 	    }else{
-	        if (className.equals("java.lang.String"))
+	        if (StringUtils.equals(className,"java.lang.String"))
 	        {
 	            value = StringUtils.replace(StringUtils.replace(value, SPECIAL_CHAR1, "("), SPECIAL_CHAR2, ")");
                 return value;
-	        }else if (XMLType.CleanType(type).equals("date"))
+	        }else if (StringUtils.equals(XMLType.CleanType(type),"date"))
 	        {
 	            try{
 	                return java.sql.Date.valueOf(value);
 	            } catch (RuntimeException e) {
                     return value;
                 }
-	        }else if (XMLType.CleanType(type).equals("dateTime"))
+	        }else if (StringUtils.equals(XMLType.CleanType(type),"dateTime"))
 	        {
 	            try{
 	                return java.sql.Timestamp.valueOf(value);
@@ -7026,14 +7033,14 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	                    return value;
 	                }
                 }
-	        }else if (XMLType.CleanType(type).equals("time"))
+	        }else if (StringUtils.equals(XMLType.CleanType(type),"time"))
 	        {
 	            try {
                     return java.sql.Time.valueOf(value);
                 } catch (RuntimeException e) {
                     return value;
                 }
-	        }else if (className.equals("java.util.Date"))
+	        }else if (StringUtils.equals(className,"java.util.Date"))
 	        {
 	            Object o;
                 try {
@@ -7042,13 +7049,17 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
                 } catch (ParseException e) {
                     return value;
                 }
-	        }else if (className.equals("java.lang.Boolean"))
+	        }else if (StringUtils.equals(className,"java.lang.Boolean"))
 	        {
 	            return value;
 	        }else{
 	            try {
-                    Class c = Class.forName(className);
-                    Method m = c.getMethod("valueOf",new Class[]{String.class});
+					Method m = fastAccessValueOfMethod.get(className);
+					if(m==null){
+						Class c = Class.forName(className);
+						m = fastAccessValueOfMethod.put(className,c.getMethod("valueOf",new Class[]{String.class}));
+					}
+
                     return m.invoke(null,new Object[]{value});
 
                 } catch (Exception e) {
@@ -7059,32 +7070,35 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	    }
 	}
 
+	private final static Map<String,Method> fastAccessValueOfMethod = Maps.newHashMap();
+
 	public void populateFromFlatString(CharSequence s) throws Exception
 	{
-	    if (StringUtils.startsWith(s,"Item:("))
+	    if (s.charAt(0)=='I' && s.charAt(1)=='t' && s.charAt(2)=='e' && s.charAt(3)=='m' && s.charAt(4)==':')
 	    {
 	        s = s.subSequence(6,s.length());
-	        final CharSequence localCountSt = s.subSequence(0,StringUtils.indexOf(s,'('));
-	        s = s.subSequence(StringUtils.indexOf(s,"(")+1,s.length());
+	        final CharSequence localCountSt = s.subSequence(0,StringUtils.indexOf(s,POP_OPEN));
+	        s = s.subSequence(StringUtils.indexOf(s,POP_OPEN)+1,s.length());
 
-			final int index = StringUtils.indexOf(s,")(");
+			final int index = StringUtils.indexOf(s, POP_OPEN_CLOSE);
 
 	        //REMOVE NAME(
 	        s = s.subSequence(index+2,s.length());
+			final Map<String,GenericWrapperElement> cachedElements=Maps.newHashMap();
 
-	        while (StringUtils.startsWith(s,"("))
+	        while (s.charAt(0)==POP_OPEN)
 	        {
 	            final CharSequence field = s.subSequence(1,StringUtils.indexOf(s,COLON));
 	            s= s.subSequence(StringUtils.indexOf(s,COLON)+1,s.length());
-				final CharSequence type = s.subSequence(0,StringUtils.indexOf(s,")=("));
+				final CharSequence type = s.subSequence(0,StringUtils.indexOf(s,POP_OPEN_EQUALS_CLOSE));
 
-	            s= s.subSequence(StringUtils.indexOf(s,")=(")+3,s.length());
+	            s= s.subSequence(StringUtils.indexOf(s, POP_OPEN_EQUALS_CLOSE)+3,s.length());
 
-	            if (StringUtils.startsWith(s,"Item:("))
+	            if (s.charAt(0)=='I' && s.charAt(1)=='t' && s.charAt(2)=='e' && s.charAt(3)=='m' && s.charAt(4)==':')
 	            {
-					final CharSequence childCountSt = s.subSequence(6,StringUtils.indexOf(s,'(',6));
+					final CharSequence childCountSt = s.subSequence(6,StringUtils.indexOf(s, POP_OPEN,6));
 					final int item_num= Integer.parseInt(childCountSt.toString());
-	                int end_index = StringUtils.indexOf(s,SPECIAL_CHAR3 +item_num +')');
+	                int end_index = StringUtils.indexOf(s,SPECIAL_CHAR3 +item_num + POP_CLOSE);
 	                if (end_index==-1)
 	                {
 	                    throw new Exception();
@@ -7093,15 +7107,17 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					final CharSequence value = s.subSequence(0,end_index);
 	                s = s.subSequence(end_index +1,s.length());
 
-					final CharSequence childName = value.subSequence(7 + childCountSt.length(),StringUtils.indexOf(value,')'));
-	        		XFTItem child=null;
-	        		child = XFTItem.NewItem(childName.toString(),user);
+					final String childName = (value.subSequence(7 + childCountSt.length(),StringUtils.indexOf(value,')'))).toString();
+	        		if(!cachedElements.containsKey(childName)){
+						cachedElements.put(childName,GenericWrapperElement.GetElement(childName));
+					}
+					final XFTItem child = XFTItem.NewItem(cachedElements.get(childName),user);
 	                child.populateFromFlatString(value);
 	                this.setField(field.toString(),child);
 					child.setParent(this);
 	            }else{
-					final CharSequence value = s.subSequence(0,StringUtils.indexOf(s,')'));
-		            s = s.subSequence(StringUtils.indexOf(s,')')+1,s.length());
+					final CharSequence value = s.subSequence(0,StringUtils.indexOf(s,POP_CLOSE));
+		            s = s.subSequence(StringUtils.indexOf(s,POP_CLOSE)+1,s.length());
 					final Object o =parseObject(type.toString(),value.toString());
 		            this.setField(field.toString(),o);
 	            }
@@ -7112,7 +7128,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	        }
 	        
 	        //REMOVE ENDING )
-	        s = s.subSequence(0,StringUtils.indexOf(s,')' +SPECIAL_CHAR3 +localCountSt + ')'));
+	        s = s.subSequence(0,StringUtils.indexOf(s,POP_CLOSE +SPECIAL_CHAR3 +localCountSt + POP_CLOSE));
 	    }
 	}
 
