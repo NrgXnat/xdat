@@ -1257,6 +1257,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "true", aliases = "UI.show-admin-manage-site-features")
+    public boolean getUiShowAdminManageSiteFeatures() {
+        return getBooleanValue("uiShowAdminManageSiteFeatures");
+    }
+
+    public void setUiShowAdminManageSiteFeatures(final boolean uiShowLeftBar) {
+        try {
+            setBooleanValue(uiShowLeftBar, "uiShowAdminManageSiteFeatures");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiShowAdminManageSiteFeatures': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "true", aliases = "UI.show-left-bar-projects")
     public boolean getUiShowLeftBarProjects() {
         return getBooleanValue("uiShowLeftBarProjects");
