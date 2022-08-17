@@ -1225,6 +1225,18 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 
 	private Boolean canNeedExtensions = null;
 
+	/**
+	 * During lazy-loading (extension) of child objects,
+	 * the review of other items already loaded (ItemTrackingCollection) can get quite expensive. Previously,
+	 * this occurred on items which were already fully loaded, or that didn't even have children that could be extended.
+	 * So, we added this 'precheck' method to see if the item (or its children) can need extension, to prevent the
+	 * expensive extension process when unnecessary.  This showed huge time savings on large guest user objects (like >500 public projects).
+	 *
+	 * It duplicates alot of the structure in extendSubItems.  This could all be refactored to prevent that duplication, but seemed to aggressive for a hot-fix.
+	 *
+	 * @param allowMultiples    Whether multiple subitems should be allowed.
+	 * @throws Exception When an error occurs.
+	 */
 	private boolean canNeedExtensions(final boolean allowMultiples) throws Exception
 	{
 		if(canNeedExtensions!=null){
@@ -1244,11 +1256,13 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					{
 						for(final XFTItem sub: children){
 							if(sub.canNeedExtensions(allowMultiples)){
-								return (canNeedExtensions=Boolean.TRUE);
+								canNeedExtensions=Boolean.TRUE;
+								return canNeedExtensions;
 							}
 						}
 					}else{
-						return (canNeedExtensions=Boolean.TRUE);
+						canNeedExtensions=Boolean.TRUE;
+						return canNeedExtensions;
 					}
 				}else if (foreign.isExtended())
 				{
@@ -1260,14 +1274,16 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 						final String extensionName = sub.getExtensionElement();
 						if (StringUtils.isNotEmpty(extensionName) && !StringUtils.equals(extensionName,sub.getXSIType()))
 						{
-							return (canNeedExtensions=Boolean.TRUE);
+							canNeedExtensions=Boolean.TRUE;
+							return canNeedExtensions;
 						}
 					}
 				}else{
 					final List<XFTItem> children = (List<XFTItem>) getChildItems(f,allowMultiples,false,user,false,null);
 					for(final XFTItem sub: children){
 						if(sub.canNeedExtensions(allowMultiples)){
-							return (canNeedExtensions=Boolean.TRUE);
+							canNeedExtensions=Boolean.TRUE;
+							return canNeedExtensions;
 						}
 					}
 				}
@@ -1287,32 +1303,38 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 							{
 								if ((! extensionName.equalsIgnoreCase(sub.getXSIType())) && (!extensionName.equalsIgnoreCase(getXSIType())))
 								{
-									return (canNeedExtensions=Boolean.TRUE);
+									canNeedExtensions=Boolean.TRUE;
+									return canNeedExtensions;
 								}
 							}
 						}else{
 							if(f.getXMLDisplay().equalsIgnoreCase("root")){
 								if(sub.canNeedExtensions(allowMultiples)){
-									return (canNeedExtensions=Boolean.TRUE);
+									canNeedExtensions=Boolean.TRUE;
+									return canNeedExtensions;
 								}
 							}
 						}
 					}else{
 						if(f.getXMLDisplay().equalsIgnoreCase("root")){
 							if(sub.canNeedExtensions(allowMultiples)){
-								return (canNeedExtensions=Boolean.TRUE);
+								canNeedExtensions=Boolean.TRUE;
+								return canNeedExtensions;
 							}
 						}
 					}
 				}
 			}
 		}
-		return (canNeedExtensions=Boolean.FALSE);
+		canNeedExtensions=Boolean.FALSE;
+		return canNeedExtensions;
 	}
 
 	/**
 	 * Hydrates lazy-loaded object
 	 * If this item, or any of its subItems can be extended to a higher type, then the extension is performed.
+	 *
+	 * XNAT-7155 Added pre-check method (canNeedExtensions) to prevent unnecessary executions.
 	 *
 	 * @param history    The history.
 	 * @param allowMultiples    Whether multiple subitems should be allowed.
@@ -1489,6 +1511,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 		}
 	}
 
+	//added for de-duplication of code
 	private void extendSubItem(final String fieldId, final ItemTrackingCollection history, final XFTItem sub, final boolean allowMultiples) throws Exception {
 		if (history.contains(sub))
 		{
@@ -3456,8 +3479,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 		XFTItem item=null;
         try {
             item = XFTItem.NewItem(elementName,user);
-			System.out.println("XFTItem.PopulateItemFromFlatString:"+elementName);
-            item.populateFromFlatString(s,0,s.length());
+			item.populateFromFlatString(s);
             item.setLoading(false);
             if (allowMultiples)
             	item.setPreLoaded(allowMultiples);
@@ -7054,6 +7076,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	            return value;
 	        }else{
 	            try {
+					//profiling showed that creation of the Method was expensive when done ALOT of times
+					//so caching them saves a few seconds on larger objects.
 					Method m = fastAccessValueOfMethod.get(className);
 					if(m==null){
 						Class c = Class.forName(className);
@@ -7072,8 +7096,11 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 
 	private final static Map<String,Method> fastAccessValueOfMethod = Maps.newHashMap();
 
-	public void populateFromFlatString(CharSequence s, int startIndex, int endIndex) throws Exception
+	//XNAT-7155 Modified implementation to use a CharSequence and just move the startIndex pointer.
+	//This eliminated alot of string redefinitions that were burdensome on larger objects.
+	private void populateFromFlatString(CharSequence s) throws Exception
 	{
+		int startIndex=0;
 		if ((s.length() > (startIndex + 5)) && s.charAt(startIndex) == 'I' && s.charAt(startIndex + 1) == 't' && s.charAt(startIndex + 2) == 'e' && s.charAt(startIndex + 3) == 'm' && s.charAt(startIndex + 4) == ':') {
 			startIndex += 6;
 			final int endStringIndex = StringUtils.indexOf(s, POP_OPEN, startIndex);
@@ -7110,7 +7137,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 						cachedElements.put(childName, GenericWrapperElement.GetElement(childName));
 					}
 					final XFTItem child = XFTItem.NewItem(cachedElements.get(childName), user);
-					child.populateFromFlatString(value, 0, value.length());
+					child.populateFromFlatString(value);
 					this.setField(field.toString(), child);
 					child.setParent(this);
 				} else {
@@ -7121,14 +7148,27 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 				}
 			}
 
+			if(((s.length() > (startIndex +4)) && ((s.charAt(startIndex) != POP_CLOSE)  || (s.charAt(startIndex+1) != '*') || (s.charAt(startIndex+2) != 'E')))){//matches )*END_ITEM
+				//throw exception for unparsable content
+				throw new ItemPopulationException(String.format("Invalid content (1) in XFTItem(%1$s) parsing:%2$s", this.getXSIType(),s.subSequence(startIndex,(startIndex+4))));
+			}
+
 			if (isMetaElement()) {
 				this.internValues();
 			}
-
-			//REMOVE ENDING )
-			endIndex = StringUtils.indexOf(s, POP_CLOSE + SPECIAL_CHAR3 + localCountSt + POP_CLOSE, startIndex);
+		}else{
+			if(((s.length() > startIndex))){
+				//throw exception for unparsable content
+				throw new ItemPopulationException(String.format("Invalid content (2) in XFTItem(%1$s) parsing:%2$s", this.getXSIType(),s.subSequence(startIndex,(startIndex+4))));
+			}
 		}
 	}
+
+	public static class ItemPopulationException extends Exception{
+		public ItemPopulationException(String s){
+			super(s);
+		}
+	};
 
 	Boolean isMeta=null;
 	private boolean isMetaElement(){
@@ -7153,8 +7193,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
         try {
             String elementName = s.substring(8,s.indexOf(")"));
             setElement(GenericWrapperElement.GetElement(elementName));
-			System.out.println("XFTItem.readExternal:"+elementName);
-            populateFromFlatString(s,0,s.length());
+            populateFromFlatString(s);
         } catch (Exception e) {
             logger.error("",e);
         }
