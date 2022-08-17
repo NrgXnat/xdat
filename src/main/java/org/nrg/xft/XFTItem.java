@@ -1228,7 +1228,6 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	private boolean canNeedExtensions(final boolean allowMultiples) throws Exception
 	{
 		if(canNeedExtensions!=null){
-			System.out.println(canNeedExtensions + "." + this.getXSIType());
 			return canNeedExtensions;
 		}
 
@@ -3457,7 +3456,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 		XFTItem item=null;
         try {
             item = XFTItem.NewItem(elementName,user);
-            item.populateFromFlatString(s);
+			System.out.println("XFTItem.PopulateItemFromFlatString:"+elementName);
+            item.populateFromFlatString(s,0,s.length());
             item.setLoading(false);
             if (allowMultiples)
             	item.setPreLoaded(allowMultiples);
@@ -7072,64 +7072,62 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 
 	private final static Map<String,Method> fastAccessValueOfMethod = Maps.newHashMap();
 
-	public void populateFromFlatString(CharSequence s) throws Exception
+	public void populateFromFlatString(CharSequence s, int startIndex, int endIndex) throws Exception
 	{
-	    if (s.charAt(0)=='I' && s.charAt(1)=='t' && s.charAt(2)=='e' && s.charAt(3)=='m' && s.charAt(4)==':')
-	    {
-	        s = s.subSequence(6,s.length());
-	        final CharSequence localCountSt = s.subSequence(0,StringUtils.indexOf(s,POP_OPEN));
-	        s = s.subSequence(StringUtils.indexOf(s,POP_OPEN)+1,s.length());
+		if ((s.length() > (startIndex + 5)) && s.charAt(startIndex) == 'I' && s.charAt(startIndex + 1) == 't' && s.charAt(startIndex + 2) == 'e' && s.charAt(startIndex + 3) == 'm' && s.charAt(startIndex + 4) == ':') {
+			startIndex += 6;
+			final int endStringIndex = StringUtils.indexOf(s, POP_OPEN, startIndex);
+			final CharSequence localCountSt = s.subSequence(startIndex, endStringIndex);
+			startIndex = StringUtils.indexOf(s, POP_OPEN, startIndex) + 1;
 
-			final int index = StringUtils.indexOf(s, POP_OPEN_CLOSE);
+			final int index = StringUtils.indexOf(s, POP_OPEN_CLOSE, startIndex);
 
-	        //REMOVE NAME(
-	        s = s.subSequence(index+2,s.length());
-			final Map<String,GenericWrapperElement> cachedElements=Maps.newHashMap();
+			//REMOVE NAME(
+			startIndex = index + 2;
+			final Map<String, GenericWrapperElement> cachedElements = Maps.newHashMap();
 
-	        while (s.charAt(0)==POP_OPEN)
-	        {
-	            final CharSequence field = s.subSequence(1,StringUtils.indexOf(s,COLON));
-	            s= s.subSequence(StringUtils.indexOf(s,COLON)+1,s.length());
-				final CharSequence type = s.subSequence(0,StringUtils.indexOf(s,POP_OPEN_EQUALS_CLOSE));
+			while ((s.length() > startIndex) && s.charAt(startIndex) == POP_OPEN) {
+				final CharSequence field = s.subSequence(startIndex + 1, StringUtils.indexOf(s, COLON, startIndex));
+				startIndex = StringUtils.indexOf(s, COLON, startIndex) + 1;
+				final CharSequence type = s.subSequence(startIndex + 0, StringUtils.indexOf(s, POP_OPEN_EQUALS_CLOSE, startIndex));
 
-	            s= s.subSequence(StringUtils.indexOf(s, POP_OPEN_EQUALS_CLOSE)+3,s.length());
+				startIndex = StringUtils.indexOf(s, POP_OPEN_EQUALS_CLOSE, startIndex) + 3;
 
-	            if (s.charAt(0)=='I' && s.charAt(1)=='t' && s.charAt(2)=='e' && s.charAt(3)=='m' && s.charAt(4)==':')
-	            {
-					final CharSequence childCountSt = s.subSequence(6,StringUtils.indexOf(s, POP_OPEN,6));
-					final int item_num= Integer.parseInt(childCountSt.toString());
-	                int end_index = StringUtils.indexOf(s,SPECIAL_CHAR3 +item_num + POP_CLOSE);
-	                if (end_index==-1)
-	                {
-	                    throw new Exception();
-	                }
-	                end_index += childCountSt.length()+11;
-					final CharSequence value = s.subSequence(0,end_index);
-	                s = s.subSequence(end_index +1,s.length());
+				if ((s.length() > (startIndex + 5)) && s.charAt(startIndex) == 'I' && s.charAt(startIndex + 1) == 't' && s.charAt(startIndex + 2) == 'e' && s.charAt(startIndex + 3) == 'm' && s.charAt(startIndex + 4) == ':') {
+					final CharSequence childCountSt = s.subSequence(startIndex + 6, StringUtils.indexOf(s, POP_OPEN, startIndex + 6));
 
-					final String childName = (value.subSequence(7 + childCountSt.length(),StringUtils.indexOf(value,')'))).toString();
-	        		if(!cachedElements.containsKey(childName)){
-						cachedElements.put(childName,GenericWrapperElement.GetElement(childName));
+					final int item_num = Integer.parseInt(childCountSt.toString());
+					int endItem = StringUtils.indexOf(s, SPECIAL_CHAR3 + item_num + POP_CLOSE, startIndex);
+					if (endItem == -1) {
+						throw new Exception();
 					}
-					final XFTItem child = XFTItem.NewItem(cachedElements.get(childName),user);
-	                child.populateFromFlatString(value);
-	                this.setField(field.toString(),child);
-					child.setParent(this);
-	            }else{
-					final CharSequence value = s.subSequence(0,StringUtils.indexOf(s,POP_CLOSE));
-		            s = s.subSequence(StringUtils.indexOf(s,POP_CLOSE)+1,s.length());
-					final Object o =parseObject(type.toString(),value.toString());
-		            this.setField(field.toString(),o);
-	            }
-	        }
+					endItem += childCountSt.length() + 11;
+					final CharSequence value = s.subSequence(startIndex, endItem);
+					startIndex = endItem + 1;
 
-	        if(isMetaElement()){
-	        	this.internValues();
-	        }
-	        
-	        //REMOVE ENDING )
-	        s = s.subSequence(0,StringUtils.indexOf(s,POP_CLOSE +SPECIAL_CHAR3 +localCountSt + POP_CLOSE));
-	    }
+					final String childName = (value.subSequence(7 + childCountSt.length(), StringUtils.indexOf(value, ')'))).toString();
+					if (!cachedElements.containsKey(childName)) {
+						cachedElements.put(childName, GenericWrapperElement.GetElement(childName));
+					}
+					final XFTItem child = XFTItem.NewItem(cachedElements.get(childName), user);
+					child.populateFromFlatString(value, 0, value.length());
+					this.setField(field.toString(), child);
+					child.setParent(this);
+				} else {
+					final CharSequence value = s.subSequence(startIndex + 0, StringUtils.indexOf(s, POP_CLOSE, startIndex));
+					startIndex = StringUtils.indexOf(s, POP_CLOSE, startIndex) + 1;
+					final Object o = parseObject(type.toString(), value.toString());
+					this.setField(field.toString(), o);
+				}
+			}
+
+			if (isMetaElement()) {
+				this.internValues();
+			}
+
+			//REMOVE ENDING )
+			endIndex = StringUtils.indexOf(s, POP_CLOSE + SPECIAL_CHAR3 + localCountSt + POP_CLOSE, startIndex);
+		}
 	}
 
 	Boolean isMeta=null;
@@ -7155,7 +7153,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
         try {
             String elementName = s.substring(8,s.indexOf(")"));
             setElement(GenericWrapperElement.GetElement(elementName));
-            populateFromFlatString(s);
+			System.out.println("XFTItem.readExternal:"+elementName);
+            populateFromFlatString(s,0,s.length());
         } catch (Exception e) {
             logger.error("",e);
         }
