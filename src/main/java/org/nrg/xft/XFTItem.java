@@ -7108,7 +7108,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					this.setField(field.toString(), child);
 					child.setParent(this);
 				} else {
-					final int endingIndex=StringUtils.indexOf(s, POP_CLOSE, leftMostIndexPointer)
+					final int endingIndex=StringUtils.indexOf(s, POP_CLOSE, leftMostIndexPointer);
 					final CharSequence value = s.subSequence(leftMostIndexPointer, endingIndex);
 					leftMostIndexPointer = endingIndex + 1;
 					final Object o = parseObject(type.toString(), value.toString());
