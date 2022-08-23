@@ -7099,7 +7099,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					final CharSequence value = s.subSequence(leftMostIndexPointer, endItem);
 					leftMostIndexPointer = endItem + 1; // remove concluding paren )
 
-					final String childName = (value.subSequence(childCountSt.length() + 1 + childCountSt.length(), StringUtils.indexOf(value, POP_CLOSE))).toString(); //+1 is for paren
+					final String childName = (value.subSequence(START_OF_ITEM + 1 + childCountSt.length(), StringUtils.indexOf(value, POP_CLOSE))).toString(); //+1 is for paren
 					if (!cachedElements.containsKey(childName)) {
 						cachedElements.put(childName, GenericWrapperElement.GetElement(childName));
 					}
