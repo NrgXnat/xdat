@@ -1253,7 +1253,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 				final List<XFTItem> children = (List<XFTItem>) getChildItems(f,allowMultiples,false,user,false,null);
 
 				if (StringUtils.equalsIgnoreCase(foreign.getFullXMLName(),this.getXSIType()) && StringUtils.equalsIgnoreCase(f.getRelationType(),SINGLE)){
-					if (children.isEmpty()){
+					if (!children.isEmpty()){
 						for(final XFTItem sub: children){
 							if(mayNeedExtensions_check(true,f,sub,allowMultiples)){
 								return cachedMayNeedExtensions;
@@ -1349,7 +1349,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 				if (StringUtils.equalsIgnoreCase(foreign.getFullXMLName(),this.getXSIType()) && StringUtils.equalsIgnoreCase(f.getRelationType(),SINGLE)){
 					//if this references itself (ugly,rare situation) and a one-to-many relationship
 					final List<XFTItem> children = (List<XFTItem>) getChildItems(f,allowMultiples,false,user,false,null);
-					if (children.isEmpty()){
+					if (!children.isEmpty()){
 						//children have already been loaded, so check their children.
 						for(final XFTItem sub: children){
 							extendSubItems_extend(true,false,f,history,sub,allowMultiples);
