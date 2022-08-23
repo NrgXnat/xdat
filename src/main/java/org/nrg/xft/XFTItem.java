@@ -1255,10 +1255,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 
 				if (StringUtils.equalsIgnoreCase(foreign.getFullXMLName(),this.getXSIType()) && StringUtils.equalsIgnoreCase(f.getRelationType(),SINGLE)){
 					if (!children.isEmpty()){
-						for(final XFTItem sub: children){
-							if(mayNeedExtensions_check(true,f,sub,allowMultiples)){
-								return true;
-							}
+						if(mayNeedExtensions_childCheck(true,f,children,allowMultiples)){
+							return true;
 						}
 					}else{
 						return cachedMayNeedExtensions.put(allowMultiples,Boolean.TRUE);
@@ -1273,10 +1271,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 						}
 					}
 				}else{
-					for(final XFTItem sub: children){
-						if(mayNeedExtensions_check(true,f,sub,allowMultiples)){
-							return true;
-						}
+					if(mayNeedExtensions_childCheck(true,f,children,allowMultiples)){
+						return true;
 					}
 				}
 			}else{
@@ -1307,6 +1303,15 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 			}
 		}
 		return cachedMayNeedExtensions.put(allowMultiples,Boolean.FALSE);
+	}
+
+	//used for code de-duplication
+	private boolean mayNeedExtensions_childCheck(final boolean skipRootCheck, final GenericWrapperField f, final List<XFTItem> children, final boolean allowMultiples) throws Exception {
+		for(final XFTItem sub: children){
+			if(mayNeedExtensions_check(skipRootCheck,f,sub,allowMultiples)){
+				return true;
+			}
+		}
 	}
 
 	//used for code de-duplication
