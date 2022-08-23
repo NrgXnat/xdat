@@ -1313,7 +1313,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	}
 
 	//used for code de-duplication
-	private boolean mayNeedExtensions_check(boolean skipRootCheck, GenericWrapperField f, XFTItem sub, boolean allowMultiples) throws Exception {
+	private boolean mayNeedExtensions_check(final boolean skipRootCheck, final GenericWrapperField f, final XFTItem sub, final boolean allowMultiples) throws Exception {
 		if(skipRootCheck || f.getXMLDisplay().equalsIgnoreCase(ROOT)){
 			if(sub.mayNeedExtensions(allowMultiples)){
 				cachedMayNeedExtensions =Boolean.TRUE;
@@ -1351,9 +1351,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					final List<XFTItem> children = (List<XFTItem>) getChildItems(f,allowMultiples,false,user,false,null);
 					if (!children.isEmpty()){
 						//children have already been loaded, so check their children.
-						for(final XFTItem sub: children){
-							extendSubItems_extend(true,false,f,history,sub,allowMultiples);
-						}
+						extendSubItems_extendChildren(f,allowMultiples,history,false);
 					}else{
 						//load extended child objects
 						final GenericWrapperField primaryKey = (GenericWrapperField)getGenericSchemaElement().getAllPrimaryKeys().get(0);
@@ -1381,7 +1379,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 							final GenericWrapperElement extensionElement = GenericWrapperElement.GetElement(extensionName);
 							final String searchFieldPath=foreignKey.getXMLPathString(extensionElement.getFullXMLName());
 							final String searchValuePath=foreignKey.getXMLPathString(foreign.getFullXMLName());
-							final Object searchValue = this.getProperty(searchValuePath);
+							final Object searchValue = sub.getProperty(searchValuePath);
 
 							try {
 								extendSubItems_search(searchFieldPath,searchValue,f,foreignKey,extensionElement,allowMultiples,history,childCounter);
@@ -1393,10 +1391,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					}
 				}else{
 					//populate missing objects (lazy load) that may have children which need additional extension
-					final List<XFTItem> children = (List<XFTItem>) getChildItems(f,allowMultiples,true,user,false,null);
-					for(final XFTItem sub: children){
-						extendSubItems_extend(true,true,f,history,sub,allowMultiples);
-					}
+					extendSubItems_extendChildren(f,allowMultiples,history,true);
 				}
 			}else{
 				//one-to-one or many-to-one relationship
@@ -1418,7 +1413,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 							final GenericWrapperElement extensionElement = GenericWrapperElement.GetElement(extensionName);
 							final String searchFieldPath=foreignKey.getXMLPathString(extensionElement.getFullXMLName());
 							final String searchValuePath=foreignKey.getXMLPathString(foreign.getFullXMLName());
-							final Object searchValue = this.getProperty(searchValuePath);
+							final Object searchValue = sub.getProperty(searchValuePath);
 
 							try {
 								extendSubItems_search(searchFieldPath,searchValue,f,foreignKey,extensionElement,allowMultiples,history,-1);
@@ -1438,8 +1433,16 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	}
 
 	//added for de-duplication
+	private void extendSubItems_extendChildren(final GenericWrapperField f, final boolean allowMultiples, final ItemTrackingCollection history, final boolean removeDuplicates) throws Exception {
+		final List<XFTItem> children = (List<XFTItem>) getChildItems(f,allowMultiples,true,user,false,null);
+		for(final XFTItem sub: children){
+			extendSubItems_extend(true,removeDuplicates,f,history,sub,allowMultiples);
+		}
+	}
+
+	//added for de-duplication
 	//method used to execute a search to 'extend' or load an XFTItem
-	private void extendSubItems_search(String searchFieldPath, Object searchValue, GenericWrapperField f, GenericWrapperField foreignKey, GenericWrapperElement extensionElement, boolean allowMultiples, ItemTrackingCollection history, int childCounter) throws Exception {
+	private void extendSubItems_search(final String searchFieldPath, final Object searchValue, final GenericWrapperField f, final GenericWrapperField foreignKey, final GenericWrapperElement extensionElement, final boolean allowMultiples, final ItemTrackingCollection history, final int childCounter) throws Exception {
 		final ItemSearch search = new ItemSearch();
 		search.setUser(this.getUser());
 
