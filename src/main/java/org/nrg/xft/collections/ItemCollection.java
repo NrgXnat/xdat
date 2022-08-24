@@ -491,7 +491,7 @@ public class ItemCollection {
     }
 
     public boolean isEmpty(){
-        return (this.size()>0);
+        return (this.size()==0);
     }
 
     public boolean isNotEmpty(){
