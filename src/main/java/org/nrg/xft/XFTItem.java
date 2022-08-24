@@ -10,7 +10,6 @@
 package org.nrg.xft;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Maps;
 import org.apache.commons.collections.Predicate;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -1229,7 +1228,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 		return this;
 	}
 
-	private Map<Boolean,Boolean> cachedMayNeedExtensions = Maps.newHashMap();
+	private Boolean cachedMayNeedExtensions = null;
 
 	/**
 	 * During lazy-loading (extension) of child objects,
@@ -1243,10 +1242,11 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	 * @param allowMultiples    Whether multiple subitems should be allowed.
 	 * @throws Exception When an error occurs.
 	 */
-	private boolean mayNeedExtensions(final boolean allowMultiples) throws Exception{
-		if(cachedMayNeedExtensions.containsKey(allowMultiples)){
-			return cachedMayNeedExtensions.get(allowMultiples);
+	private boolean mayNeedExtensions() throws Exception{
+		if(cachedMayNeedExtensions!=null){
+			return cachedMayNeedExtensions;
 		}
+		boolean allowMultiples = true;
 
 		for(final GenericWrapperField f: this.getGenericSchemaElement().getReferenceFields(true)){
 			if (f.isMultiple()){
@@ -1259,7 +1259,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 							return true;
 						}
 					}else{
-						return cachedMayNeedExtensions.put(allowMultiples,Boolean.TRUE);
+						cachedMayNeedExtensions=Boolean.TRUE;
+						return true;
 					}
 				}else if (foreign.isExtended()){
 					//populate missing objects (lazy load)
@@ -1267,7 +1268,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					for(final XFTItem sub: children){
 						final String extensionName = sub.getExtensionElement();
 						if (StringUtils.isNotEmpty(extensionName) && !StringUtils.equals(extensionName,sub.getXSIType())){
-							return cachedMayNeedExtensions.put(allowMultiples,Boolean.TRUE);
+							cachedMayNeedExtensions=Boolean.TRUE;
+							return true;
 						}
 					}
 				}else{
@@ -1288,7 +1290,8 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 					if (foreign.isExtended()){
 						final String extensionName = sub.getExtensionElement();
 						if (StringUtils.isNotEmpty(extensionName) && (!StringUtils.equalsIgnoreCase(extensionName,sub.getXSIType())) && (!StringUtils.equalsIgnoreCase(extensionName,getXSIType()))){
-							return cachedMayNeedExtensions.put(allowMultiples,Boolean.TRUE);
+							cachedMayNeedExtensions=Boolean.TRUE;
+							return true;
 						}
 					}else{
 						if(mayNeedExtensions_check(false,f,sub,allowMultiples)){
@@ -1302,23 +1305,27 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 				}
 			}
 		}
-		return cachedMayNeedExtensions.put(allowMultiples,Boolean.FALSE);
+		cachedMayNeedExtensions=Boolean.FALSE;
+		return false;
 	}
 
 	//used for code de-duplication
 	private boolean mayNeedExtensions_childCheck(final boolean skipRootCheck, final GenericWrapperField f, final List<XFTItem> children, final boolean allowMultiples) throws Exception {
-		for(final XFTItem sub: children){
-			if(mayNeedExtensions_check(skipRootCheck,f,sub,allowMultiples)){
+		for (final XFTItem sub : children) {
+			if (mayNeedExtensions_check(skipRootCheck, f, sub, allowMultiples)) {
 				return true;
 			}
 		}
+
+		return false;
 	}
 
 	//used for code de-duplication
 	private boolean mayNeedExtensions_check(final boolean skipRootCheck, final GenericWrapperField f, final XFTItem sub, final boolean allowMultiples) throws Exception {
 		if(skipRootCheck || f.getXMLDisplay().equalsIgnoreCase(ROOT)){
-			if(sub.mayNeedExtensions(allowMultiples)){
-				return cachedMayNeedExtensions.put(allowMultiples,Boolean.TRUE);
+			if(sub.mayNeedExtensions()){
+				cachedMayNeedExtensions=Boolean.TRUE;
+				return true;
 			}
 		}
 
@@ -1338,8 +1345,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 	private void extendSubItems(final ItemTrackingCollection history, final boolean allowMultiples) throws Exception
 	{
 		history.AddItem(this);
-		if(! mayNeedExtensions(allowMultiples)){
-			//use allowMultiples=true for this check so its cached at the most comprehensive version
+		if(! mayNeedExtensions()){
 			return;
 		}
 
@@ -1470,7 +1476,7 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable  {
 
 	private void extendSubItems_extend(boolean skipRootCheck,boolean removeDuplicates, final GenericWrapperField f, final ItemTrackingCollection history, final XFTItem sub, final boolean allowMultiples) throws Exception {
 		if(skipRootCheck || f.getXMLDisplay().equalsIgnoreCase(ROOT)){
-			if(sub.mayNeedExtensions(allowMultiples)) {
+			if(sub.mayNeedExtensions()) {
 				if(removeDuplicates && history.contains(sub)){
 					props.remove(f.getId());
 				}else{
