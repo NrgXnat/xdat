@@ -83,20 +83,29 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Nonnull
     public UserI getGuestUser() throws UserNotFoundException, UserInitException {
         if (_guest == null) {
-            final XdatUser user = XdatUser.getXdatUsersByLogin(Users.DEFAULT_GUEST_USERNAME, null, false);
-            if (user == null) {
-                throw new UserNotFoundException(Users.DEFAULT_GUEST_USERNAME);
-            }
-            _guest = new XDATUser(user.getItem());
-            _guestId = _guest.getID();
+            loadGuest();
         }
         return _guest;
     }
 
+    private void loadGuest() throws UserNotFoundException, UserInitException {
+        final XdatUser user = XdatUser.getXdatUsersByLogin(Users.DEFAULT_GUEST_USERNAME, null, false);
+        if (user == null) {
+            throw new UserNotFoundException(Users.DEFAULT_GUEST_USERNAME);
+        }
+        _guest = new XDATUser(user.getItem());
+        _guestId = _guest.getID();
+    }
+
     @Override
     public void invalidateGuest() {
-        _guest = null;
-        _guestId = null;
+        try {
+            loadGuest();
+        } catch (UserInitException|UserNotFoundException e) {
+           log.error("",e);
+           _guest=null;
+           _guestId=null;
+        }
     }
 
     @Override
