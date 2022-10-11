@@ -484,11 +484,29 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    /**
+     * Indicates whether passwords must be salted.
+     *
+     * @return Whether passwords must be salted.
+     *
+     * @since 1.8.6
+     * @deprecated Passwords are automatically salted by the security framework.
+     */
+    @Deprecated
     @NrgPreference(defaultValue = "false")
     public boolean getRequireSaltedPasswords() {
         return getBooleanValue("requireSaltedPasswords");
     }
 
+    /**
+     * Sets whether passwords must be salted.
+     *
+     * @param requireSaltedPasswords Whether passwords must be salted.
+     *
+     * @since 1.8.6
+     * @deprecated Passwords are automatically salted by the security framework.
+     */
+    @Deprecated
     public void setRequireSaltedPasswords(final boolean requireSaltedPasswords) {
         try {
             setBooleanValue(requireSaltedPasswords, "requireSaltedPasswords");
@@ -1479,6 +1497,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "['xnat:mrSessionData', 'xnat:petSessionData', 'xnat:ctSessionData']")
+    public List<String> getMainPageSearchDatatypeOptions() {
+        return getListValue("mainPageSearchDatatypeOptions");
+    }
+
+    public void setMainPageSearchDatatypeOptions(List<String> mainPageSearchDatatypeOptions) {
+        try {
+            setListValue("mainPageSearchDatatypeOptions", mainPageSearchDatatypeOptions);
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'mainPageSearchDatatypeOptions': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "['bmp', 'gif', 'jpeg', 'jpg', 'png', 'tiff', 'txt', 'xml']")
     public List<String> getHtmlResourceRenderingWhitelist() {
         return getListValue("htmlResourceRenderingWhitelist");
@@ -1971,6 +2002,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
             setBooleanValue(uiShowRecentExptListScannerName, "uiShowRecentExptListScannerName");
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'uiShowRecentExptListScannerName': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "USERNAME")
+    public DisplayedUserIdentifierType getDisplayedUserIdentifierType() {
+        return getEnumValue(DisplayedUserIdentifierType.class, "displayedUserIdentifierType");
+    }
+
+    public void setDisplayedUserIdentifierType(final DisplayedUserIdentifierType displayedUserIdentifierType) {
+        try {
+            setEnumValue(displayedUserIdentifierType, "displayedUserIdentifierType");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'displayedUserIdentifierType': something is very wrong here.", e);
         }
     }
 
