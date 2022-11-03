@@ -26,7 +26,15 @@ import org.nrg.xdat.search.QueryOrganizer;
 import org.nrg.xft.db.PoolDBUtils;
 import org.nrg.xft.db.ViewManager;
 import org.nrg.xft.exception.ElementNotFoundException;
+import org.nrg.xft.exception.FieldNotFoundException;
 import org.nrg.xft.exception.XFTInitException;
+import org.nrg.xft.generators.JavaFileGenerator;
+import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
+import org.nrg.xft.schema.XFTElement;
+import org.nrg.xft.schema.XFTManager;
+import org.nrg.xft.schema.XFTSchema;
+import org.nrg.xft.schema.db.entities.DBBackedSchema;
+import org.nrg.xft.schema.db.services.DBBackedSchemaService;
 import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.NodeUtils;
@@ -41,9 +49,11 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -136,7 +146,7 @@ public class DisplayManager {
      * @param location The location of the plugin schemas directory when getting an instance while building a plugin.
      * @return An instance of the display manager.
      */
-    public static DisplayManager GetInstance(String location) {
+    public static DisplayManager GetInstance(final String location) {
         if (instance == null) {
             instance = new DisplayManager();
             instance.init(location);
@@ -150,7 +160,7 @@ public class DisplayManager {
      * @param name The name of the display element to retrieve.
      * @return The display element.
      */
-    public static ElementDisplay GetElementDisplay(String name) {
+    public static ElementDisplay GetElementDisplay(final String name) {
         return (ElementDisplay) GetInstance().getElements().get(name);
     }
 
@@ -159,10 +169,32 @@ public class DisplayManager {
      *
      * @param doc The document to be parsed and processed.
      */
-    public ElementDisplay assignDisplays(Document doc){
-       return this.assignDisplays(doc,false);
+    public ElementDisplay assignDisplays(final Document doc, final boolean postInitialization){
+       return this.assignDisplays(doc,false, postInitialization);
 
     }
+
+    /**
+     * Assigns displays based on the contents of the submitted xml.
+     *
+     */
+    public ElementDisplay assignDisplays(final StringBuilder buffer, final boolean postInitialization){
+        final InputStream in=new ByteArrayInputStream(buffer.toString().getBytes(StandardCharsets.UTF_8));
+        if (in != null) {
+            final Document doc = XMLUtils.GetDOM(in);
+            return assignDisplays(doc,postInitialization);
+        }
+        return null;
+    }
+
+    public ElementDisplay registerDisplay(final StringBuilder buffer){
+        final ElementDisplay ed = assignDisplays(buffer,true);
+        if(ed!=null){
+            getElementDisplayService().saveElementDisplay(ed);
+        }
+        return ed;
+    }
+
     /**
      * Assigns displays based on the contents of the submitted document.
      *
@@ -170,10 +202,10 @@ public class DisplayManager {
      * @param allowReplacement - Allow replacement of display fields that already exist
      */
     @SuppressWarnings({"unchecked"})
-    public ElementDisplay assignDisplays(Document doc, boolean allowReplacement) {
-        Element root = doc.getDocumentElement();
+    public ElementDisplay assignDisplays(Document doc, boolean allowReplacement, boolean postInitialization) {
+        final Element root = doc.getDocumentElement();
 
-        String name = NodeUtils.GetAttributeValue(root, "schema-element", "");
+        final String name = NodeUtils.GetAttributeValue(root, "schema-element", "");
 
         ElementDisplay ed = GetElementDisplay(name);
         if (ed == null) {
@@ -322,8 +354,7 @@ public class DisplayManager {
                 try {
                     ed.addDisplayFieldWException(df);
                 } catch (DisplayFieldCollection.DuplicateDisplayFieldException e) {
-                    logger.error(df.getParentDisplay().getElementName() + "." + df.getId());
-                    logger.error("", e);
+                    logger.error("DisplayManager.init: DUPLICATE DisplayField {} {}.{} ",ed.getElementName(), df.getParentDisplay().getElementName(),df.getId());
                 }
             } else if (nodes.item(i).getNodeName().equalsIgnoreCase("DisplayVersion")) {
                 Node displayVersion = nodes.item(i);
@@ -373,12 +404,20 @@ public class DisplayManager {
                 sql.setSql(NodeUtils.GetAttributeValue(nodes.item(i), "sql", ""));
                 sql.setSortOrder(views++);
 
+                if(postInitialization){
+                    getDisplayStoredViewervice().createView(sql.getName(),sql.getSql(), sql.getSortOrder(), false);
+                }
+
                 AddSqlView(sql);
             } else if (nodes.item(i).getNodeName().equalsIgnoreCase("SQLFunction")) {
                 SQLFunction sql = new SQLFunction();
                 sql.setName(NodeUtils.GetAttributeValue(nodes.item(i), "name", ""));
                 sql.setContent(NodeUtils.GetAttributeValue(nodes.item(i), "content", ""));
                 sql.setSortOrder(functions++);
+
+                if(postInitialization){
+                    getDisplayStoredViewervice().createView(sql.getName(),sql.getContent(), sql.getSortOrder(), true);
+                }
 
                 AddSqlFunction(sql);
             } else if (nodes.item(i).getNodeName().equalsIgnoreCase("Arc-Definition")) {
@@ -573,7 +612,37 @@ public class DisplayManager {
             List<ElementDisplay> eds=this.getElementDisplayService().findAllActive();
             for(ElementDisplay ed: eds){
                 ElementDisplay existing= DisplayManager.GetElementDisplay(ed.getElementName());
-                existing.merge(ed);
+                if(existing!=null){
+                    existing.merge(ed);
+                }else{
+                    addElement(ed);
+                }
+            }
+
+            //check for missing display docs
+            final DBBackedSchemaService dbService=XFTManager.getDBBackedSchemaService();
+
+            for (final DBBackedSchema schema: dbService.getAll()) {
+                for (final String xsiType : dbService.getElementNames(schema)) {
+                    if(!this.getElements().containsKey(xsiType)) {//isn't there already
+                        try {
+                            if (StringUtils.isBlank(GenericWrapperElement.GetElement(xsiType).getAddin())) {//not an addon
+                                if (GenericWrapperElement.GetFieldForXMLPath(xsiType + "/project") != null) {// is a securable element
+                                    logger.error("Generating DisplayDoc for data type: {}", xsiType);
+                                    GenericWrapperElement se = GenericWrapperElement.GetElement(xsiType);
+                                    final StringBuilder displayXML = (new JavaFileGenerator()).generateDisplayXml(se);
+                                    DisplayManager.GetInstance().registerDisplay(displayXML);
+                                }
+                            }
+                        } catch (XFTInitException e) {
+                            logger.error("", e);
+                        } catch (ElementNotFoundException e) {
+                            logger.error("", e);
+                        } catch (FieldNotFoundException e) {
+                            //ignore
+                        }
+                    }
+                }
             }
 
             for(SQLObjectI sqlObj: this.getDisplayStoredViewervice().findAllSQLObjects()){

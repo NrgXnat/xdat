@@ -8,6 +8,7 @@ import org.nrg.xdat.display.transport.entities.ElementDisplay;
 import org.nrg.xdat.display.transport.services.impl.HibernateElementDisplayService;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.xml.bind.Element;
 import java.util.List;
 
 public interface ElementDisplayStorageService extends BaseHibernateService<ElementDisplay> {
@@ -78,4 +79,8 @@ public interface ElementDisplayStorageService extends BaseHibernateService<Eleme
      */
     @Transactional
     void addOrUpdateDisplayVersion(String elementName, DisplayVersion dv) throws HibernateElementDisplayService.NoFieldFound, HibernateElementDisplayService.NoSuchElementException, DisplayFieldRefCollection.DisplayFieldRefNotFoundException, HibernateElementDisplayService.NoVersionFound;
+
+
+    @Transactional
+    void saveElementDisplay(org.nrg.xdat.display.ElementDisplay ed);
 }

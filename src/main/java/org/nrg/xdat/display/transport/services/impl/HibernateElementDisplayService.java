@@ -391,7 +391,6 @@ public class HibernateElementDisplayService extends AbstractHibernateEntityServi
 
         if(storedDisplay==null){
             storedDisplay = new ElementDisplay();
-
         }
 
         storedDisplay.setElementName(ed.getElementName());
@@ -407,7 +406,6 @@ public class HibernateElementDisplayService extends AbstractHibernateEntityServi
         for(final org.nrg.xdat.display.DisplayField df : ed.getSortedFields()){
             this.registerDisplayField(df,storedDisplay);
         }
-
 
         //iterate the displayVersions
         for(final Map.Entry<String, org.nrg.xdat.display.DisplayVersion> entry : ed.getVersions().entrySet()){
@@ -460,7 +458,6 @@ public class HibernateElementDisplayService extends AbstractHibernateEntityServi
             }else{
                 storedArc = new ElementDisplayArc();
                 storedArc.setName(arc.getName());
-
 
                 for(final Map.Entry<String,String> entry: arc.getCommonFields().entrySet()){
                     storedArc.getCommonFields().put(entry.getKey(),entry.getValue());
@@ -641,6 +638,12 @@ public class HibernateElementDisplayService extends AbstractHibernateEntityServi
         //update in memory copy
         org.nrg.xdat.display.DisplayVersion dv2 = renderDisplayVersion(storedDV,xmlDisplay);
         xmlDisplay.getVersions().put(dv.getVersionName(),dv2);
+    }
+
+    @Override
+    @Transactional
+    public void saveElementDisplay(org.nrg.xdat.display.ElementDisplay ed) {
+        this.registerElementDisplay(ed);
     }
 
     public class NoSuchElementException extends Exception{

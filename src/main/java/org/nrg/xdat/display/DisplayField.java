@@ -439,9 +439,12 @@ public class DisplayField implements Identifier, SequentialObject {
                         logger.error("XFT failed to initialize properly.", e);
                         o[1] = null;
                     } catch (ElementNotFoundException e) {
-                        logger.error("XFT element not found: " + e.ELEMENT, e);
+                        logger.error("DisplayField.getSchemaFields: Element Not Found " + e.ELEMENT);
                         o[1] = null;
-                    } catch (Exception e) {
+                    }  catch (FieldNotFoundException e) {
+                        logger.error("DisplayField.getSchemaFields: Field Not Found " + e.FIELD);
+                        o[1] = null;
+                    }catch (Exception e) {
                         logger.error("Unknown error occurred", e);
                         o[1] = null;
                     }
