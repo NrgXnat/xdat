@@ -33,7 +33,7 @@ public abstract class AbstractJsonBasedPreferenceAccess implements PreferenceAcc
                            ? serializer.deserializeYaml(inputStream, mapType)
                            : serializer.deserializeJson(inputStream, mapType);
         }
-        Stream.of(KEY_PUBLIC, KEY_AUTHENTICATED, KEY_ADMIN).forEach(level -> {
+        Stream.of(KEY_PUBLIC, KEY_AUTHENTICATED, KEY_ADMIN, KEY_HIDDEN).forEach(level -> {
             if (!accessLevels.containsKey(level)) {
                 accessLevels.put(level, Collections.emptyList());
             }
