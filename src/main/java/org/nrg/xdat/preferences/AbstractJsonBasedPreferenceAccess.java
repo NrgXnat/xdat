@@ -54,6 +54,11 @@ public abstract class AbstractJsonBasedPreferenceAccess implements PreferenceAcc
      */
     @Override
     public boolean canRead(final UserI user, final String preference) {
+        // These are not to be read/set, they are backend settings
+        if (accessLevels.get(KEY_HIDDEN).contains(preference)) {
+            return false;
+        }
+
         // Admin can access them all so no need to look further.
         if (user.getAuthorities().contains(AUTHORITY_ADMIN)) {
             return true;

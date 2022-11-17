@@ -12,3 +12,8 @@ admin:
   - adminOne
   - adminTwo
   - adminThree
+
+hidden:
+  - hiddenOne
+  - hiddenTwo
+  - hiddenThree

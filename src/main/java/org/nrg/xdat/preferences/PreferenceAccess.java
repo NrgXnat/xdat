@@ -6,6 +6,7 @@ public interface PreferenceAccess {
     String KEY_PUBLIC        = "public";
     String KEY_AUTHENTICATED = "authenticated";
     String KEY_ADMIN         = "admin";
+    String KEY_HIDDEN        = "hidden";
 
     /**
      * Indicates the tool to which this bean controls access.

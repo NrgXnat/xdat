@@ -12,6 +12,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,6 +24,7 @@ public class PreferenceAccessTest {
     private static final List<String> PUBLIC_PREFS        = Arrays.asList("publicOne", "publicTwo", "publicThree");
     private static final List<String> AUTHENTICATED_PREFS = Arrays.asList("authenticatedOne", "authenticatedTwo", "authenticatedThree");
     private static final List<String> ADMIN_PREFS         = Arrays.asList("adminOne", "adminTwo", "adminThree");
+    private static final List<String> HIDDEN_PREFS        = Arrays.asList("hiddenOne", "hiddenTwo", "hiddenThree");
 
     private PreferenceAccess _access;
     private UserI            _admin;
@@ -54,11 +56,41 @@ public class PreferenceAccessTest {
 
     @Test
     public void testSiteConfigAccess() {
-        final List<Boolean> adminAccesses = Stream.concat(ADMIN_PREFS.stream(), Stream.concat(AUTHENTICATED_PREFS.stream(), PUBLIC_PREFS.stream())).map(pref -> _access.canRead(_admin, pref)).collect(Collectors.toList());
-        assertThat(adminAccesses).isNotNull().isNotEmpty().hasSize(9).containsOnly(Boolean.TRUE);
-        final List<Boolean> authenticatedAccesses = Stream.concat(ADMIN_PREFS.stream(), Stream.concat(AUTHENTICATED_PREFS.stream(), PUBLIC_PREFS.stream())).map(pref -> _access.canRead(_authenticated, pref)).collect(Collectors.toList());
-        assertThat(authenticatedAccesses).isNotNull().isNotEmpty().hasSize(9).containsExactly(Boolean.FALSE, Boolean.FALSE, Boolean.FALSE, Boolean.TRUE, Boolean.TRUE, Boolean.TRUE, Boolean.TRUE, Boolean.TRUE, Boolean.TRUE);
-        final List<Boolean> guestAccesses = Stream.concat(ADMIN_PREFS.stream(), Stream.concat(AUTHENTICATED_PREFS.stream(), PUBLIC_PREFS.stream())).map(pref -> _access.canRead(_guest, pref)).collect(Collectors.toList());
-        assertThat(guestAccesses).isNotNull().isNotEmpty().hasSize(9).containsExactly(Boolean.FALSE, Boolean.FALSE, Boolean.FALSE, Boolean.FALSE, Boolean.FALSE, Boolean.FALSE, Boolean.TRUE, Boolean.TRUE, Boolean.TRUE);
+        final Supplier<Stream<String>> preferenceStreamSupplier = () ->
+                Stream.concat(HIDDEN_PREFS.stream(),                        // accessible to no one
+                        Stream.concat(ADMIN_PREFS.stream(),                 // accessible to admins
+                        Stream.concat(AUTHENTICATED_PREFS.stream(),         // accessible to authenticated users
+                                PUBLIC_PREFS.stream())));                   // accessible to all
+
+        final List<Boolean> adminAccessible =
+                Arrays.asList(Boolean.FALSE, Boolean.FALSE, Boolean.FALSE,  // accessible to no one
+                        Boolean.TRUE, Boolean.TRUE, Boolean.TRUE,           // accessible to admins
+                        Boolean.TRUE, Boolean.TRUE, Boolean.TRUE,           // accessible to authenticated users
+                        Boolean.TRUE, Boolean.TRUE, Boolean.TRUE);          // accessible to all
+        final List<Boolean> authenticatedAccessible =
+                Arrays.asList(Boolean.FALSE, Boolean.FALSE, Boolean.FALSE,  // accessible to no one
+                        Boolean.FALSE, Boolean.FALSE, Boolean.FALSE,        // accessible to admins
+                        Boolean.TRUE, Boolean.TRUE, Boolean.TRUE,           // accessible to authenticated users
+                        Boolean.TRUE, Boolean.TRUE, Boolean.TRUE);          // accessible to all
+        final List<Boolean> guestAccessible =
+                Arrays.asList(Boolean.FALSE, Boolean.FALSE, Boolean.FALSE,  // accessible to no one
+                        Boolean.FALSE, Boolean.FALSE, Boolean.FALSE,        // accessible to admins
+                        Boolean.FALSE, Boolean.FALSE, Boolean.FALSE,        // accessible to authenticated users
+                        Boolean.TRUE, Boolean.TRUE, Boolean.TRUE);          // accessible to all
+
+        final List<Boolean> adminAccesses = preferenceStreamSupplier.get()
+                .map(pref -> _access.canRead(_admin, pref))
+                .collect(Collectors.toList());
+        assertThat(adminAccesses).isEqualTo(adminAccessible);
+
+        final List<Boolean> authenticatedAccesses = preferenceStreamSupplier.get()
+                .map(pref -> _access.canRead(_authenticated, pref))
+                .collect(Collectors.toList());
+        assertThat(authenticatedAccesses).isEqualTo(authenticatedAccessible);
+
+        final List<Boolean> guestAccesses = preferenceStreamSupplier.get()
+                .map(pref -> _access.canRead(_guest, pref))
+                .collect(Collectors.toList());
+        assertThat(guestAccesses).isEqualTo(guestAccessible);
     }
 }
