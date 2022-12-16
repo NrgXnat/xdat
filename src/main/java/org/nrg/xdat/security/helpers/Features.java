@@ -16,6 +16,7 @@ import org.nrg.xdat.XDAT;
 import org.nrg.xdat.security.UserGroupI;
 import org.nrg.xdat.security.services.FeatureRepositoryServiceI;
 import org.nrg.xdat.security.services.FeatureServiceI;
+import org.nrg.xft.cache.LightweightLocalCache;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 
@@ -310,6 +311,7 @@ public class Features {
     
 
     //TODO: Probably want some caching (memoization) for the banned and on by defaults
+    private static LightweightLocalCache<Boolean> simpleBooleanCache=new LightweightLocalCache<Boolean>();
 
     /**
      * Checks whether the indicated feature is banned on the server.
@@ -319,8 +321,12 @@ public class Features {
      * @return Returns true if the feature is banned, false otherwise.
      */
     public static Boolean isBanned(final String feature) {
+        Boolean cached=simpleBooleanCache.getValue(feature,XDAT.ONE_MIN);
+        if(cached!=null){
+            return cached;
+        }
         final FeatureDefinitionI def = getFeatureRepositoryService().getByKey(feature);
-        return def == null || def.isBanned();
+        return simpleBooleanCache.cacheValue(feature,def == null || def.isBanned());
     }
 
     /**
@@ -355,8 +361,12 @@ public class Features {
      * @return Returns true if the feature is on by default, false otherwise.
      */
     public static Boolean isOnByDefault(String feature) {
-        FeatureDefinitionI def = getFeatureRepositoryService().getByKey(feature);
-        return def != null && def.isOnByDefault();
+        Boolean cached=simpleBooleanCache.getValue(feature,XDAT.ONE_MIN);
+        if(cached!=null){
+            return cached;
+        }
+        final FeatureDefinitionI def = getFeatureRepositoryService().getByKey(feature);
+        return simpleBooleanCache.cacheValue(feature,(def != null && def.isOnByDefault()));
     }
 
 

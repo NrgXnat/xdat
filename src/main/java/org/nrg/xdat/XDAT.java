@@ -9,6 +9,9 @@
 
 package org.nrg.xdat;
 
+import static org.nrg.xdat.security.helpers.Users.*;
+
+import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -56,6 +59,7 @@ import org.nrg.xdat.turbine.utils.PopulateItem;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFT;
 import org.nrg.xft.XFTItem;
+import org.nrg.xft.cache.LightweightLocalCache;
 import org.nrg.xft.db.ViewManager;
 import org.nrg.xft.exception.ElementNotFoundException;
 import org.nrg.xft.generators.SQLCreateGenerator;
@@ -108,6 +112,7 @@ public class XDAT {
     public static final String XFT_INIT_EXCEPTION_MESSAGE      = "An error occurred trying initialize or access XFT.";
     public static final String DEFAULT_REQUEST_QUEUE           = "defaultRequestQueue";
 
+	public static final int ONE_MIN = 60000;
     private static final CharSequence[] STANDALONE_APP_KEYS = {"APP_NAME_", "JAVA_MAIN_CLASS_", "JOB_NAME", "BUILD_DISPLAY_NAME", "BUILD_ID", "BUILD_NUMBER", "BUILD_TAG", "BUILD_URL"};
 
 	private static ContextService             _contextService;
@@ -198,6 +203,24 @@ public class XDAT {
 		final SiteConfigPreferences preferences = getSiteConfigPreferences();
 		final String value = preferences.getValue(property);
 		return StringUtils.defaultIfBlank(value, defaultValue);
+	}
+
+	//loading each site config property can take a few milliseconds.  For common ones like logo path, site id, etc this adds up.  So, we can cache them for a minute or so.
+	private static LightweightLocalCache<String> simpleStringCache=new LightweightLocalCache<String>();
+
+	@SuppressWarnings("RedundantThrows")
+	public static String getSiteConfigurationProperty(final String property, final String defaultValue, final Integer cacheForXMillis) throws ConfigServiceException {
+		String cached=simpleStringCache.getValue(property,cacheForXMillis);
+		if(cached!=null){
+			return cached;
+		}
+
+		String value = getSiteConfigurationProperty(property,defaultValue);
+		if(cacheForXMillis==null){
+			return value;
+		}else{
+			return simpleStringCache.cacheValue(property,value);
+		}
 	}
 
 	public static boolean getBoolSiteConfigurationProperty(final String property, final boolean defaultValue) {
@@ -321,7 +344,7 @@ public class XDAT {
 
 	public static String getSiteId() {
         try {
-            return getSiteConfigurationProperty("siteId", "XNAT");
+            return getSiteConfigurationProperty("siteId", "XNAT", ONE_MIN);
         } catch (ConfigServiceException e) {
             log.error("An error occurred trying to retrieve the site ID setting, using the default", e);
             return "XNAT";
@@ -339,7 +362,7 @@ public class XDAT {
 
 	public static String getSiteLogoPath() {
         try {
-            return getSiteConfigurationProperty("siteLogoPath", "");
+            return getSiteConfigurationProperty("siteLogoPath", "", ONE_MIN);
         } catch (ConfigServiceException e) {
             log.error("An error occurred trying to retrieve the site logo path setting, using the default", e);
             return "/images/logo.png";

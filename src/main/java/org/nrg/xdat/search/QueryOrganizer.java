@@ -42,14 +42,14 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
     private final Map<String, QueryOrganizer>         addOns         = new HashMap<>();//0:elementName,1:QueryOrganizer
     private final Map<String, DisplayFieldReferenceI> subqueries     = new HashMap<>();
 
-    public QueryOrganizer(String elementName, UserI u, String level) throws ElementNotFoundException
+    public QueryOrganizer(String elementName, UserI u, String level, Map<String, CachedRootQuery> rootQueries) throws ElementNotFoundException
     {
-        super(elementName,u,level);
+        super(elementName,u,level,rootQueries);
     }
 
-    public QueryOrganizer(SchemaElementI se, UserI u, String level)
+    public QueryOrganizer(SchemaElementI se, UserI u, String level, Map<String, CachedRootQuery> rootQueries)
     {
-        super(se,u,level);
+        super(se,u,level,rootQueries);
     }
 
     public void addSubquery(String key, DisplayFieldReferenceI df){
@@ -88,7 +88,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                 QueryOrganizer qo = addOns.get(root);
                 if (qo == null)
                 {
-                    qo = new QueryOrganizer(root,user,level);
+                    qo = new QueryOrganizer(root,user,level,_rootQueries);
                     addOns.put(root,qo);
                     addField(qo.getFilterField(root));
                 }
@@ -125,7 +125,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
             QueryOrganizer qo = addOns.get(root);
             if (qo == null)
             {
-                qo = new QueryOrganizer(root,user,level);
+                qo = new QueryOrganizer(root,user,level,_rootQueries);
                 addOns.put(root,qo);
                 addField(getFilterField(root));
             }
@@ -152,7 +152,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
             QueryOrganizer qo = addOns.get(root);
             if (qo == null)
             {
-                qo = new QueryOrganizer(root,user,level);
+                qo = new QueryOrganizer(root,user,level,_rootQueries);
                 addOns.put(root,qo);
                 addField(getFilterField(root));
             }
@@ -305,8 +305,8 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                             String[] connection = this.rootElement.getGenericXFTElement().findSchemaConnection(foreign.getGenericXFTElement());
                             if (connection != null)
                             {
-                                QueryOrganizer foreignQO = new QueryOrganizer(foreign,this.getUser(),level);
-                                QueryOrganizer localQO = new QueryOrganizer(rootElement,this.getUser(),level);
+                                QueryOrganizer foreignQO = new QueryOrganizer(foreign,this.getUser(),level,_rootQueries);
+                                QueryOrganizer localQO = new QueryOrganizer(rootElement,this.getUser(),level,_rootQueries);
                                 //BUILD CONNECTION FROM ROOT TO EXTENSION
                                 String localSyntax = connection[0];
                                 String xmlPath = connection[1];
@@ -517,7 +517,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                         gwf = SchemaElement.GetSchemaField(localSyntax);
                         extension = gwf.getReferenceElement();
 
-                        QueryOrganizer mappingQO = new QueryOrganizer(this.rootElement,this.getUser(),this.level);
+                        QueryOrganizer mappingQO = new QueryOrganizer(this.rootElement,this.getUser(),this.level,_rootQueries);
                         mappingQO.setIsMappingTable(true);
 
                         Iterator pks = extension.getAllPrimaryKeys().iterator();
@@ -642,7 +642,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     }else{
                         SchemaElement extension = SchemaElement.GetElement(mappingElement);
 
-                        QueryOrganizer mappingQO = new QueryOrganizer(extension,this.getUser(),ViewManager.ALL);
+                        QueryOrganizer mappingQO = new QueryOrganizer(extension,this.getUser(),ViewManager.ALL,_rootQueries);
                         mappingQO.setIsMappingTable(true);
 
                         Iterator pks = foreign.getAllPrimaryKeys().iterator();
@@ -820,7 +820,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
     private String getArcJoinCount(ArcDefinition arcDefine,SchemaElement foreign) throws Exception
     {
-		QueryOrganizer qo = new QueryOrganizer(foreign,this.getUser(),level);
+		QueryOrganizer qo = new QueryOrganizer(foreign,this.getUser(),level,_rootQueries);
         final StringBuilder  sb = new StringBuilder();
         if (arcDefine.getBridgeElement().equalsIgnoreCase(rootElement.getFullXMLName()))
 		{
@@ -898,7 +898,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 			String foreignField = (String)foreignArc.getCommonFields().get(distinctField);
 			String rootField = (String)rootArc.getCommonFields().get(distinctField);
 
-			String arcMapQuery = DisplayManager.GetArcDefinitionQuery(arcDefine,(new SchemaElement(rootElement.getGenericXFTElement())),foreign,user);
+			String arcMapQuery = DisplayManager.GetArcDefinitionQuery(arcDefine,(new SchemaElement(rootElement.getGenericXFTElement())),foreign,user, _rootQueries);
 			String arcTableName = DisplayManager.ARC_MAP + rootElement.getSQLName()+"_"+foreign.getSQLName();
 
 			DisplayField rDF = (new SchemaElement(rootElement.getGenericXFTElement())).getDisplayField(rootField);

@@ -9,6 +9,8 @@
 
 package org.nrg.xdat.security;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xdat.XDAT;
@@ -25,12 +27,15 @@ import org.nrg.xdat.security.user.exceptions.UserNotFoundException;
 import org.nrg.xdat.security.validators.PasswordValidator;
 import org.nrg.xdat.services.XdatUserAuthService;
 import org.nrg.xdat.turbine.utils.PopulateItem;
+import org.nrg.xft.ItemI;
+import org.nrg.xft.db.PoolDBUtils;
 import org.nrg.xft.event.EventDetails;
 import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.persist.PersistentWorkflowI;
 import org.nrg.xft.event.persist.PersistentWorkflowUtils;
 import org.nrg.xft.exception.InvalidPermissionException;
 import org.nrg.xft.security.UserI;
+import org.nrg.xft.utils.DateUtils;
 import org.nrg.xft.utils.SaveItemHelper;
 import org.nrg.xft.utils.ValidationUtils.ValidationResultsI;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +52,90 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
+    //object for tracking cached users.  Only used internally in this class.
+    static class CachedUser{
+        XDATUser u;
+        long created;
+        //user last accessed from cache
+        long lastAccess=Calendar.getInstance().getTimeInMillis();
+        long expire;
+        //last time that the last_modified time was checked
+        long lastModCheck=Calendar.getInstance().getTimeInMillis();
+        Date lastMod;
+
+        public CachedUser(XDATUser user) {
+            this.u = user;
+            created = Calendar.getInstance().getTimeInMillis();
+            expire=created+USER_TIMEOUT;
+            lastMod=getLastModFromDb();
+            System.out.println("Initialized cache for user:" + u.getUsername());
+        }
+
+        public XDATUser getUser(){
+            lastAccess=Calendar.getInstance().getTimeInMillis();
+            return u;
+        }
+
+        public Date getLastModFromDb() {
+            try {
+                //if this is 100% accurate, then we'd never need to expire items... but how do we know for sure.
+                return (Date)PoolDBUtils.ReturnStatisticQuery("SELECT last_modified FROM xdat_user LEFT JOIN xdat_user_meta_data meta ON xdat_user.user_info=meta.meta_data_id WHERE xdat_user_id=" + u.getXdatUserId() + ";","last_modified",null,null);
+            } catch (Exception e) {
+                log.error("", e);
+            }
+            return null;
+        }
+
+        public boolean isModified(){
+            //don't check on every call.  Just after an interval has passed.
+            if(Calendar.getInstance().getTimeInMillis()> (lastModCheck+LAST_MOD_INTERVAL)) {
+                try {
+                    Date lastMod = getLastModFromDb();
+                    if (lastMod.getTime() > this.lastMod.getTime()) {
+                        System.out.println("Modified!!!");
+                        return true;
+                    } else {
+                        this.lastModCheck = Calendar.getInstance().getTimeInMillis();
+                        return false;
+                    }
+                } catch (Exception e) {
+                    return true;
+                }
+            }else{
+                return false;
+            }
+        }
+
+        public boolean isExpired(){
+            return Calendar.getInstance().getTimeInMillis()>this.expire;
+        }
+    }
+
+    private synchronized static XDATUser cacheUser(XDATUser user){
+        usersById.put(user.getXdatUserId(),new CachedUser(user));
+        return user;
+    }
+
+    private synchronized static XDATUser getCachedUser(Integer userId){
+        CachedUser cache = usersById.get(userId);
+        if(cache!=null){
+            if(cache.isExpired() || cache.isModified()){
+                System.out.println("Expiring cached user.");
+                usersById.remove(userId);
+                return null;
+            }
+
+            System.out.print(".");
+            return cache.getUser();
+        }
+
+        return null;
+    }
+
+    private synchronized static void clearLocalUserCache(){
+        usersById.clear();
+    }
+
     @Autowired
     public XDATUserMgmtServiceImpl(final NamedParameterJdbcTemplate template) {
         _template = template;
@@ -68,7 +157,12 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
         if (Users.isGuest(username)) {
             return getGuestUser();
         }
-        return new XDATUser(username);
+
+        Integer userId=Users.getUserId(username);
+        if(userId==null){
+            throw new UserNotFoundException("Unknown username: "+username);
+        }
+        return getUser(userId);
     }
 
     @Override
@@ -76,7 +170,18 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
         if (Objects.equals(getGuestUserId(), userId)) {
             return _guest;
         }
-        return new XDATUser(Optional.ofNullable(XdatUser.getXdatUsersByXdatUserId(userId, null, true)).orElseThrow(() -> new UserNotFoundException(userId)).getItem());
+
+        XDATUser u= getCachedUser(userId);
+        if(u!=null){
+            return u;
+        }
+
+        XdatUser user = XdatUser.getXdatUsersByXdatUserId(userId, null, true);
+        if (user != null) {
+            return cacheUser(new XDATUser(user.getItem()));
+        } else {
+            throw new UserNotFoundException(userId);
+        }
     }
 
     @Override
@@ -142,6 +247,8 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
         if (user instanceof XDATUser) {
             ((XDATUser) user).clearLocalCache();
         }
+
+        this.clearLocalUserCache();
     }
 
     /* (non-Javadoc)
@@ -176,6 +283,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
             PersistentWorkflowUtils.fail(wrk, wrk.buildEvent());
             throw e;
         }
+        this.clearLocalUserCache();
     }
 
     /* (non-Javadoc)
@@ -272,6 +380,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
                 }
             }
         }
+        this.clearLocalUserCache();
     }
 
     @Override
@@ -308,6 +417,11 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
         }
         return _guestId;
     }
+    private static final Map<Integer,CachedUser> usersById= Maps.newConcurrentMap();
+    private static final int USER_TIMEOUT= 300000;
+    private static final int LAST_MOD_INTERVAL= 1000;
+
+    private static final String QUERY_CHECK_USER_EXISTS = "SELECT EXISTS(SELECT TRUE FROM xdat_user WHERE login = :username) AS exists";
 
     private XdatUserAuthService getXdatUserAuthService() {
         if (_userAuthService == null) {

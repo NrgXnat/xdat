@@ -9,12 +9,14 @@
 
 package org.nrg.xft.search;
 
+import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.nrg.xdat.search.DisplayCriteria;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author Tim
@@ -231,6 +233,14 @@ public class CriteriaCollection implements SQLClause {
         } catch (Exception e) {
             return "error";
         }
+    }
+
+    public SQLClause templatizeQuery(ValueTracker tracker) throws Exception {
+        CriteriaCollection copy = new CriteriaCollection(this.joinType);
+        for (SQLClause c: collection) {
+            copy.collection.add(c.templatizeQuery(tracker));
+        }
+        return copy;
     }
 }
 

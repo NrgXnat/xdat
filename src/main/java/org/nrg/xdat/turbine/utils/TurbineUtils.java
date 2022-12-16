@@ -940,7 +940,7 @@ public class TurbineUtils {
     public static SimpleDateFormat getDateFormatter() {
         if (default_date_format == null) {
             try {
-                default_date_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("uiDateFormat", "yyyy-MM-dd"));
+                default_date_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("uiDateFormat", "yyyy-MM-dd",XDAT.ONE_MIN));
             } catch (ConfigServiceException e) {
                 default_date_format = new SimpleDateFormat("yyyy-MM-dd");
             }
@@ -960,7 +960,7 @@ public class TurbineUtils {
     public static SimpleDateFormat getDateTimeFormatter() {
         if (default_date_time_format == null) {
             try {
-                default_date_time_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("uiDateTimeFormat", BASE_DATE_TIME_FORMAT));
+                default_date_time_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("uiDateTimeFormat", BASE_DATE_TIME_FORMAT,XDAT.ONE_MIN));
             } catch (ConfigServiceException e) {
                 default_date_time_format = new SimpleDateFormat(BASE_DATE_TIME_FORMAT);
             }
@@ -979,7 +979,7 @@ public class TurbineUtils {
     public static DateTimeFormatter getLocalDateTimeFormatter() {
         if (default_local_date_time_formatter == null) {
             try {
-                default_local_date_time_formatter = DateTimeFormatter.ofPattern(XDAT.getSiteConfigurationProperty("uiDateTimeFormat", BASE_DATE_TIME_FORMAT));
+                default_local_date_time_formatter = DateTimeFormatter.ofPattern(XDAT.getSiteConfigurationProperty("uiDateTimeFormat", BASE_DATE_TIME_FORMAT,XDAT.ONE_MIN));
             } catch (ConfigServiceException e) {
                 default_local_date_time_formatter = DateTimeFormatter.ofPattern(BASE_DATE_TIME_FORMAT);
             }
@@ -999,7 +999,7 @@ public class TurbineUtils {
     public static SimpleDateFormat getDateTimeSecondsFormatter() {
         if (default_date_time_seconds_format == null) {
             try {
-                default_date_time_seconds_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("uiDateTimeSecondsFormat", "MM/dd/yyyy HH:mm:ss.SSS"));
+                default_date_time_seconds_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("UI.date-time-seconds-format", "MM/dd/yyyy HH:mm:ss.SSS",XDAT.ONE_MIN));
             } catch (ConfigServiceException e) {
                 default_date_time_seconds_format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
             }
@@ -1019,7 +1019,7 @@ public class TurbineUtils {
     public static SimpleDateFormat getTimeFormatter() {
         if (default_time_format == null) {
             try {
-                default_time_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("uiTimeFormat", "HH:mm:ss"));
+                default_time_format = new SimpleDateFormat(XDAT.getSiteConfigurationProperty("UI.time-format", "HH:mm:ss",XDAT.ONE_MIN));
             } catch (ConfigServiceException e) {
                 default_time_format = new SimpleDateFormat("HH:mm:ss");
             }
@@ -1584,9 +1584,9 @@ public class TurbineUtils {
         return 0;
     };
 
-    private boolean isValidResourceKey(final String key) {
-        final boolean isDebugMode = Boolean.parseBoolean(XDAT.safeSiteConfigProperty("debugMode", "false"));
+    final boolean isDebugMode = Boolean.parseBoolean(XDAT.safeSiteConfigProperty("debugMode", "false"));
 
+    private boolean isValidResourceKey(final String key) {
         if (isDebugMode) {
             return resourceExists(key);
         }

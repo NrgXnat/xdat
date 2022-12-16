@@ -10,10 +10,12 @@
 package org.nrg.xdat.security.services.impl;
 
 import lombok.extern.slf4j.Slf4j;
+import org.nrg.xdat.XDAT;
 import org.nrg.xdat.entities.UserRole;
 import org.nrg.xdat.security.XDATUser;
 import org.nrg.xdat.security.services.RoleServiceI;
 import org.nrg.xdat.services.UserRoleService;
+import org.nrg.xft.cache.LightweightLocalCache;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -81,12 +83,19 @@ public class RoleServiceImpl implements RoleServiceI {
         return isSiteAdmin(user.getUsername());
     }
 
+    private static LightweightLocalCache<Boolean> admins = new LightweightLocalCache<Boolean>();
+
     /**
      * {@inheritDoc}
      */
     @Override
     public boolean isSiteAdmin(final String username) {
-        return hasUsernameAndRole(username, UserRole.ROLE_ADMINISTRATOR);
+        final Boolean cached= admins.getValue(username, XDAT.ONE_MIN);
+        if(cached!=null){
+            return cached;
+        }
+
+        return admins.cacheValue(username,hasUsernameAndRole(username, UserRole.ROLE_ADMINISTRATOR));
     }
 
     /**

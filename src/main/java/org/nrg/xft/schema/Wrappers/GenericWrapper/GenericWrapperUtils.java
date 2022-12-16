@@ -27,6 +27,7 @@ import org.nrg.xft.generators.TextFunctionGenerator;
 import org.nrg.xft.references.*;
 import org.nrg.xft.schema.XFTManager;
 import org.nrg.xft.schema.design.SchemaElementI;
+import org.nrg.xft.search.QueryOrganizer.CachedRootQuery;
 import org.nrg.xft.search.SearchCriteria;
 
 import java.util.*;
@@ -1145,7 +1146,7 @@ public class GenericWrapperUtils {
 	            //Build Query to get Extension id
 	            try {
 	                QueryOrganizer qo = new QueryOrganizer(input, null,
-	                        ViewManager.ALL);
+                      ViewManager.ALL, new HashMap<>());
 	                qo.addField(input.getFullXMLName()
 	                        + "/extension_item/element_name");
 	                CriteriaCollection cc = new CriteriaCollection("AND");
@@ -1619,7 +1620,7 @@ public class GenericWrapperUtils {
 	            //Build Query to get Extension id
 	                try {
 	                    QueryOrganizer qo = new QueryOrganizer(input, null,
-	                            ViewManager.ALL);
+	                            ViewManager.ALL, new HashMap<>());
 	                    qo.addField(input.getFullXMLName()
 	                            + "/extension_item/element_name");
 	                    CriteriaCollection cc = new CriteriaCollection("AND");
@@ -2018,7 +2019,7 @@ public class GenericWrapperUtils {
             //Build Query to get Extension id
             try {
                 QueryOrganizer qo = new QueryOrganizer(input, null,
-                        ViewManager.ALL);
+                        ViewManager.ALL,new HashMap<>());
                 qo.addField(input.getFullXMLName()
                         + "/extension_item/element_name");
                 CriteriaCollection cc = new CriteriaCollection("AND");

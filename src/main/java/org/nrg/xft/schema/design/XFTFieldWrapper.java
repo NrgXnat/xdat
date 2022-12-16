@@ -19,8 +19,9 @@ import java.util.ArrayList;
 
 @Slf4j
 public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
+	public static final String ARROW = " -> ";
 	protected XFTField             wrapped = null;
-	
+
 	private ArrayList childElements = null;
 	private Boolean hasChildElements = null;
 	private ArrayList attributes = null;
@@ -33,7 +34,7 @@ public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
 	 * @return XFTFactoryI
 	 */
 	public abstract XFTFactoryI getFactory();
-	
+
 	/**
 	 * Set wrapped field.
 	 * @param xe
@@ -41,7 +42,7 @@ public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
 	public void loadElement(XFTField xe)
 	{
 		wrapped = xe;
-		label = XftStringUtils.intern(xe.getFullName() + " -> " + xe.getXMLType());
+		label = XftStringUtils.intern(xe.getFullName() + ARROW + xe.getXMLType());
 	}
 	/**
 	 * Get wrapped field
@@ -56,10 +57,10 @@ public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
 	 * @param element
 	 */
 	public void setWrapped(XFTField element) {
-		label = XftStringUtils.intern(element.getFullName() + " -> " + element.getXMLType());
+		label = XftStringUtils.intern(element.getFullName() + ARROW + element.getXMLType());
 		wrapped = element;
 	}
-	
+
 	/**
 	 * Specifies if the current wrapped element is of type org.nrg.xft.schema.XFTDataField
 	 * @return Returns whether the current wrapped element is a reference (e.g. of type org.nrg.xft.schema.XFTDataField)
@@ -76,7 +77,7 @@ public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
 				isRef = Boolean.TRUE;
 			}
 		}
-	
+
 		return isRef.booleanValue();
 	}
 
@@ -115,7 +116,7 @@ public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
 	{
 		return getFactory().wrapElement(this.getWrapped().getParentElement());
 	}
-	
+
 	/**
 	 * Get name from wrapped field.
 	 * @return Returns the wrapped field's name
@@ -124,7 +125,7 @@ public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
 	{
 		return wrapped.getName();
 	}
-	
+
 	/**
 	 * Checks if the item is shown in XML version only (i.e. output only)
 	 * @return Returns whether the item is shown in XML version only (i.e. output only)
@@ -139,7 +140,7 @@ public abstract class XFTFieldWrapper implements Identifier, SchemaFieldI {
 			return false;
 		}
 	}
-	
+
 	public abstract String getXPATH();
 
 }

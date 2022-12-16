@@ -34,6 +34,7 @@ import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.schema.design.SchemaFieldI;
 import org.nrg.xft.search.CriteriaCollection;
 import org.nrg.xft.search.*;
+import org.nrg.xft.search.QueryOrganizer.CachedRootQuery;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.XftStringUtils;
 import org.slf4j.Logger;
@@ -305,7 +306,7 @@ public class DisplaySearch implements TableSearchI {
         StringBuilder select = new StringBuilder();
         StringBuilder orderBy = new StringBuilder();
 
-        QueryOrganizer qo = new QueryOrganizer(this.getRootElement(), user, level);
+        QueryOrganizer qo = new QueryOrganizer(this.getRootElement(), user, level, new HashMap<>());
 
         if (hasSchemaOnlyCriteria()) {
             qo.setWhere(criteria);
@@ -590,7 +591,7 @@ public class DisplaySearch implements TableSearchI {
 
         if (!hasSchemaOnlyCriteria()) {
 
-            QueryOrganizer whereqo = new QueryOrganizer(this.getRootElement(), user, level);
+            QueryOrganizer whereqo = new QueryOrganizer(this.getRootElement(), user, level, qo.getRootQueries());
 
             //build WHERE clause
             Iterator criteriaIter = criteria.getSchemaFields().iterator();
@@ -718,6 +719,25 @@ public class DisplaySearch implements TableSearchI {
         } else {
             sb.append(query);
         }
+
+
+        //ADD ROOT QUERIES VIA WITH SYNTAX
+        if(qo.getRootQueries().size()>0){
+            int clauses = 0;
+            final StringBuilder withClause = new StringBuilder();
+            withClause.append("WITH ");
+
+            for(CachedRootQuery cachedQuery: qo.getRootQueries().values()){
+                if(clauses++ > 0){
+                    withClause.append(", ");
+                }
+
+                withClause.append(cachedQuery.getAlias()).append(" AS (").append(cachedQuery.getQuery()).append(") ");
+            }
+
+            sb.insert(0,withClause.toString());
+        }
+
         return sb.toString();
     }
 
