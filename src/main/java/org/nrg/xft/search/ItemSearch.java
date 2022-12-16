@@ -231,7 +231,7 @@ public class ItemSearch implements SearchI {
 		if (cachedQO.containsKey(cacheKey)) {
 			cacheQuery = cachedQO.get(cacheKey);
 		} else {
-			qo = new QueryOrganizer(element, user, this.level, new HashMap<>());
+			qo = new QueryOrganizer(element, user, this.level, null);
 			for (String fieldName : ViewManager.GetFieldNames(element, level, allowMultiples, rootItem)) {
 				if(showMetaFields==null){
 					qo.addDirectField(fieldName);
@@ -317,7 +317,7 @@ public class ItemSearch implements SearchI {
 			cacheQuery = (IRCachedQuery)cachedQO.get(cacheKey);
 		} else {
 
-			qo = new QueryOrganizer(element, user, this.level, new HashMap<>());
+			qo = new QueryOrganizer(element, user, this.level, null);
 			ArrayList keys = element.getAllPrimaryKeys();
 			Iterator keyIter = keys.iterator();
 			String pk = null;
