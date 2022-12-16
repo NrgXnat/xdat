@@ -307,157 +307,154 @@ public class QueryOrganizer implements QueryOrganizerI{
             }
             
             
-//              CHECK ARCS
-                ArcDefinition arcDefine = DisplayManager.GetInstance().getArcDefinition(rootElement,foreign);
-				if (arcDefine!=null)
-				{
-				    joins.append(getArcJoin(arcDefine,qo,foreign));
-                    tables.put(k,foreign.getSQLName());
+//          CHECK ARCS
+            ArcDefinition arcDefine = DisplayManager.GetInstance().getArcDefinition(rootElement,foreign);
+            if (arcDefine!=null)
+            {
+                joins.append(getArcJoin(arcDefine,qo,foreign));
+                tables.put(k,foreign.getSQLName());
+
+                for (final Object anAl : al) {
+                    String eXmlPath = (String) anAl;
+                    this.externalFieldAliases.put(eXmlPath.toLowerCase(), qo.translateXMLPath(eXmlPath, foreign.getSQLName()));
+                }
+                continue;
+            }
+
+            String[] connection = this.rootElement.getGenericXFTElement().findSchemaConnection(foreign.getGenericXFTElement());
+
+            if (connection != null)
+            {
+                String localSyntax = connection[0];
+                String xmlPath = connection[1];
+
+                log.info("JOINING: " + localSyntax + " to " + xmlPath);
+                SchemaFieldI gwf;
+                SchemaElementI extension;
+                if (localSyntax.indexOf(XFT.PATH_SEPARATOR) == -1)
+                {
+                    extension = rootElement;
+
+                    //MAPS DIRECTLY TO THE ROOT TABLE
+                    Iterator pks = extension.getAllPrimaryKeys().iterator();
+                    while (pks.hasNext())
+                    {
+                        SchemaFieldI sf = (SchemaFieldI)pks.next();
+                        qo.addField(xmlPath + sf.getXMLPathString(""));
+
+                        String[] layers = GenericWrapperElement.TranslateXMLPathToTables(localSyntax + sf.getXMLPathString(""));
+                        addFieldToJoin(layers);
+                    }
+
+
+                    //BUILD CONNECTION FROM FOREIGN TO EXTENSION
+                    String        query = qo.buildQuery();
+                    StringBuilder sb    = new StringBuilder();
+                    sb.append(" LEFT JOIN (").append(query);
+                    sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
+
+                    pks = extension.getAllPrimaryKeys().iterator();
+                    int pkCount=0;
+                    while (pks.hasNext())
+                    {
+                        SchemaFieldI sf = (SchemaFieldI)pks.next();
+                        if (pkCount++ != 0)
+                        {
+                            sb.append(" AND ");
+                        }
+                        String localCol = this.getTableAndFieldSQL(localSyntax + sf.getXMLPathString(""));
+                        String foreignCol = qo.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
+
+                        sb.append(localCol).append("=");
+                        sb.append(foreignCol);
+                    }
+                    joins.append(sb.toString());
 
                     for (final Object anAl : al) {
                         String eXmlPath = (String) anAl;
                         this.externalFieldAliases.put(eXmlPath.toLowerCase(), qo.translateXMLPath(eXmlPath, foreign.getSQLName()));
                     }
-                    continue;
-				}
-
-            
-                String[] connection = this.rootElement.getGenericXFTElement().findSchemaConnection(foreign.getGenericXFTElement());
-
-                if (connection != null)
-                {
-                    String localSyntax = connection[0];
-                    String xmlPath = connection[1];
-
-                    log.info("JOINING: " + localSyntax + " to " + xmlPath);
-                    SchemaFieldI gwf;
-                    SchemaElementI extension;
-                    if (localSyntax.indexOf(XFT.PATH_SEPARATOR) == -1)
-                    {
-                        extension = rootElement;
-
-                        //MAPS DIRECTLY TO THE ROOT TABLE
-                        Iterator pks = extension.getAllPrimaryKeys().iterator();
-                        while (pks.hasNext())
-                        {
-                            SchemaFieldI sf = (SchemaFieldI)pks.next();
-                            qo.addField(xmlPath + sf.getXMLPathString(""));
-
-                            String[] layers = GenericWrapperElement.TranslateXMLPathToTables(localSyntax + sf.getXMLPathString(""));
-                            addFieldToJoin(layers);
-                        }
-
-
-                        //BUILD CONNECTION FROM FOREIGN TO EXTENSION
-                        String        query = qo.buildQuery();
-            			StringBuilder sb    = new StringBuilder();
-            			sb.append(" LEFT JOIN (").append(query);
-            			sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
-
-            			pks = extension.getAllPrimaryKeys().iterator();
-            			int pkCount=0;
-                        while (pks.hasNext())
-                        {
-                            SchemaFieldI sf = (SchemaFieldI)pks.next();
-                            if (pkCount++ != 0)
-                            {
-                                sb.append(" AND ");
-                            }
-                            String localCol = this.getTableAndFieldSQL(localSyntax + sf.getXMLPathString(""));
-                            String foreignCol = qo.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
-
-                			sb.append(localCol).append("=");
-                			sb.append(foreignCol);
-                        }
-            			joins.append(sb.toString());
-
-                        for (final Object anAl : al) {
-                            String eXmlPath = (String) anAl;
-                            this.externalFieldAliases.put(eXmlPath.toLowerCase(), qo.translateXMLPath(eXmlPath, foreign.getSQLName()));
-                        }
-                    }else{
-                        gwf = SchemaElement.GetSchemaField(localSyntax);
-                        extension = gwf.getReferenceElement();
-
-                        
-
-                        QueryOrganizer mappingQO = new QueryOrganizer(this.rootElement,null,this.level, _rootQueries);
-                        if (this.where!=null){
-                            mappingQO.setWhere(where);
-                        }
-                        mappingQO.setIsMappingTable(true);
-
-                        Iterator pks = extension.getAllPrimaryKeys().iterator();
-                        while (pks.hasNext())
-                        {
-                            SchemaFieldI sf = (SchemaFieldI)pks.next();
-                            qo.addField(xmlPath + sf.getXMLPathString(""));
-
-                            mappingQO.addField(localSyntax + sf.getXMLPathString(""));
-                        }
-
-                        Iterator pKeys = rootElement.getAllPrimaryKeys().iterator();
-                        while (pKeys.hasNext())
-                        {
-                            SchemaFieldI pKey = (SchemaFieldI)pKeys.next();
-                            mappingQO.addField(pKey.getXMLPathString(rootElement.getFullXMLName()));
-                        }
-
-            			StringBuilder sb = new StringBuilder();
-
-            			//BUILD MAPPING TABLE
-                        String mappingQuery = mappingQO.buildQuery();
-                        sb.append(" LEFT JOIN (").append(mappingQuery);
-            			sb.append(") AS ").append("map_").append(foreign.getSQLName()).append(" ON ");
-            			pKeys = rootElement.getAllPrimaryKeys().iterator();
-            			int pkCount=0;
-            			while (pKeys.hasNext())
-                        {
-                            SchemaFieldI pKey = (SchemaFieldI)pKeys.next();
-                            if (pkCount++ != 0)
-                            {
-                                sb.append(" AND ");
-                            }
-
-                            String localCol = this.getTableAndFieldSQL(pKey.getXMLPathString(rootElement.getFullXMLName()));
-                            String foreignCol = mappingQO.translateXMLPath(pKey.getXMLPathString(rootElement.getFullXMLName()),"map_" + foreign.getSQLName());
-
-                			sb.append(localCol).append("=");
-                			sb.append(foreignCol);
-                        }
-
-
-                        //BUILD CONNECTION FROM FOREIGN TO EXTENSION
-                        String query = qo.buildQuery();
-            			sb.append(" LEFT JOIN (").append(query);
-            			sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
-
-            			pks = extension.getAllPrimaryKeys().iterator();
-            			pkCount=0;
-                        while (pks.hasNext())
-                        {
-                            SchemaFieldI sf = (SchemaFieldI)pks.next();
-                            if (pkCount++ != 0)
-                            {
-                                sb.append(" AND ");
-                            }
-                            String localCol = mappingQO.translateXMLPath(localSyntax + sf.getXMLPathString(""),"map_" + foreign.getSQLName());
-                            String foreignCol = qo.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
-
-                			sb.append(localCol).append("=");
-                			sb.append(foreignCol);
-                        }
-            			joins.append(sb.toString());
-
-            			//SET EXTERNAL COLUMN ALIASES
-                        for (final Object anAl : al) {
-                            String eXmlPath = (String) anAl;
-                            this.externalFieldAliases.put(eXmlPath.toLowerCase(), qo.translateXMLPath(eXmlPath, foreign.getSQLName()));
-                        }
-                    }
                 }else{
-                    throw new Exception("Unable to join " + rootElement.getSQLName() + " AND " + foreign.getFullXMLName());
+                    gwf = SchemaElement.GetSchemaField(localSyntax);
+                    extension = gwf.getReferenceElement();
+
+                    QueryOrganizer mappingQO = new QueryOrganizer(this.rootElement,null,this.level, _rootQueries);
+                    if (this.where!=null){
+                        mappingQO.setWhere(where);
+                    }
+                    mappingQO.setIsMappingTable(true);
+
+                    Iterator pks = extension.getAllPrimaryKeys().iterator();
+                    while (pks.hasNext())
+                    {
+                        SchemaFieldI sf = (SchemaFieldI)pks.next();
+                        qo.addField(xmlPath + sf.getXMLPathString(""));
+
+                        mappingQO.addField(localSyntax + sf.getXMLPathString(""));
+                    }
+
+                    Iterator pKeys = rootElement.getAllPrimaryKeys().iterator();
+                    while (pKeys.hasNext())
+                    {
+                        SchemaFieldI pKey = (SchemaFieldI)pKeys.next();
+                        mappingQO.addField(pKey.getXMLPathString(rootElement.getFullXMLName()));
+                    }
+
+                    StringBuilder sb = new StringBuilder();
+
+              //BUILD MAPPING TABLE
+                    String mappingQuery = mappingQO.buildQuery();
+                    sb.append(" LEFT JOIN (").append(mappingQuery);
+                    sb.append(") AS ").append("map_").append(foreign.getSQLName()).append(" ON ");
+                    pKeys = rootElement.getAllPrimaryKeys().iterator();
+                    int pkCount=0;
+                    while (pKeys.hasNext())
+                    {
+                        SchemaFieldI pKey = (SchemaFieldI)pKeys.next();
+                        if (pkCount++ != 0)
+                        {
+                            sb.append(" AND ");
+                        }
+
+                        String localCol = this.getTableAndFieldSQL(pKey.getXMLPathString(rootElement.getFullXMLName()));
+                        String foreignCol = mappingQO.translateXMLPath(pKey.getXMLPathString(rootElement.getFullXMLName()),"map_" + foreign.getSQLName());
+
+                        sb.append(localCol).append("=");
+                        sb.append(foreignCol);
+                    }
+
+
+                    //BUILD CONNECTION FROM FOREIGN TO EXTENSION
+                    String query = qo.buildQuery();
+                    sb.append(" LEFT JOIN (").append(query);
+                    sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
+
+                    pks = extension.getAllPrimaryKeys().iterator();
+                    pkCount=0;
+                    while (pks.hasNext())
+                    {
+                        SchemaFieldI sf = (SchemaFieldI)pks.next();
+                        if (pkCount++ != 0)
+                        {
+                            sb.append(" AND ");
+                        }
+                        String localCol = mappingQO.translateXMLPath(localSyntax + sf.getXMLPathString(""),"map_" + foreign.getSQLName());
+                        String foreignCol = qo.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
+
+                        sb.append(localCol).append("=");
+                        sb.append(foreignCol);
+                    }
+                    joins.append(sb.toString());
+
+                    //SET EXTERNAL COLUMN ALIASES
+                    for (final Object anAl : al) {
+                        String eXmlPath = (String) anAl;
+                        this.externalFieldAliases.put(eXmlPath.toLowerCase(), qo.translateXMLPath(eXmlPath, foreign.getSQLName()));
+                    }
                 }
+            }else{
+                throw new Exception("Unable to join " + rootElement.getSQLName() + " AND " + foreign.getFullXMLName());
+            }
 
         }
 
@@ -802,7 +799,6 @@ public class QueryOrganizer implements QueryOrganizerI{
         SQLClause coll = where;
 
         try {
-             System.out.println("getRootQuery(1):" + sql_name);
              if (StringUtils.isNotBlank(level) && !level.equals(ViewManager.ALL)){
                  //if the data access level is set, then restrict the data by the corresponding status
                  CriteriaCollection newColl = new CriteriaCollection("AND");
@@ -822,41 +818,53 @@ public class QueryOrganizer implements QueryOrganizerI{
              }
 
              //object used to build a query of the root element
-             for (final Object o1 : coll.getSchemaFields()) {
-                 //iterate all the fields in the criteria and add them to the root query
-                 final Object[]     o = (Object[]) o1;
-                 String       path = (String) o[0];
-                 SchemaFieldI field = (SchemaFieldI) o[1];
-                 final boolean hasSchemaField;
-                 if (field == null) {
-                     field = GenericWrapperElement.GetFieldForXMLPath(path);
-                     hasSchemaField = false;
-                 } else {
-                     hasSchemaField = true;
-                 }
-                 String fieldName = path.substring(path.lastIndexOf("/") + 1);
-                 assert field != null;
-                 String id = field.getId();
-                 if (log.isTraceEnabled()) {
-                     if (hasSchemaField) {
-                         log.trace("There was a schema field for type '{}' with ID '{}' and parent type '{}'", path, id, figureItOut(field));
-                     } else {
-                         log.trace("There was no schema field for type '{}', retrieved the field by XMLPath with ID '{}' and name '{}'", path, id, figureItOut(field));
-                     }
-                 }
+            if(coll!=null) {
+                for (final Object o1 : coll.getSchemaFields()) {
+                    //iterate all the fields in the criteria and add them to the root query
+                    final Object[] o = (Object[]) o1;
+                    String path = (String) o[0];
+                    SchemaFieldI field = (SchemaFieldI) o[1];
+                    final boolean hasSchemaField;
+                    if (field == null) {
+                        field = GenericWrapperElement.GetFieldForXMLPath(path);
+                        hasSchemaField = false;
+                    } else {
+                        hasSchemaField = true;
+                    }
+                    String fieldName = path.substring(path.lastIndexOf("/") + 1);
+                    assert field != null;
+                    String id = field.getId();
+                    if (log.isTraceEnabled()) {
+                        if (hasSchemaField) {
+                            log.trace(
+                                "There was a schema field for type '{}' with ID '{}' and parent type '{}'",
+                                path, id, figureItOut(field));
+                        } else {
+                            log.trace(
+                                "There was no schema field for type '{}', retrieved the field by XMLPath with ID '{}' and name '{}'",
+                                path, id, figureItOut(field));
+                        }
+                    }
 
-                 if (!id.equalsIgnoreCase(fieldName)) {
-                     log.debug("The ID '{}' does not match the name '{}', checking for reference", id, fieldName);
-                     if (field.isReference()) {
-                         final GenericWrapperElement foreign = (GenericWrapperElement) field.getReferenceElement();
-                         final GenericWrapperField   foreignPK      = foreign.getAllPrimaryKeys().get(0);
-                         log.debug("Field '{}' is a reference! The element is '{}', with primary key field '{}' and a parent '{}'", id, foreign.getXMLName(), foreignPK.getXMLPathString(), foreignPK.getParentElement().getFullXMLName());
-                         path = foreignPK.getXMLPathString(path);
-                     }
-                 }
-                 log.info("Adding field '{}' to the query", path);
-                 securityQO.addField(path);
-             }
+                    if (!id.equalsIgnoreCase(fieldName)) {
+                        log.debug(
+                            "The ID '{}' does not match the name '{}', checking for reference", id,
+                            fieldName);
+                        if (field.isReference()) {
+                            final GenericWrapperElement foreign = (GenericWrapperElement) field.getReferenceElement();
+                            final GenericWrapperField foreignPK = foreign.getAllPrimaryKeys()
+                                .get(0);
+                            log.debug(
+                                "Field '{}' is a reference! The element is '{}', with primary key field '{}' and a parent '{}'",
+                                id, foreign.getXMLName(), foreignPK.getXMLPathString(),
+                                foreignPK.getParentElement().getFullXMLName());
+                            path = foreignPK.getXMLPathString(path);
+                        }
+                    }
+                    log.info("Adding field '{}' to the query", path);
+                    securityQO.addField(path);
+                }
+            }
 
              ArrayList keyXMLFields = new ArrayList();
              Iterator keys = rootElement.getAllPrimaryKeys().iterator();
