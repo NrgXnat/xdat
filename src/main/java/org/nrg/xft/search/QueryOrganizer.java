@@ -16,7 +16,13 @@ import org.nrg.xdat.display.*;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xdat.schema.SchemaField;
 import org.nrg.xdat.security.ElementSecurity;
+import org.nrg.xdat.security.helpers.Groups;
 import org.nrg.xdat.security.helpers.Permissions;
+import org.nrg.xdat.security.helpers.Roles;
+import org.nrg.xdat.security.helpers.UserHelper;
+import org.nrg.xdat.security.helpers.Users;
+import org.nrg.xdat.security.user.exceptions.UserInitException;
+import org.nrg.xdat.security.user.exceptions.UserNotFoundException;
 import org.nrg.xft.XFT;
 import org.nrg.xft.db.ViewManager;
 import org.nrg.xft.exception.ElementNotFoundException;
@@ -58,7 +64,10 @@ public class QueryOrganizer implements QueryOrganizerI{
     private Hashtable externalFieldAliases = new Hashtable();
     protected boolean isMappingTable = false;
 
+    private static final boolean PREVENT_DATA_ADMINS = true;
+
     CriteriaCollection where = null;
+
 
     final String EXPERIMENT_QUERY = " SELECT root.*" +
             " FROM xdat_user_groupid gid" +
@@ -71,6 +80,23 @@ public class QueryOrganizer implements QueryOrganizerI{
             " LEFT JOIN xnat_experimentData_share shr ON xfm.field='%2$s/sharing/share/project' AND xfm.field_value=shr.project" +
             " JOIN %3$s root ON expt.id=root.id OR shr.sharing_share_xnat_experimentda_id=root.id" +
             " WHERE gid.groups_groupid_xdat_user_xdat_user_id=%1$d";
+
+    final String EXPERIMENT_GUEST_QUERY = "SELECT root.*\n"
+        + "\tFROM xdat_user u\n"
+        + "\tLEFT JOIN xdat_element_access xea ON u.xdat_user_id = xea.xdat_user_xdat_user_id \n"
+        + "\t\tAND xea.element_name = 'xnat:mrSessionData' \n"
+        + "\tLEFT JOIN xdat_field_mapping_set fms ON xea.xdat_element_access_id = fms.permissions_allow_set_xdat_elem_xdat_element_access_id \n"
+        + "\tLEFT JOIN xdat_field_mapping xfm ON fms.xdat_field_mapping_set_id = xfm.xdat_field_mapping_set_xdat_field_mapping_set_id \n"
+        + "\t\tAND xfm.read_element = 1 \n"
+        + "\tLEFT JOIN xdat_meta_element xme ON xea.element_name = xme.element_name \n"
+        + "\tLEFT JOIN xnat_experimentData expt ON xme.xdat_meta_element_id = expt.extension \n"
+        + "\t\tAND xfm.field = 'xnat:mrSessionData/project' \n"
+        + "\t\tAND xfm.field_value = expt.project \n"
+        + "\tLEFT JOIN xnat_experimentData_share shr ON xfm.field = 'xnat:mrSessionData/sharing/share/project' \n"
+        + "\t\tAND xfm.field_value = shr.project \n"
+        + "\tJOIN xnat_mrSessionData root ON expt.id = root.id \n"
+        + "\t\tOR shr.sharing_share_xnat_experimentda_id = root.id \n"
+        + "\tWHERE u.login='guest'";
 
     final String SUBJECT_QUERY=" SELECT subj.*" +
             " FROM xdat_user_groupid gid" +
@@ -90,6 +116,24 @@ public class QueryOrganizer implements QueryOrganizerI{
             " JOIN xnat_projectParticipant pp ON pp.project=xfm.field_value" +
             " JOIN xnat_subjectData subj ON pp.subject_id=subj.id" +
             " WHERE gid.groups_groupid_xdat_user_xdat_user_id=%1$d";
+
+    final String SUBJECT_GUEST_QUERY=     "  SELECT subj.* \n"
+        + "FROM xdat_user\n"
+        + "LEFT JOIN xdat_element_access xea ON xdat_user.xdat_user_id=xea.xdat_user_xdat_user_id AND xea.element_name='xnat:subjectData'\n"
+        + "LEFT JOIN xdat_field_mapping_set fms ON xea.xdat_element_access_id=fms.permissions_allow_set_xdat_elem_xdat_element_access_id\n"
+        + "LEFT JOIN xdat_field_mapping xfm ON fms.xdat_field_mapping_set_id=xfm.xdat_field_mapping_set_xdat_field_mapping_set_id AND xfm.read_element=1 AND xfm.field = 'xnat:subjectData/project' \n"
+        + "JOIN xnat_subjectData subj ON subj.project = xfm.field_value \n"
+        + "WHERE xdat_user.login='guest'\n"
+        + "UNION\n"
+        + "  SELECT subj.* \n"
+        + "FROM xdat_user\n"
+        + "LEFT JOIN xdat_element_access xea ON xdat_user.xdat_user_id=xea.xdat_user_xdat_user_id AND xea.element_name='xnat:subjectData'\n"
+        + "LEFT JOIN xdat_field_mapping_set fms ON xea.xdat_element_access_id=fms.permissions_allow_set_xdat_elem_xdat_element_access_id\n"
+        + "LEFT JOIN xdat_field_mapping xfm ON fms.xdat_field_mapping_set_id=xfm.xdat_field_mapping_set_xdat_field_mapping_set_id AND xfm.read_element=1 \n"
+        + "  AND xfm.field = 'xnat:subjectData/sharing/share/project' \n"
+        + "  JOIN xnat_projectParticipant pp ON pp.project = xfm.field_value \n"
+        + "  JOIN xnat_subjectData subj ON pp.subject_id = subj.id \n"
+        + "WHERE xdat_user.login='guest'";
 
     public QueryOrganizer(String elementName, UserI u, String level, Map<String,CachedRootQuery> rootQueries) throws ElementNotFoundException
     {
@@ -904,14 +948,36 @@ public class QueryOrganizer implements QueryOrganizerI{
         return sql_name;
     }
 
+    private Boolean hasPublicData(){
+        try {
+            return Permissions.canReadAny(Users.getGuest(),"xnat:subjectData");
+        } catch (UserNotFoundException|UserInitException e) {
+            log.error("",e);
+            return false;
+        }
+    }
+
+    private String getSubjectQuery(){
+        return (hasPublicData())?SUBJECT_QUERY+" UNION "+ SUBJECT_GUEST_QUERY:SUBJECT_QUERY;
+    }
+
+    private String getExperimentQuery(){
+        return (hasPublicData())?EXPERIMENT_QUERY+" UNION "+ EXPERIMENT_GUEST_QUERY:EXPERIMENT_QUERY;
+    }
+
     private StringBuilder getRootInnerQuery(QueryOrganizer securityQO, List keyXMLFields) throws Exception {
         //subQuery has security clauses and the primary key fields necessary to join the data
         String        subQuery      = securityQO.buildQuery();
         if(user !=null) {
-            if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
-                subQuery = StringUtils.replace(subQuery, "FROM " + rootElement.getSQLName(), "FROM (" + String.format(SUBJECT_QUERY, user.getID()) + ")");
-            } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
-                subQuery = StringUtils.replace(subQuery, "FROM " + rootElement.getSQLName(), "FROM (" + String.format(EXPERIMENT_QUERY, user.getID(), rootElement.getFullXMLName(), rootElement.getSQLName()) + ")");
+            if(PREVENT_DATA_ADMINS || (!Groups.isDataAdmin(user) && !Groups.isDataAccess(user))) {
+                if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
+                    subQuery = StringUtils.replace(subQuery, "FROM " + rootElement.getSQLName(),
+                        "FROM (" + String.format(getSubjectQuery(), user.getID()) + ")");
+                } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
+                    subQuery = StringUtils.replace(subQuery, "FROM " + rootElement.getSQLName(),
+                        "FROM (" + String.format(getExperimentQuery(), user.getID(),
+                            rootElement.getFullXMLName(), rootElement.getSQLName()) + ")");
+                }
             }
         }
 
