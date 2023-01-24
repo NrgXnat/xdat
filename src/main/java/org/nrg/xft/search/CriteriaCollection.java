@@ -84,6 +84,10 @@ public class CriteriaCollection implements SQLClause {
         return collection.iterator();
     }
 
+    public List<SQLClause> getCriteriaCollection(){
+        return collection;
+    }
+
     public ArrayList toArrayList() {
         return this.collection;
     }

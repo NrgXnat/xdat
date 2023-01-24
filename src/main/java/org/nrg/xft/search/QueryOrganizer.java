@@ -10,11 +10,13 @@
 package org.nrg.xft.search;
 
 import com.google.common.collect.Maps;
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xdat.display.*;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xdat.schema.SchemaField;
+import org.nrg.xdat.search.ElementCriteria;
 import org.nrg.xdat.security.ElementSecurity;
 import org.nrg.xdat.security.helpers.Groups;
 import org.nrg.xdat.security.helpers.Permissions;
@@ -37,6 +39,7 @@ import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.XftStringUtils;
 
 import java.util.*;
+import org.python.apache.commons.compress.utils.Lists;
 
 /**
  * @author Tim
@@ -50,7 +53,7 @@ public class QueryOrganizer implements QueryOrganizerI{
 
     protected String level;
     protected ArrayList<String> fields = new ArrayList<>();
-	protected Hashtable tables = new Hashtable();
+	  protected Map<String,String> tables = new Hashtable();
 
     protected StringBuffer joins = new StringBuffer();
     protected Map<String,CachedRootQuery> _rootQueries;
@@ -59,14 +62,17 @@ public class QueryOrganizer implements QueryOrganizerI{
     protected Hashtable tableAliases= new Hashtable();
 
     private Hashtable tableColumnAlias = new Hashtable();
+    protected Integer joinCounter=0;
 
-    private Hashtable externalFields = new Hashtable();
+    private Hashtable<String,List<String>> externalFields = new Hashtable();
     private Hashtable externalFieldAliases = new Hashtable();
     protected boolean isMappingTable = false;
 
     private static final boolean PREVENT_DATA_ADMINS = true;
 
     CriteriaCollection where = null;
+
+    private boolean skipSecurity=false;
 
 
     final String EXPERIMENT_QUERY = " SELECT root.*" +
@@ -135,6 +141,17 @@ public class QueryOrganizer implements QueryOrganizerI{
         + "  JOIN xnat_subjectData subj ON pp.subject_id = subj.id \n"
         + "WHERE xdat_user.login='guest'";
 
+    final String PROJ_SUBJ_QUERY="SELECT DISTINCT ON (id) xnat_subjectData.* \n"
+        + "\tFROM xnat_subjectData\n"
+        + "\tLEFT JOIN xnat_projectParticipant xpp ON xnat_subjectData.id=xpp.subject_id\n"
+        + "\tWHERE xnat_subjectData.project='%1$s' OR xpp.project='%1$s'";
+
+    final String PROJ_EXPT_QUERY="SELECT DISTINCT ON (id) root.* \n"
+        + "\tFROM xnat_experimentData\n"
+        + "\tLEFT JOIN xnat_experimentData_share xpp ON xnat_experimentData.id=xpp.sharing_share_xnat_experimentda_id\n"
+        + " JOIN %2$s root ON expt.id=root.id"
+        + "\tWHERE xnat_experimentData_share.project='%1$s' OR xpp.project='%1$s'";
+
     public QueryOrganizer(String elementName, UserI u, String level, Map<String,CachedRootQuery> rootQueries) throws ElementNotFoundException
     {
         try {
@@ -157,6 +174,10 @@ public class QueryOrganizer implements QueryOrganizerI{
         _rootQueries=rootQueries;
     }
 
+    public void setJoinCounter(final Integer index){
+        joinCounter=index;
+    }
+
     private List<String> keys= new ArrayList<>();
     
     public List<String> getKeys(){
@@ -176,6 +197,18 @@ public class QueryOrganizer implements QueryOrganizerI{
         }
     }
 
+    public void setSkipSecurity(boolean b){
+        this.skipSecurity=b;
+    }
+
+    public Map<String,String> getTableDefinitions(){
+        return tables;
+    }
+
+    public Hashtable getTableAliases(){
+        return tableAliases;
+    }
+
     public void setIsMappingTable(boolean isMap)
     {
         isMappingTable=isMap;
@@ -186,6 +219,9 @@ public class QueryOrganizer implements QueryOrganizerI{
         fields.add(xmlPath);
     }
 
+    public boolean matchesRootType(String xmlPath){
+        return XftStringUtils.IsRootElementNameEqualTo(xmlPath,getRootElement().getFullXMLName());
+    }
     /**
      * @param xmlPath    The XML path to add.
      * @throws ElementNotFoundException If the indicated element isn't found.
@@ -194,52 +230,21 @@ public class QueryOrganizer implements QueryOrganizerI{
     {
         xmlPath = XftStringUtils.StandardizeXMLPath(xmlPath);
 
-        final String rootElementName = getRootElement().getFullXMLName();
-        if (XftStringUtils.GetRootElementName(xmlPath).equalsIgnoreCase(rootElementName))
-        {
-            boolean found = false;
-            for(String tField: fields)
-            {
-                if (tField.toLowerCase().equals(xmlPath.toLowerCase()))
-                {
-                    found= true;
-                    break;
-                }
-            }
-            if (! found)
-            {
-                fields.add(xmlPath);
-            }
+        if ( matchesRootType(xmlPath) ) {
+            //add to 'fields' variable which is local fields (simple joins)
+            XftStringUtils.addIfMissingIgnoreCase(fields,xmlPath);
         }else{
-            SchemaElementI foreign = XftStringUtils.GetRootElement(xmlPath);
+            //add to sub queries by datatype
+            final SchemaElementI foreign = XftStringUtils.GetRootElement(xmlPath);
 
             assert foreign != null;
             final String foreignFullXMLName = foreign.getFullXMLName();
-            ArrayList    al          = (ArrayList)externalFields.get(foreignFullXMLName);
+            //retrieve fields for this data type in this search already.
+            final List<String> fieldsForType = Optional.ofNullable(externalFields.get(foreignFullXMLName)).orElse(Lists.newArrayList());
 
-            if (al == null)
-            {
-                al = new ArrayList();
-            }
-
-            Iterator fieldIter  = al.iterator();
-            boolean found = false;
-            while(fieldIter.hasNext())
-            {
-                String tField = (String)fieldIter.next();
-                if (tField.toLowerCase().equals(xmlPath.toLowerCase()))
-                {
-                    found= true;
-                    break;
-                }
-            }
-            if (! found)
-            {
-                al.add(xmlPath);
-                if (rootElementName.equals("xnat:projectData")) {
-                    log.debug("Adding foreign element '{}' to project from XMLPath '{}'", foreignFullXMLName, xmlPath, new Exception());
-                }
-                externalFields.put(foreignFullXMLName, al);
+            if(!XftStringUtils.containsIgnoreCase(fieldsForType,xmlPath)){
+                fieldsForType.add(xmlPath);
+                externalFields.put(foreignFullXMLName,fieldsForType);
             }
         }
 
@@ -656,17 +661,23 @@ public class QueryOrganizer implements QueryOrganizerI{
     protected String getRootQuery(String elementName,String sql_name,String level)throws IllegalAccessException{
         try {
             GenericWrapperElement e = GenericWrapperElement.GetElement(elementName);
+            //check for queries already built
             if(_rootQueries!=null && _rootQueries.containsKey(e.getXSIType())){
                 return _rootQueries.get(e.getXSIType()).getAlias();
             }
+
             if(_rootQueries==null || user==null || user.isGuest() || !ElementSecurity.IsSecureElement(e.getFullXMLName())){
                 return getLegacyRootQuery(e,sql_name,level);
             }else if( !(e.instanceOf("xnat:subjectdata") || StringUtils.equals("xnat:subjectData",e.getXSIType()) || e.instanceOf("xnat:experimentData"))) {
                 return getLegacyRootQuery(e,sql_name,level);
             }else {
-                CachedRootQuery cachedQ = new CachedRootQuery("S_"+e.getSQLName(),getRootQuery(e,sql_name,level));
-                _rootQueries.put(e.getXSIType(),cachedQ);
-                return cachedQ.getAlias();
+                if(this.skipSecurity){
+                    return rootElement.getSQLName();
+                }else{
+                    CachedRootQuery cachedQ = new CachedRootQuery("S_"+e.getSQLName(),getRootQuery(e,sql_name,level));
+                    _rootQueries.put(e.getXSIType(),cachedQ);
+                    return cachedQ.getAlias();
+                }
             }
         } catch (XFTInitException e) {
             log.error("An error occurred accessing XFT", e);
@@ -965,18 +976,105 @@ public class QueryOrganizer implements QueryOrganizerI{
         return (hasPublicData())?EXPERIMENT_QUERY+" UNION "+ EXPERIMENT_GUEST_QUERY:EXPERIMENT_QUERY;
     }
 
+    private String getProjectForSpecificQuery(){
+        CriteriaCollection where = getWhere();
+        //expecting this to look like:
+        //collection:AND
+        //collection[0]:collection:OR
+        //collection[0]:collection[0]:datatype/project=
+        //collection[0]:collection[1]:datatype/sharing/share/project=
+
+        if(where==null || where.size()==0){
+            return null;
+        }
+
+        if(where instanceof CriteriaCollection){
+            return getProjectSpecificClause(where);
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private String getProjectSpecificClause(CriteriaCollection clause){
+        String project = null;
+
+        if(clause==null || clause.getCriteriaCollection().size()==0){
+            return null;
+        }
+
+        if((clause.getCriteriaCollection().size()!=2)){
+            if(StringUtils.equals(clause.getJoinType(),"OR") && clause.getCriteriaCollection().size()!=1){
+                //or's aren't negate the effect of the project specification clause here
+                return null;
+            }
+
+            for(SQLClause child: clause.getCriteriaCollection()){
+                if(child instanceof CriteriaCollection){
+                    project = getProjectSpecificClause((CriteriaCollection) child);
+                    if (project != null){
+                       return project;
+                    }
+                }
+            }
+            return null;
+        }
+
+        final String rootElement = this.getRootElement().getFullXMLName();
+
+        final String owned = rootElement+"/project";
+        final String shared = rootElement+"/sharing/share/project";
+        int matched = 0;
+
+        for(final SQLClause child: clause.getCriteriaCollection()){
+            if((child instanceof ElementCriteria && StringUtils.equals(((ElementCriteria)child).getComparison_type(),"=") ) ){
+                if(StringUtils.equalsAnyIgnoreCase(owned,((ElementCriteria) child).getXMLPath()) ||
+                    StringUtils.equalsAnyIgnoreCase(shared,((ElementCriteria) child).getXMLPath())){
+                    //is expected owned or shared
+                    if(project!=null && !StringUtils.equals(project,(String)((ElementCriteria) child).getValue())){
+                        //mis-matched project ids
+                        break;
+                    }
+                    project=(String)((ElementCriteria) child).getValue();
+                    matched++;
+
+                }
+            }
+        }
+
+        if(matched==2){
+            return project;
+        }
+
+        return null;
+    }
+
     private StringBuilder getRootInnerQuery(QueryOrganizer securityQO, List keyXMLFields) throws Exception {
+
         //subQuery has security clauses and the primary key fields necessary to join the data
         String        subQuery      = securityQO.buildQuery();
         if(user !=null) {
             if(PREVENT_DATA_ADMINS || (!Groups.isDataAdmin(user) && !Groups.isDataAccess(user))) {
-                if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
-                    subQuery = StringUtils.replace(subQuery, "FROM " + rootElement.getSQLName(),
-                        "FROM (" + String.format(getSubjectQuery(), user.getID()) + ")");
-                } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
-                    subQuery = StringUtils.replace(subQuery, "FROM " + rootElement.getSQLName(),
-                        "FROM (" + String.format(getExperimentQuery(), user.getID(),
-                            rootElement.getFullXMLName(), rootElement.getSQLName()) + ")");
+                final String project = getProjectForSpecificQuery();
+                String securedQuery = null;
+
+                if(project!=null){
+                    //project specific query
+                    if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
+                        securedQuery=String.format(PROJ_SUBJ_QUERY,project);
+                    } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
+                        securedQuery=String.format(PROJ_EXPT_QUERY,project,rootElement.getSQLName());
+                    }
+                }else{
+                    if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
+                        securedQuery = String.format(getSubjectQuery(), user.getID());
+                    } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
+                        securedQuery = String.format(getExperimentQuery(), user.getID(), rootElement.getFullXMLName(), rootElement.getSQLName());
+                    }
+                }
+
+                if(securedQuery!=null){
+                    subQuery = StringUtils.replace(subQuery, "FROM " + rootElement.getSQLName(),"FROM (" + securedQuery + ")");
                 }
             }
         }
@@ -1074,7 +1172,7 @@ public class QueryOrganizer implements QueryOrganizerI{
                     joins.append(" ").append(join);
                     if (tableAliases.get(foreignAlias)!=null)
                     {
-                        tables.put(tableString, tableAliases.get(foreignAlias));
+                        tables.put(tableString, (String)tableAliases.get(foreignAlias));
                     }else{
                         tables.put(tableString,foreignAlias);
                     }
@@ -1103,7 +1201,7 @@ public class QueryOrganizer implements QueryOrganizerI{
     private String getJoinClause(GenericWrapperElement root, GenericWrapperElement foreign, String rootAlias,String foreignAlias, String[] layer, String relativeFieldRef) throws Exception
     {
     	if(!tableAliases.containsKey(foreignAlias))
-    		tableAliases.put(foreignAlias,"table"+ tableAliases.size());
+    		tableAliases.put(foreignAlias,"table"+ tableAliases.size() + ""+this.joinCounter);
         foreignAlias = (String)tableAliases.get(foreignAlias);
 
         String last;
