@@ -215,10 +215,10 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
      */
     public void addViewToJoin(String viewName) throws Exception {
         if (tables.get(viewName) == null) {
-            if (StringUtils.equals(viewName, "SUB_PROJECTS") && this.getRootElement().getFullXMLName().equals("xnat:subjectData")) {
-                //calculated field
-                return;
-            }
+//            if (StringUtils.equals(viewName, "SUB_PROJECTS") && this.getRootElement().getFullXMLName().equals("xnat:subjectData")) {
+//                //calculated field
+//                return;
+//            }
             try {
                 ElementDisplay ed = ((new SchemaElement(rootElement.getGenericXFTElement()))).getDisplay();
                 ViewLink vl = (ViewLink) ed.getViewLinks().get(viewName);
@@ -1236,11 +1236,11 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                 if(counter++>0){
                     sb.append(", ");
                 }
-                if(StringUtils.equals(s,"SUB_PROJECTS.PROJECTS")){
-                    sb.append("xnat_subjectdata.xs_projects").append(" AS ").append(temp);
-                    fieldAliases.put(xmlPath.toLowerCase(),temp);
-                    continue;
-                }
+//                if(StringUtils.equals(s,"SUB_PROJECTS.PROJECTS")){
+//                    sb.append("xnat_subjectdata.xs_projects").append(" AS ").append(temp);
+//                    fieldAliases.put(xmlPath.toLowerCase(),temp);
+//                    continue;
+//                }
 
 		            if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName))
 		            {
