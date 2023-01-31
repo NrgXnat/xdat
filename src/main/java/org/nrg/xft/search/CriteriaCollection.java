@@ -246,5 +246,24 @@ public class CriteriaCollection implements SQLClause {
         }
         return copy;
     }
+
+    public boolean containsXMLPathEndingWith(final String suffix){
+        for(SQLClause clause: this.getCriteriaCollection()){
+            if(clause instanceof SearchCriteria && ((SearchCriteria)clause).getXMLPath().endsWith(suffix)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Object getValueEndingWith(final String suffix){
+        for(SQLClause clause: this.getCriteriaCollection()) {
+            if (clause instanceof SearchCriteria && ((SearchCriteria) clause).getXMLPath().endsWith(suffix)) {
+                return ((SearchCriteria) clause).getValue();
+            }
+        }
+
+        return null;
+    }
 }
 

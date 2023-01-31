@@ -11,6 +11,7 @@
 package org.nrg.xft.search;
 
 import com.google.common.collect.Maps;
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xdat.XDAT;
@@ -482,56 +483,110 @@ public class ItemSearch implements SearchI {
 		return items;
     }
 
-	public ItemCollection exec() throws Exception
-	{
-//        if (!allowMultiples && ALLOW_OLD_SEARCH && !element.isExtended() && !element.getName().endsWith("_history")){
-//            return execute();
-//        }else{
-            String login = null;
-            if (user != null)
-            {
-                login = user.getUsername();
-            }
+		private boolean instanceOf(final GenericWrapperElement gwe, final String dataType){
+			return (StringUtils.equalsIgnoreCase(gwe.getFullXMLName(),dataType) || gwe.instanceOf(dataType));
+		}
 
-			List<List<IdentifierResults>> matches = null;
+		@Nullable
+		private List<List<IdentifierResults>> getIdMatch(final String query, SQLClause.ParamValue... params) throws DBPoolException, SQLException {
+			final XFTTable table = XFTTable.ExecutePS(query, params);
+			if (table.getNumRows() > 0 && table.getNumCols()>0) {
+				final List<IdentifierResults> inner = new ArrayList<IdentifierResults>();
+				inner.add(new IdentifierResults(table.rows().get(0)[0], "string"));
+				final List<List<IdentifierResults>> matches = Lists.newArrayList();
+				matches.add(inner);
+				return matches;
+			}
+			return null;
+		}
 
-            if(this.getElement().getFullXMLName().equals("xnat:experimentData") &&
-					this.getCriteriaCollection().size()==1 &&
-					this.getCriteriaCollection().toArrayList().get(0) instanceof SearchCriteria &&
-					"xnat:experimentData/ID".equals(((SearchCriteria)this.getCriteriaCollection().toArrayList().get(0)).getXMLPath()) ){
-            	String query = "SELECT FROM xnat_experimentData WHERE ID=?";
-            	String id = (String)((SearchCriteria)this.getCriteriaCollection().toArrayList().get(0)).getValue();
-            	XFTTable table = XFTTable.ExecutePS(query,new SQLClause.ParamValue(id,Types.VARCHAR));
-            	if(table.size()>0){
-            		List<IdentifierResults> inner = Lists.newArrayList();
-            		inner.add(new IdentifierResults(id,"string"));
-            		matches = Lists.newArrayList();
-            		matches.add(inner);
-				}
-			}else if(this.getElement().getFullXMLName().equals("xnat:subjectData") &&
-					this.getCriteriaCollection().size()==1 &&
-					this.getCriteriaCollection().toArrayList().get(0) instanceof SearchCriteria &&
-					"xnat:subjectData/ID".equals(((SearchCriteria)this.getCriteriaCollection().toArrayList().get(0)).getXMLPath()) ){
-				String query = "SELECT FROM xnat_subjectData WHERE ID=?";
-				String id = (String)((SearchCriteria)this.getCriteriaCollection().toArrayList().get(0)).getValue();
-				XFTTable table = XFTTable.ExecutePS(query,new SQLClause.ParamValue(id,Types.VARCHAR));
-				if(table.size()>0){
-					List<IdentifierResults> inner = Lists.newArrayList();
-					inner.add(new IdentifierResults(id,"string"));
-					matches = Lists.newArrayList();
-					matches.add(inner);
-				}
+		public enum PROJECT_MATCH{
+			NONE,
+			PRIMARY,
+			SHARED
+		}
 
-			}else{
-            	matches = this.getIdentifierResults(login);
+		private PROJECT_MATCH isLabelSearch(CriteriaCollection cc){
+			if(cc.size()!=2){
+				return PROJECT_MATCH.NONE;
 			}
 
-            if(matches ==null || matches.size()==0){
-            	return new ItemCollection();
+			if((cc.containsXMLPathEndingWith("/project") && cc.containsXMLPathEndingWith("/label"))){
+				if((cc.containsXMLPathEndingWith("/sharing/share/project") && cc.containsXMLPathEndingWith("/sharing/share/label"))){
+					return PROJECT_MATCH.SHARED;
+				}else{
+					return PROJECT_MATCH.PRIMARY;
+				}
+			}
+
+			return PROJECT_MATCH.NONE;
+		}
+
+
+	public ItemCollection exec() throws Exception {
+		String login = null;
+		if (user != null) {
+			login = user.getUsername();
+		}
+
+		List<List<IdentifierResults>> matches = null;
+		final PROJECT_MATCH isLabelSearch= isLabelSearch(this.getCriteriaCollection());
+
+		if (instanceOf(getElement(),"xnat:experimentData")){
+			//streamline experiment query if possible
+			if (this.getCriteriaCollection().size() == 1 &&
+					this.getCriteriaCollection().containsXMLPathEndingWith("/ID")) {
+				//searching by ID
+				final String query = "SELECT ID FROM xnat_experimentData WHERE ID=?";
+				final Object id = this.getCriteriaCollection().getValueEndingWith("/ID");
+				matches= getIdMatch(query,new SQLClause.ParamValue(id, Types.VARCHAR));
+			} else if(isLabelSearch==PROJECT_MATCH.PRIMARY){
+				final String query = "SELECT ID FROM xnat_experimentData WHERE project=? AND label=?";
+				final Object project = getCriteriaCollection().getValueEndingWith("/project");
+				final Object label = getCriteriaCollection().getValueEndingWith("/label");
+
+				matches= getIdMatch(query,new SQLClause.ParamValue(project, Types.VARCHAR),new SQLClause.ParamValue(label, Types.VARCHAR));
+			}else if(isLabelSearch==PROJECT_MATCH.SHARED){
+				final String query = "SELECT sharing_share_xnat_experimentda_id AS ID FROM xnat_experimentData_share WHERE project=? AND label=?";
+				final Object project = getCriteriaCollection().getValueEndingWith("/project");
+				final Object label = getCriteriaCollection().getValueEndingWith("/label");
+
+				matches= getIdMatch(query,new SQLClause.ParamValue(project, Types.VARCHAR),new SQLClause.ParamValue(label, Types.VARCHAR));
 			}else {
-				return this.getItemsFromKeys(matches, login);
+				matches = this.getIdentifierResults(login);
 			}
-//        }
+		}else	if (instanceOf(getElement(),"xnat:subjectData")) {
+			if (this.getCriteriaCollection().size() == 1 &&
+					this.getCriteriaCollection().toArrayList().get(0) instanceof SearchCriteria &&
+					"xnat:subjectData/ID".equals(((SearchCriteria) this.getCriteriaCollection().toArrayList().get(0)).getXMLPath())) {
+				String query = "SELECT ID FROM xnat_subjectData WHERE ID=?";
+				String id = (String) ((SearchCriteria) this.getCriteriaCollection().toArrayList().get(0)).getValue();
+				matches= getIdMatch(query,new SQLClause.ParamValue(id, Types.VARCHAR));
+			}else if(isLabelSearch==PROJECT_MATCH.PRIMARY){
+				final String query = "SELECT ID FROM xnat_subjectData WHERE project=? AND label=?";
+				final Object project = getCriteriaCollection().getValueEndingWith("/project");
+				final Object label = getCriteriaCollection().getValueEndingWith("/label");
+
+				matches= getIdMatch(query,new SQLClause.ParamValue(project, Types.VARCHAR),new SQLClause.ParamValue(label, Types.VARCHAR));
+			}else if(isLabelSearch==PROJECT_MATCH.SHARED){
+				final String query = "SELECT subject_id AS ID FROM xnat_projectParticipant WHERE project=? AND label=?";
+				final Object project = getCriteriaCollection().getValueEndingWith("/project");
+				final Object label = getCriteriaCollection().getValueEndingWith("/label");
+
+				matches= getIdMatch(query,new SQLClause.ParamValue(project, Types.VARCHAR),new SQLClause.ParamValue(label, Types.VARCHAR));
+			}else {
+				matches = this.getIdentifierResults(login);
+			}
+		} else {
+			matches = this.getIdentifierResults(login);
+		}
+
+
+		if (matches == null || matches.size() == 0) {
+			return new ItemCollection();
+		} else {
+			return this.getItemsFromKeys(matches, login);
+		}
 	}
 
 
