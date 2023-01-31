@@ -393,6 +393,10 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
     private List<ManualJoin> usedOptimizations= Lists.newArrayList();
 
+    public boolean isOptimizedField(final String rootXMLType, final String foreignXMLType) throws XFTInitException, ElementNotFoundException {
+        return isOptimizedField(SchemaElement.GetElement(rootXMLType),SchemaElement.GetElement(foreignXMLType));
+    }
+
     public boolean isOptimizedField(final SchemaElement rootSchemaElement, final SchemaElement foreign) throws XFTInitException, ElementNotFoundException {
         return (getOptimizedJoin(rootSchemaElement,foreign)!=null);
     }
@@ -1242,7 +1246,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 //                    continue;
 //                }
 
-		            if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName))
+		            if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName) || isOptimizedField(rootElement.getFullXMLName(),se.getFullXMLName()))
 		            {
 		                sb.append(s).append(" AS ").append(temp);
 		            }else{
@@ -1278,7 +1282,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     SchemaElement se = SchemaElement.GetElement(elementName);
                     SQLQueryField df = (SQLQueryField) se.getDisplayField(s.substring(0, s.indexOf(".")));
                     s=temp + "." + df.getSQLContent(this);
-                    if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName))
+                    if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName) || isOptimizedField(rootElement.getFullXMLName(),se.getFullXMLName()))
                     {
                         if (counter++==0)
                         {
