@@ -53,6 +53,10 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
         super(se, u, level, rootQueries);
     }
 
+    public QueryOrganizer(SchemaElementI se, UserI u, String level, Map<String) {
+        super(se, u, level, null);
+    }
+
     public void addSubquery(String key, DisplayFieldReferenceI df) {
         subqueries.put(key, df);
     }
@@ -405,8 +409,9 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
         final ManualJoin mj = getOptimizedJoin(SchemaElement.GetElement(this.getRootElement().getFullXMLName()),foreign);
         if(mj!=null){
             String subJoin = foreignQO.buildJoin();
-            final String toReplace = String.format(mj._join[1],this.getTableNameForType(mj._srcType));
-            subJoin = StringUtils.replace(subJoin, mj._join[0],toReplace);
+            final String toReplace = mj._join[0];
+            final String toReplaceWith = String.format(mj._join[1],this.getTableNameForType(mj._destType),this.getTableNameForType(mj._srcType));
+            subJoin = StringUtils.replace(subJoin, toReplace,toReplaceWith);
 
             joins.append(subJoin);
             tables.putAll(foreignQO.getTableDefinitions());
@@ -1645,6 +1650,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
     static{
         manualJoins.add(new ManualJoin("xnat:subjectData","xnat:demographicData","FROM xnat_demographicData xnat_demographicData", " LEFT JOIN xnat_demographicData ON xnat_subjectData.demographics_xnat_abstractdemographicdata_id=xnat_demographicData.xnat_abstractdemographicdata_id"));
-        manualJoins.add(new ManualJoin("xnat:subjectAssessorData","xnat:subjectData", "FROM xnat_subjectData xnat_subjectData", " LEFT JOIN xnat_subjectData ON %1$s.subject_id=xnat_subjectData.id"));
+        manualJoins.add(new ManualJoin("xnat:subjectAssessorData","xnat:subjectData", "FROM xnat_subjectData xnat_subjectData", " LEFT JOIN xnat_subjectData ON %2$s.subject_id=xnat_subjectData.id"));
+        manualJoins.add(new ManualJoin("xnat:imageScanData","xnat:imageSessionData", "FROM xnat_imageSessionData xnat_imageSessionData", " LEFT JOIN xnat_imageSessionData ON %2$s.image_session_id=xnat_imageSessionData.id"));
     }
 }

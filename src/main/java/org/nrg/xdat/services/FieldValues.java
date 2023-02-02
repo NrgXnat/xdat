@@ -11,6 +11,7 @@
 package org.nrg.xdat.services;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import org.apache.axis.AxisEngine;
 import org.apache.axis.MessageContext;
 import org.apache.log4j.Logger;
@@ -230,7 +231,7 @@ public class FieldValues {
     }
     public static ArrayList GetValuesBySearchField(String elementName, UserI user, String rfield,String sfield,String comparison, Object o, String _order) throws Exception
     {
-        QueryOrganizer qo = new QueryOrganizer(elementName,user,ViewManager.ALL, new HashMap<>());
+        QueryOrganizer qo = new QueryOrganizer(elementName,user,ViewManager.ALL, new LinkedHashMap<>());
 		qo.addField(rfield);
 		qo.addField(sfield);
 		CriteriaCollection cc =new CriteriaCollection("AND");

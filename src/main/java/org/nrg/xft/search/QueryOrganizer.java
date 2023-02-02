@@ -91,6 +91,12 @@ public class QueryOrganizer implements QueryOrganizerI{
         + "\t\tWHERE gid.groups_groupid_xdat_user_xdat_user_id IN (%2$s) OR xea.xdat_user_xdat_user_id IN (%3$s) \n"
         + "                GROUP BY xfm.field_value";
 
+    final String SCAN_QUERY = " SELECT root.*\n"
+        + "\tFROM xnat_imageScanData table20 \n"
+        + "              LEFT JOIN xnat_imageScanData_share table40 ON table20.xnat_imagescandata_id = table40.sharing_share_xnat_imagescandat_xnat_imagescandata_id \n"
+        + "              RIGHT JOIN %1$s root ON table20.xnat_imagescandata_id=root.xnat_imagescandata_id\n"
+        + "              WHERE table20.project IN (SELECT field_value FROM P_%1$s) OR table40.project IN (SELECT field_value FROM P_%1$s)";
+
     final String EXPERIMENT_QUERY = " SELECT root.*\n"
         + "\tFROM xnat_experimentData table20 \n"
         + "              LEFT JOIN xnat_experimentData_share table40 ON table20.id = table40.sharing_share_xnat_experimentDa_id \n"
@@ -112,6 +118,12 @@ public class QueryOrganizer implements QueryOrganizerI{
         + "\tLEFT JOIN xnat_experimentData_share xpp ON xnat_experimentData.id=xpp.sharing_share_xnat_experimentda_id\n"
         + " RIGHT JOIN %2$s root ON xnat_experimentData.id=root.id"
         + "\tWHERE xnat_experimentData.project='%1$s' OR xpp.project='%1$s'";
+
+    final String PROJ_SCAN_QUERY="SELECT DISTINCT ON (id) root.* \n"
+        + "\tFROM xnat_imageScanData\n"
+        + "\tLEFT JOIN xnat_imageScanData_share xpp ON xnat_imageScanData.xnat_imagescandata_id=xpp.sharing_share_xnat_imagescandat_xnat_imagescandata_id\n"
+        + " RIGHT JOIN %2$s root ON xnat_imageScanData.xnat_imagescandata_id=root.xnat_imagescandata_id"
+        + "\tWHERE xnat_imageScanData.project='%1$s' OR xpp.project='%1$s'";
 
     public QueryOrganizer(String elementName, UserI u, String level, Map<String,CachedRootQuery> rootQueries) throws ElementNotFoundException
     {
@@ -629,7 +641,7 @@ public class QueryOrganizer implements QueryOrganizerI{
 
             if(_rootQueries==null || user==null || user.isGuest() || !ElementSecurity.IsSecureElement(e.getFullXMLName())){
                 return getLegacyRootQuery(e,sql_name,level);
-            }else if( !(e.instanceOf("xnat:subjectdata") || StringUtils.equals("xnat:projectData",e.getXSIType()) || StringUtils.equals("xnat:subjectData",e.getXSIType()) || e.instanceOf("xnat:experimentData"))) {
+            }else if( !(e.instanceOf("xnat:subjectdata") || StringUtils.equals("xnat:projectData",e.getXSIType()) || StringUtils.equals("xnat:subjectData",e.getXSIType()) || e.instanceOf("xnat:experimentData") || e.instanceOf("xnat:imageScanData"))) {
                 return getLegacyRootQuery(e,sql_name,level);
             }else {
                 if(this.skipSecurity){
@@ -947,6 +959,13 @@ public class QueryOrganizer implements QueryOrganizerI{
         return String.format(EXPERIMENT_QUERY,sqlName);
     }
 
+    private String getScanQuery(Integer userId, String fullXMLName, String sqlName){
+        CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(PERMISSIONS_QUERY,fullXMLName,userId,Users.getUserId("guest")));
+        getRootQueries().put(crq.getAlias(),crq);
+
+        return String.format(SCAN_QUERY,sqlName);
+    }
+
     private String getProjectForSpecificQuery(){
         CriteriaCollection where = getWhere();
         //expecting this to look like:
@@ -1035,6 +1054,8 @@ public class QueryOrganizer implements QueryOrganizerI{
                         securedQuery=String.format(PROJ_SUBJ_QUERY,project);
                     } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
                         securedQuery=String.format(PROJ_EXPT_QUERY,project,rootElement.getSQLName());
+                    } else if (rootElement.getGenericXFTElement().instanceOf("xnat:imageScanData")) {
+                        securedQuery=String.format(PROJ_SCAN_QUERY,project,rootElement.getSQLName());
                     }
                 }else{
                     if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
@@ -1043,6 +1064,8 @@ public class QueryOrganizer implements QueryOrganizerI{
                         securedQuery = getExperimentQuery(user.getID(), rootElement.getFullXMLName(), rootElement.getSQLName());
                     } else if (rootElement.getGenericXFTElement().instanceOf("xnat:projectData")) {
                         securedQuery = getProjectQuery(user.getID());
+                    } else if (rootElement.getGenericXFTElement().instanceOf("xnat:imageScanData")) {
+                        securedQuery = getScanQuery(user.getID(), rootElement.getFullXMLName(), rootElement.getSQLName());
                     }
                 }
 

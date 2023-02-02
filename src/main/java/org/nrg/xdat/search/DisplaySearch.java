@@ -313,7 +313,7 @@ public class DisplaySearch implements TableSearchI {
         StringBuilder select = new StringBuilder();
         StringBuilder orderBy = new StringBuilder();
 
-        QueryOrganizer qo = new QueryOrganizer(this.getRootElement(), user, level, new HashMap<>());
+        QueryOrganizer qo = new QueryOrganizer(this.getRootElement(), user, level, new LinkedHashMap<>());
 
         if (hasSchemaOnlyCriteria()) {
             qo.setWhere(criteria);
@@ -327,7 +327,7 @@ public class DisplaySearch implements TableSearchI {
 
 //		build ORDER BY clause
         if ((sortBy == null || sortBy.equalsIgnoreCase("")) && (customSortBy.equalsIgnoreCase(""))) {
-            if(XDAT.getBoolSiteConfigurationProperty("defaultToSortedListings",Boolean.FALSE)) {
+            if(XDAT.getBoolSiteConfigurationProperty("defaultToSortedListings",Boolean.TRUE)) {
                 if (dv == null) {
                     DisplayFieldWrapper dfw = ((DisplayFieldWrapper) this.getFields()
                         .getSortedFields().get(0));

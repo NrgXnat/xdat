@@ -1146,7 +1146,7 @@ public class GenericWrapperUtils {
 	            //Build Query to get Extension id
 	            try {
 	                QueryOrganizer qo = new QueryOrganizer(input, null,
-                      ViewManager.ALL, new HashMap<>());
+                      ViewManager.ALL, new LinkedHashMap<>());
 	                qo.addField(input.getFullXMLName()
 	                        + "/extension_item/element_name");
 	                CriteriaCollection cc = new CriteriaCollection("AND");
@@ -1620,7 +1620,7 @@ public class GenericWrapperUtils {
 	            //Build Query to get Extension id
 	                try {
 	                    QueryOrganizer qo = new QueryOrganizer(input, null,
-	                            ViewManager.ALL, new HashMap<>());
+	                            ViewManager.ALL, new LinkedHashMap<>());
 	                    qo.addField(input.getFullXMLName()
 	                            + "/extension_item/element_name");
 	                    CriteriaCollection cc = new CriteriaCollection("AND");
@@ -2019,7 +2019,7 @@ public class GenericWrapperUtils {
             //Build Query to get Extension id
             try {
                 QueryOrganizer qo = new QueryOrganizer(input, null,
-                        ViewManager.ALL,new HashMap<>());
+                        ViewManager.ALL,new LinkedHashMap<>());
                 qo.addField(input.getFullXMLName()
                         + "/extension_item/element_name");
                 CriteriaCollection cc = new CriteriaCollection("AND");

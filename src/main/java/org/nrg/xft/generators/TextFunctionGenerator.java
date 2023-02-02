@@ -762,7 +762,7 @@ public class TextFunctionGenerator {
         if (primary_input.isExtended() && (!(primary_input.getName().endsWith("meta_data")))) {
             //Build Query to get Extension id
             try {
-                QueryOrganizer qo = new QueryOrganizer(primary_input, null, ViewManager.ALL,null);
+                QueryOrganizer qo = new QueryOrganizer(primary_input, null, ViewManager.ALL);
                 qo.addField(primary_input.getFullXMLName() + "/extension_item/element_name");
                 
                 String query;
@@ -950,7 +950,7 @@ public class TextFunctionGenerator {
             sb.append("\n    begin");
             //Build Query to get Extension id
             try {
-                QueryOrganizer qo = new QueryOrganizer(primary_input, null, ViewManager.ALL, null);
+                QueryOrganizer qo = new QueryOrganizer(primary_input, null, ViewManager.ALL);
                 qo.addField(primary_input.getFullXMLName() + "/extension_item/element_name");
                 qo.addField(primary_input.getFullXMLName() + "/xft_version");
                 qo.addField(primary_input.getFullXMLName() + "/history_id");

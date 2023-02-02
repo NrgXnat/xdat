@@ -11,6 +11,7 @@
 package org.nrg.xdat.services;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import org.apache.axis.AxisEngine;
 import org.apache.axis.MessageContext;
 import org.apache.log4j.Logger;
@@ -64,7 +65,7 @@ public class Browse {
             {
                 throw new Exception("Invalid User.");
             }
-			QueryOrganizer qo = new QueryOrganizer(elementName,user,ViewManager.ALL, new HashMap<>());
+			QueryOrganizer qo = new QueryOrganizer(elementName,user,ViewManager.ALL, new LinkedHashMap<>());
 			
             SchemaElement se = SchemaElement.GetElement(elementName);
             ArrayList keys = se.getAllPrimaryKeys();
@@ -155,7 +156,7 @@ public class Browse {
 			{
 			    throw new Exception("Invalid Element Name: " + elementName);
 			}
-			QueryOrganizer qo = new QueryOrganizer(elementName,user,ViewManager.ALL, new HashMap<>());
+			QueryOrganizer qo = new QueryOrganizer(elementName,user,ViewManager.ALL, new LinkedHashMap<>());
 			
             SchemaElement se = SchemaElement.GetElement(elementName);
             ArrayList keys = se.getAllPrimaryKeys();
