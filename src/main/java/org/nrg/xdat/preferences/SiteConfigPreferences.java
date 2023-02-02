@@ -26,6 +26,7 @@ import org.nrg.prefs.annotations.NrgPreferenceBean;
 import org.nrg.prefs.beans.AbstractPreferenceBean;
 import org.nrg.prefs.exceptions.InvalidPreferenceName;
 import org.nrg.prefs.services.NrgPreferenceService;
+import org.nrg.xdat.XDAT;
 import org.nrg.xdat.security.helpers.Roles;
 import org.nrg.xdat.security.helpers.Users;
 import org.nrg.xdat.security.services.FeatureRepositoryServiceI;
@@ -35,6 +36,7 @@ import org.nrg.xdat.security.services.RoleServiceI;
 import org.nrg.xdat.security.user.exceptions.UserInitException;
 import org.nrg.xdat.security.user.exceptions.UserNotFoundException;
 import org.nrg.xdat.services.XdatUserAuthService;
+import org.nrg.xft.cache.LightweightLocalCache;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -434,12 +436,13 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     @NrgPreference(defaultValue = "true")
     public boolean getEnableCsrfToken() {
-        return getBooleanValue("enableCsrfToken");
+        return getLocalCachedBoolean("enableCsrfToken");
     }
 
     public void setEnableCsrfToken(final boolean enableCsrfToken) {
         try {
             setBooleanValue(enableCsrfToken, "enableCsrfToken");
+            simpleBooleanCache.cacheValue("enableCsrfToken",enableCsrfToken);
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'enableCsrfToken': something is very wrong here.", e);
         }
@@ -447,12 +450,13 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     @NrgPreference(defaultValue = "false")
     public boolean getCsrfEmailAlert() {
-        return getBooleanValue("csrfEmailAlert");
+        return getLocalCachedBoolean("csrfEmailAlert");
     }
 
     public void setCsrfEmailAlert(final boolean csrfEmailAlert) {
         try {
             setBooleanValue(csrfEmailAlert, "csrfEmailAlert");
+            simpleBooleanCache.cacheValue("csrfEmailAlert",csrfEmailAlert);
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'csrfEmailAlert': something is very wrong here.", e);
         }
@@ -1069,12 +1073,13 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     @NrgPreference(defaultValue = "false", aliases = "UI.debug-extension-points")
     public boolean getUiDebugExtensionPoints() {
-        return getBooleanValue("uiDebugExtensionPoints");
+        return getLocalCachedBoolean("uiDebugExtensionPoints");
     }
 
     public void setUiDebugExtensionPoints(final boolean uiDebugExtensionPoints) {
         try {
             setBooleanValue(uiDebugExtensionPoints, "uiDebugExtensionPoints");
+            simpleBooleanCache.cacheValue("uiDebugExtensionPoints",uiDebugExtensionPoints);
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'uiDebugExtensionPoints': something is very wrong here.", e);
         }
@@ -1708,12 +1713,13 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     @NrgPreference(defaultValue = "false", aliases = "audit.show_change_justification")
     public boolean getShowChangeJustification() {
-        return getBooleanValue("showChangeJustification");
+        return getLocalCachedBoolean("showChangeJustification");
     }
 
     public void setShowChangeJustification(final boolean showChangeJustification) {
         try {
             setBooleanValue(showChangeJustification, "showChangeJustification");
+            simpleBooleanCache.cacheValue("showChangeJustification",showChangeJustification);
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'showChangeJustification': something is very wrong here.", e);
         }
@@ -1721,12 +1727,13 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     @NrgPreference(defaultValue = "false", aliases = "audit.require_change_justification")
     public boolean getRequireChangeJustification() {
-        return getBooleanValue("requireChangeJustification");
+        return getLocalCachedBoolean("requireChangeJustification");
     }
 
     public void setRequireChangeJustification(final boolean requireChangeJustification) {
         try {
             setBooleanValue(requireChangeJustification, "requireChangeJustification");
+            simpleBooleanCache.cacheValue("requireChangeJustification",requireChangeJustification);
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'requireChangeJustification': something is very wrong here.", e);
         }
@@ -1734,12 +1741,13 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     @NrgPreference(defaultValue = "false", aliases = "audit.require_event_name")
     public boolean getRequireEventName() {
-        return getBooleanValue("requireEventName");
+        return getLocalCachedBoolean("requireEventName");
     }
 
     public void setRequireEventName(final boolean requireEventName) {
         try {
             setBooleanValue(requireEventName, "requireEventName");
+            simpleBooleanCache.cacheValue("requireEventName",requireEventName);
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'requireEventName': something is very wrong here.", e);
         }
@@ -2082,4 +2090,15 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
         return missing;
     }
+
+    private Boolean getLocalCachedBoolean(String key){
+        Boolean cached=simpleBooleanCache.getValue(key, XDAT.ONE_MIN);
+        if(cached!=null){
+            return cached;
+        }
+
+        return simpleBooleanCache.cacheValue(key,getBooleanValue(key));
+    }
+
+    private static LightweightLocalCache<Boolean> simpleBooleanCache=new LightweightLocalCache<Boolean>();
 }
