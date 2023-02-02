@@ -894,7 +894,7 @@ public class ElementSecurity extends ItemWrapper {
                         } else {
                             xmlPath = f.getXMLPathString(parent.getFullXMLName());
                         }
-                        QueryOrganizer qo = new QueryOrganizer(se.getFullXMLName(), null, ViewManager.ALL);
+                        QueryOrganizer qo = new QueryOrganizer(se.getFullXMLName(), null, ViewManager.ALL,new LinkedHashMap<>());
                         qo.addField(xmlPath);
                         String query = qo.buildQuery();
                         String col   = qo.translateXMLPath(xmlPath);

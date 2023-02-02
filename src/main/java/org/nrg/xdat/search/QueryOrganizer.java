@@ -13,6 +13,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.util.Map.Entry;
+import javax.validation.constraints.Null;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xdat.display.*;
@@ -42,14 +44,16 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
     private final Map<String, QueryOrganizer>         addOns         = new HashMap<>();//0:elementName,1:QueryOrganizer
     private final Map<String, DisplayFieldReferenceI> subqueries     = new HashMap<>();
 
-    public QueryOrganizer(String elementName, UserI u, String level) throws ElementNotFoundException
-    {
-        super(elementName,u,level);
+    public QueryOrganizer(String elementName, UserI u, String level, Map<String, CachedRootQuery> rootQueries) throws ElementNotFoundException {
+        super(elementName, u, level, rootQueries);
     }
 
-    public QueryOrganizer(SchemaElementI se, UserI u, String level)
-    {
-        super(se,u,level);
+    public QueryOrganizer(SchemaElementI se, UserI u, String level, Map<String, CachedRootQuery> rootQueries) {
+        super(se, u, level, rootQueries);
+    }
+
+    public QueryOrganizer(SchemaElementI se, UserI u, String level) {
+        super(se, u, level, (u!=null)?new LinkedHashMap<>():null);
     }
 
     public void addSubquery(String key, DisplayFieldReferenceI df){
@@ -57,76 +61,68 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
     }
 
     /**
-     * @param xmlPath    The XML path of the field to add.
+     * @param xmlPath The XML path of the field to add.
      * @throws ElementNotFoundException When a specified element isn't found on the object.
      */
     public void addField(String xmlPath) throws ElementNotFoundException {
-        if (xmlPath.startsWith("VIEW_"))
-        {
+        if (xmlPath.startsWith("VIEW_")) {
             xmlPath = xmlPath.substring(5);
             addView(xmlPath);
-        }else if (xmlPath.startsWith("SUBQUERY_"))
-        {
+        } else if (xmlPath.startsWith("SUBQUERY_")) {
             xmlPath = xmlPath.substring(9);
             addSubquery(xmlPath);
-        }else{
-        	xmlPath = XftStringUtils.StandardizeXMLPath(xmlPath);
+        } else {
+            xmlPath = XftStringUtils.StandardizeXMLPath(xmlPath);
             String root = XftStringUtils.GetRootElementName(xmlPath);
-            if (rootElement.getFullXMLName().equalsIgnoreCase(root))
-            {
+            if (rootElement.getFullXMLName().equalsIgnoreCase(root)) {
                 super.addField(xmlPath);
-					try {
-                        String temp = ViewManager.GetViewColumnName(rootElement.getGenericXFTElement(),xmlPath,ViewManager.DEFAULT_LEVEL,true,true);
-                        if (temp !=null)
-                        {
-                            fieldAliases.put(xmlPath.toLowerCase(),temp);
-                        }
-                    } catch (XFTInitException e) {
-                        log.error("",e);
+                try {
+                    String temp = ViewManager.GetViewColumnName(rootElement.getGenericXFTElement(), xmlPath, ViewManager.DEFAULT_LEVEL, true, true);
+                    if (temp != null) {
+                        fieldAliases.put(xmlPath.toLowerCase(), temp);
                     }
-            }else{
+                } catch (XFTInitException e) {
+                    log.error("", e);
+                }
+            } else {
                 QueryOrganizer qo = addOns.get(root);
-                if (qo == null)
-                {
-                    qo = new QueryOrganizer(root,user,level);
-                    addOns.put(root,qo);
+                if (qo == null) {
+                    qo = new QueryOrganizer(root, user, level, _rootQueries);
+                    qo.setJoinCounter(joinCounter++);
+                    addOns.put(root, qo);
                     addField(qo.getFilterField(root));
                 }
 
                 qo.addField(xmlPath);
                 try {
                     SchemaElement se = SchemaElement.GetElement(root);
-                    String temp = ViewManager.GetViewColumnName(se.getGenericXFTElement(),xmlPath,ViewManager.DEFAULT_LEVEL,true,true);
-                    if (temp !=null)
-                    {
+                    String temp = ViewManager.GetViewColumnName(se.getGenericXFTElement(), xmlPath, ViewManager.DEFAULT_LEVEL, true, true);
+                    if (temp != null) {
                         fieldAliases.put(xmlPath.toLowerCase(), XftStringUtils.CreateAlias(se.getSQLName(), temp));
                     }
                 } catch (XFTInitException e) {
-                    log.error("",e);
+                    log.error("", e);
                 }
             }
         }
     }
 
     /**
-     * @param xmlPath    The XML path of the subquery to add.
+     * @param xmlPath The XML path of the subquery to add.
      * @throws ElementNotFoundException When a specified element isn't found on the object.
      */
-    public void addSubquery(String xmlPath) throws ElementNotFoundException
-    {
+    public void addSubquery(String xmlPath) throws ElementNotFoundException {
         String root = XftStringUtils.GetRootElementName(xmlPath);
-        if (rootElement.getFullXMLName().equalsIgnoreCase(root))
-        {
-            if (! subqueryFields.contains(xmlPath))
-            {
+        if (rootElement.getFullXMLName().equalsIgnoreCase(root)) {
+            if (!subqueryFields.contains(xmlPath)) {
                 subqueryFields.add(xmlPath);
             }
-        }else{
+        } else {
             QueryOrganizer qo = addOns.get(root);
-            if (qo == null)
-            {
-                qo = new QueryOrganizer(root,user,level);
-                addOns.put(root,qo);
+            if (qo == null) {
+                qo = new QueryOrganizer(root, user, level, _rootQueries);
+                qo.setJoinCounter(joinCounter++);
+                addOns.put(root, qo);
                 addField(getFilterField(root));
             }
 
@@ -135,25 +131,22 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
     }
 
     /**
-     * @param xmlPath    The XML path of the view to add.
+     * @param xmlPath The XML path of the view to add.
      * @throws ElementNotFoundException When a specified element isn't found on the object.
      */
-    public void addView(String xmlPath) throws ElementNotFoundException
-    {
+    public void addView(String xmlPath) throws ElementNotFoundException {
         String root = XftStringUtils.GetRootElementName(xmlPath);
-        if (rootElement.getFullXMLName().equalsIgnoreCase(root))
-        {
-            if (! viewFields.contains(xmlPath))
-            {
+        if (rootElement.getFullXMLName().equalsIgnoreCase(root)) {
+            if (!viewFields.contains(xmlPath)) {
                 viewFields.add(xmlPath);
 
             }
-        }else{
+        } else {
             QueryOrganizer qo = addOns.get(root);
-            if (qo == null)
-            {
-                qo = new QueryOrganizer(root,user,level);
-                addOns.put(root,qo);
+            if (qo == null) {
+                qo = new QueryOrganizer(root, user, level, _rootQueries);
+                qo.setJoinCounter(joinCounter++);
+                addOns.put(root, qo);
                 addField(getFilterField(root));
             }
 
@@ -162,38 +155,34 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
     }
 
     /**
-     * @param viewName    The view name to join.
-     * @exception Exception When something goes wrong.
+     * @param viewName The view name to join.
+     * @throws Exception When something goes wrong.
      */
-    public void addSubqueryToJoin(String viewName) throws Exception
-    {
-        if (tables.get(viewName)==null)
-        {
+    public void addSubqueryToJoin(String viewName) throws Exception {
+        if (tables.get(viewName) == null) {
             try {
                 ElementDisplay ed = ((new SchemaElement(rootElement.getGenericXFTElement()))).getDisplay();
 
-                if (viewName.startsWith("SUBQUERYFIELD"))
-                {
+                if (viewName.startsWith("SUBQUERYFIELD")) {
                     String s = viewName.substring(14);
 
                     int indexDot = s.indexOf(".");
-                    String FIELDID = s.substring(0,indexDot);
-                    String VALUE = s.substring(indexDot+1);
+                    String FIELDID = s.substring(0, indexDot);
+                    String VALUE = s.substring(indexDot + 1);
                     String alias = FIELDID + "_" + XftStringUtils.cleanColumnName(VALUE);
                     VALUE = StringUtils.replace(StringUtils.replace(VALUE, "_com_", ","), "_col_", ":");
-
 
                     final StringBuilder sb = new StringBuilder();
 
                     SQLQueryField df = (SQLQueryField) ed.getDisplayField(FIELDID);
                     String subquery = df.getSubQuery();
-                    if (!VALUE.contains(",")){
-                        subquery= StringUtils.replace(subquery, "@WHERE", VALUE);
-                    }else{
+                    if (!VALUE.contains(",")) {
+                        subquery = StringUtils.replace(subquery, "@WHERE", VALUE);
+                    } else {
                         ArrayList<String> values = XftStringUtils.CommaDelimitedStringToArrayList(VALUE);
-                        int count =0;
-                        for(String value1:values){
-                            subquery= StringUtils.replace(subquery, "@WHERE" + count++, value1);
+                        int count = 0;
+                        for (String value1 : values) {
+                            subquery = StringUtils.replace(subquery, "@WHERE" + count++, value1);
                         }
                     }
 
@@ -202,10 +191,8 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
                     sb.append(" ON ");
                     int counter = 0;
-                    for(SQLQueryField.QueryMappingColumn mc : df.getMappingColumns())
-                    {
-                        if (counter++ != 0)
-                        {
+                    for (SQLQueryField.QueryMappingColumn mc : df.getMappingColumns()) {
+                        if (counter++ != 0) {
                             sb.append(" AND ");
                         }
                         addFieldToJoin(mc.getSchemaField());
@@ -215,29 +202,31 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     }
 
                     joins.append(sb);
-                }else{
+                } else {
                     throw new Exception("No Such Subquery Found. " + viewName);
                 }
 
             } catch (XFTInitException | ElementNotFoundException e) {
-                log.error("",e);
+                log.error("", e);
             }
         }
     }
 
     /**
-     * @param viewName    The view name to join.
-     * @exception Exception When something goes wrong.
+     * @param viewName The view name to join.
+     * @throws Exception When something goes wrong.
      */
-    public void addViewToJoin(String viewName) throws Exception
-    {
-        if (tables.get(viewName)==null)
-        {
+    public void addViewToJoin(String viewName) throws Exception {
+        if (tables.get(viewName) == null) {
+            //This is where view references could be hijacted for alternate implementations (like Calculated Columns)
+//            if (StringUtils.equals(viewName, "SUB_PROJECTS") && this.getRootElement().getFullXMLName().equals("xnat:subjectData")) {
+//                //calculated field
+//                return;
+//            }
             try {
                 ElementDisplay ed = ((new SchemaElement(rootElement.getGenericXFTElement()))).getDisplay();
-                ViewLink vl = (ViewLink)ed.getViewLinks().get(viewName);
-                if (vl != null)
-                {
+                ViewLink vl = (ViewLink) ed.getViewLinks().get(viewName);
+                if (vl != null) {
                     Mapping map = vl.getMapping();
                     String[] layers = new String[3];
                     layers[0] = rootElement.getFullXMLName();
@@ -248,82 +237,70 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     j.append(" ON ");
 
                     Iterator mappingColumns = map.getColumns().iterator();
-					int counter = 0;
-					while (mappingColumns.hasNext())
-					{
-						MappingColumn mc = (MappingColumn)mappingColumns.next();
-						SchemaElementI mappedElement = SchemaElement.GetElement(mc.getRootElement());
-						if (mappedElement.getFullXMLName().equalsIgnoreCase(rootElement.getFullXMLName()))
-						{
-							if (counter++ != 0)
-							{
-							    j.append(" AND ");
-							}
-							addFieldToJoin(mc.getFieldElementXMLPath());
-							j.append(this.getTableAndFieldSQL(mc.getFieldElementXMLPath()));
-							j.append("=");
-							j.append(viewName).append(".").append(mc.getMapsTo());
-						}
-					}
+                    int counter = 0;
+                    while (mappingColumns.hasNext()) {
+                        MappingColumn mc = (MappingColumn) mappingColumns.next();
+                        SchemaElementI mappedElement = SchemaElement.GetElement(mc.getRootElement());
+                        if (mappedElement.getFullXMLName().equalsIgnoreCase(rootElement.getFullXMLName())) {
+                            if (counter++ != 0) {
+                                j.append(" AND ");
+                            }
+                            addFieldToJoin(mc.getFieldElementXMLPath());
+                            j.append(this.getTableAndFieldSQL(mc.getFieldElementXMLPath()));
+                            j.append("=");
+                            j.append(viewName).append(".").append(mc.getMapsTo());
+                        }
+                    }
 
-					joins.append(" ").append(j);
-                    tables.put(viewName,viewName);
-                }else{
-                    if (viewName.startsWith("COUNT"))
-                    {
+                    joins.append(" ").append(j);
+                    tables.put(viewName, viewName);
+                } else {
+                    if (viewName.startsWith("COUNT")) {
                         String s = viewName.substring(6);
 
-                        SchemaLink sl = (SchemaLink)ed.getSchemaLinks().get(s);
+                        SchemaLink sl = (SchemaLink) ed.getSchemaLinks().get(s);
                         SchemaElement foreign = SchemaElement.GetElement(s);
 
                         boolean linked = false;
-                        if (sl != null)
-                        {
-                            if (sl.getType().equalsIgnoreCase("mapping"))
-            				{
-            					joins.append(" ").append(getSchemaLinkCount(sl,foreign));
-            					tables.put(viewName,foreign.getSQLName() + "_COUNT");
+                        if (sl != null) {
+                            if (sl.getType().equalsIgnoreCase("mapping")) {
+                                joins.append(" ").append(getSchemaLinkCount(sl, foreign));
+                                tables.put(viewName, foreign.getSQLName() + "_COUNT");
                                 linked = true;
-            				}
+                            }
                         }
 
-                        if (! linked)
-                        {
+                        if (!linked) {
 //                          CHECK ARCS
-                            ArcDefinition arcDefine = DisplayManager.GetInstance().getArcDefinition(rootElement,foreign);
-            				if (arcDefine!=null)
-            				{
-            				    joins.append(getArcJoinCount(arcDefine,foreign));
-            					tables.put(viewName,foreign.getSQLName() + "_COUNT");
+                            ArcDefinition arcDefine = DisplayManager.GetInstance().getArcDefinition(rootElement, foreign);
+                            if (arcDefine != null) {
+                                joins.append(getArcJoinCount(arcDefine, foreign));
+                                tables.put(viewName, foreign.getSQLName() + "_COUNT");
                                 linked = true;
-            				}
+                            }
                         }
 
-                        if (! linked)
-                        {
+                        if (!linked) {
                             //Look for direct connection
                             String[] connection = this.rootElement.getGenericXFTElement().findSchemaConnection(foreign.getGenericXFTElement());
-                            if (connection != null)
-                            {
-                                QueryOrganizer foreignQO = new QueryOrganizer(foreign,this.getUser(),level);
-                                QueryOrganizer localQO = new QueryOrganizer(rootElement,this.getUser(),level);
+                            if (connection != null) {
+                                QueryOrganizer foreignQO = new QueryOrganizer(foreign, this.getUser(), level, _rootQueries);
+                                QueryOrganizer localQO = new QueryOrganizer(rootElement, this.getUser(), level, _rootQueries);
                                 //BUILD CONNECTION FROM ROOT TO EXTENSION
                                 String localSyntax = connection[0];
                                 String xmlPath = connection[1];
                                 SchemaFieldI gwf;
                                 SchemaElementI extension;
-                                if (localSyntax.indexOf(XFT.PATH_SEPARATOR) == -1)
-                                {
+                                if (localSyntax.indexOf(XFT.PATH_SEPARATOR) == -1) {
                                     extension = rootElement;
-                                }else{
+                                } else {
                                     gwf = SchemaElement.GetSchemaField(localSyntax);
                                     extension = gwf.getReferenceElement();
                                 }
 
                                 Iterator pks = extension.getAllPrimaryKeys().iterator();
-                                while (pks.hasNext())
-                                {
-                                    SchemaFieldI sf = (SchemaFieldI)pks.next();
+                                while (pks.hasNext()) {
+                                    SchemaFieldI sf = (SchemaFieldI) pks.next();
                                     foreignQO.addField(xmlPath + sf.getXMLPathString(""));
                                     localQO.addField(localSyntax + sf.getXMLPathString(""));
 
@@ -333,75 +310,124 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
                                 //BUILD CONNECTION FROM FOREIGN TO EXTENSION
                                 String query = foreignQO.buildQuery();
-                    			StringBuffer sb = new StringBuffer();
-                    			sb.append(" JOIN (").append(query);
-                    			sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
-                    			pks = extension.getAllPrimaryKeys().iterator();
-                    			int pkCount=0;
-                                while (pks.hasNext())
-                                {
-                                    SchemaFieldI sf = (SchemaFieldI)pks.next();
-                                    if (pkCount++ != 0)
-                                    {
+                                StringBuffer sb = new StringBuffer();
+                                sb.append(" JOIN (").append(query);
+                                sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
+                                pks = extension.getAllPrimaryKeys().iterator();
+                                int pkCount = 0;
+                                while (pks.hasNext()) {
+                                    SchemaFieldI sf = (SchemaFieldI) pks.next();
+                                    if (pkCount++ != 0) {
                                         sb.append(" AND ");
                                     }
-                                    String localCol = translateXMLPath(localSyntax + sf.getXMLPathString(""),rootElement.getSQLName());
-                                    String foreignCol = foreignQO.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
+                                    String localCol = translateXMLPath(localSyntax + sf.getXMLPathString(""), rootElement.getSQLName());
+                                    String foreignCol = foreignQO.translateXMLPath(xmlPath + sf.getXMLPathString(""), foreign.getSQLName());
 
-                        			sb.append(localCol).append("=");
-                        			sb.append(foreignCol);
+                                    sb.append(localCol).append("=");
+                                    sb.append(foreignCol);
                                 }
 
                                 pks = rootElement.getAllPrimaryKeys().iterator();
-                    			pkCount=0;
-                    			StringBuilder cols = new StringBuilder();
-                                while (pks.hasNext())
-                                {
-                                    SchemaFieldI sf = (SchemaFieldI)pks.next();
-                                    if (pkCount++ != 0)
-                                    {
+                                pkCount = 0;
+                                StringBuilder cols = new StringBuilder();
+                                while (pks.hasNext()) {
+                                    SchemaFieldI sf = (SchemaFieldI) pks.next();
+                                    if (pkCount++ != 0) {
                                         sb.append(", ");
                                     }
-                                    String localCol = translateXMLPath(sf.getXMLPathString(rootElement.getFullXMLName()),rootElement.getSQLName());
+                                    String localCol = translateXMLPath(sf.getXMLPathString(rootElement.getFullXMLName()), rootElement.getSQLName());
                                     cols.append(localCol);
                                 }
 
-                                String subQuery = "SELECT " + cols + ", COUNT(*) AS " + foreign.getSQLName() +"_COUNT ";
+                                String subQuery = "SELECT " + cols + ", COUNT(*) AS " + foreign.getSQLName() + "_COUNT ";
                                 subQuery += " FROM (" + localQO.buildQuery() + ") " + rootElement.getSQLName() + sb.toString();
-                    			subQuery += " GROUP BY " + cols;
+                                subQuery += " GROUP BY " + cols;
 
                                 sb = new StringBuffer();
-                    			sb.append(" LEFT JOIN (").append(subQuery);
-                    			sb.append(") AS ").append(foreign.getSQLName()).append("_COUNT ON ");
-                    			pks = rootElement.getAllPrimaryKeys().iterator();
-                    			pkCount=0;
-                                while (pks.hasNext())
-                                {
-                                    SchemaFieldI sf = (SchemaFieldI)pks.next();
-                                    if (pkCount++ != 0)
-                                    {
+                                sb.append(" LEFT JOIN (").append(subQuery);
+                                sb.append(") AS ").append(foreign.getSQLName()).append("_COUNT ON ");
+                                pks = rootElement.getAllPrimaryKeys().iterator();
+                                pkCount = 0;
+                                while (pks.hasNext()) {
+                                    SchemaFieldI sf = (SchemaFieldI) pks.next();
+                                    if (pkCount++ != 0) {
                                         sb.append(" AND ");
                                     }
                                     String localCol = this.getTableAndFieldSQL(sf.getXMLPathString(rootElement.getFullXMLName()));
-                                    String foreignCol =translateXMLPath(sf.getXMLPathString(rootElement.getFullXMLName()),foreign.getSQLName() + "_COUNT");
+                                    String foreignCol = translateXMLPath(sf.getXMLPathString(rootElement.getFullXMLName()), foreign.getSQLName() + "_COUNT");
 
-
-                        			sb.append(localCol).append("=");
-                        			sb.append(foreignCol);
+                                    sb.append(localCol).append("=");
+                                    sb.append(foreignCol);
                                 }
-                    			joins.append(sb.toString());
+                                joins.append(sb.toString());
                             }
                             //}
                         }
-                    }else if (!viewName.startsWith("SUBQUERYFIELD"))
-                    {
+                    } else if (!viewName.startsWith("SUBQUERYFIELD")) {
                         throw new Exception("No Such View Found. " + viewName);
                     }
                 }
             } catch (XFTInitException | ElementNotFoundException e) {
-                log.error("",e);
+                log.error("", e);
             }
         }
+    }
+
+
+    public static boolean instanceOf(final SchemaElement se, final String baseType) {
+        return (StringUtils.equals(se.getFullXMLName(), baseType) || se.instanceOf(baseType));
+    }
+
+    @Nullable
+    public ManualJoin getOptimizedJoin(final SchemaElement rootSchemaElement, final SchemaElement foreign) throws XFTInitException, ElementNotFoundException {
+        for(final ManualJoin mj: manualJoins){
+            if(instanceOf(rootSchemaElement,mj._srcType) && instanceOf(foreign,mj._destType)){
+                return mj;
+            }
+        }
+        for(final ManualJoin used: usedOptimizations){
+            for(final ManualJoin mj: manualJoins){
+                if(instanceOf(SchemaElement.GetElement(used._destType),mj._srcType) && instanceOf(foreign,mj._destType)){
+                    return mj;
+                }
+            }
+        }
+        return null;
+    }
+
+    private List<ManualJoin> usedOptimizations= Lists.newArrayList();
+
+    public boolean isOptimizedField(final String rootXMLType, final String foreignXMLType) throws XFTInitException, ElementNotFoundException {
+        return isOptimizedField(SchemaElement.GetElement(rootXMLType),SchemaElement.GetElement(foreignXMLType));
+    }
+
+    public boolean isOptimizedField(final SchemaElement rootSchemaElement, final SchemaElement foreign) throws XFTInitException, ElementNotFoundException {
+        return (getOptimizedJoin(rootSchemaElement,foreign)!=null);
+    }
+
+    public void optimizedJoin(final QueryOrganizer foreignQO, final SchemaElement foreign) throws Exception{
+        final ManualJoin mj = getOptimizedJoin(SchemaElement.GetElement(this.getRootElement().getFullXMLName()),foreign);
+        if(mj!=null){
+            String subJoin = foreignQO.buildJoin();
+            final String toReplace = String.format(mj._join[0],foreign.getSQLName(),this.getTableNameForType(mj._srcType));
+            final String toReplaceWith = String.format(mj._join[1],foreign.getSQLName(),this.getTableNameForType(mj._srcType));
+            subJoin = StringUtils.replace(subJoin, toReplace,toReplaceWith);
+
+            joins.append(subJoin);
+            tables.putAll(foreignQO.getTableDefinitions());
+            usedOptimizations.add(mj);
+        }
+    }
+
+    @Nullable
+    private String getTableNameForType(final String foreign) {
+        for (Entry entry : tables.entrySet()) {
+            if (StringUtils.endsWith((String) entry.getKey(), foreign)) {
+                return (String) entry.getValue();
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -428,37 +454,46 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
         //ADD OTHER SUB-QUERIES
         for (final String root : addOns.keySet()) {
-            ElementDisplay ed = (new SchemaElement(rootElement.getGenericXFTElement())).getDisplay();
+            boolean linked = false;
+            SchemaElement rootSchemaElement = new SchemaElement(rootElement.getGenericXFTElement());
+            ElementDisplay ed = rootSchemaElement.getDisplay();
+
+            QueryOrganizer qo = addOns.get(root);
+            SchemaElement foreign = SchemaElement.GetElement(root);
+
+            if(isOptimizedField(rootSchemaElement,foreign))
+            {
+                qo.setSkipSecurity(true);
+                //joining from subject to demographics... keep it simple.
+                optimizedJoin(qo,foreign);
+                continue;
+            }
 
             SchemaLink sl = null;
             if (ed != null)
             {
                 sl = (SchemaLink)ed.getSchemaLinks().get(root);
             }
-            QueryOrganizer qo = addOns.get(root);
-            SchemaElement foreign = SchemaElement.GetElement(root);
-
-            boolean linked = false;
             if (sl != null)
             {
                 if (sl.getType().equalsIgnoreCase("mapping"))
-				{
-					joins.append(getSchemaLinkJoin(sl,qo,foreign));
+                {
+                    joins.append(getSchemaLinkJoin(sl,qo,foreign));
                     tables.put(root,foreign.getSQLName());
                     linked = true;
-				}
+                }
             }
 
             if (! linked)
             {
 //              CHECK ARCS
                 ArcDefinition arcDefine = DisplayManager.GetInstance().getArcDefinition(rootElement,foreign);
-				if (arcDefine!=null)
-				{
-				    joins.append(getArcJoin(arcDefine,qo,foreign));
+                if (arcDefine!=null)
+                {
+                    joins.append(getArcJoin(arcDefine,qo,foreign));
                     tables.put(root,foreign.getSQLName());
                     linked = true;
-				}
+                }
             }
 
             if (! linked)
@@ -493,31 +528,31 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
                         //BUILD CONNECTION FROM FOREIGN TO EXTENSION
                         String        query = qo.buildQuery();
-            			StringBuilder sb    = new StringBuilder();
-            			sb.append(" LEFT JOIN (").append(query);
-            			sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
+                          StringBuilder sb    = new StringBuilder();
+                          sb.append(" LEFT JOIN (").append(query);
+                          sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
 
-            			pks = extension.getAllPrimaryKeys().iterator();
-            			int pkCount=0;
-                        while (pks.hasNext())
-                        {
-                            SchemaFieldI sf = (SchemaFieldI)pks.next();
-                            if (pkCount++ != 0)
+                          pks = extension.getAllPrimaryKeys().iterator();
+                          int pkCount=0;
+                            while (pks.hasNext())
                             {
-                                sb.append(" AND ");
-                            }
-                            String localCol = this.getTableAndFieldSQL(localSyntax + sf.getXMLPathString(""));
-                            String foreignCol = qo.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
+                                SchemaFieldI sf = (SchemaFieldI)pks.next();
+                                if (pkCount++ != 0)
+                                {
+                                    sb.append(" AND ");
+                                }
+                                String localCol = this.getTableAndFieldSQL(localSyntax + sf.getXMLPathString(""));
+                                String foreignCol = qo.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
 
-                			sb.append(localCol).append("=");
-                			sb.append(foreignCol);
+                          sb.append(localCol).append("=");
+                          sb.append(foreignCol);
                         }
-            			joins.append(sb.toString());
+            			      joins.append(sb.toString());
                     }else{
                         gwf = SchemaElement.GetSchemaField(localSyntax);
                         extension = gwf.getReferenceElement();
 
-                        QueryOrganizer mappingQO = new QueryOrganizer(this.rootElement,this.getUser(),this.level);
+                        QueryOrganizer mappingQO = new QueryOrganizer(this.rootElement,this.getUser(),this.level,_rootQueries);
                         mappingQO.setIsMappingTable(true);
 
                         Iterator pks = extension.getAllPrimaryKeys().iterator();
@@ -536,15 +571,15 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                             mappingQO.addField(pKey.getXMLPathString(rootElement.getFullXMLName()));
                         }
 
-            			StringBuilder sb = new StringBuilder();
+            			      StringBuilder sb = new StringBuilder();
 
             			//BUILD MAPPING TABLE
                         String mappingQuery = mappingQO.buildQuery();
                         sb.append(" LEFT JOIN (").append(mappingQuery);
-            			sb.append(") AS ").append("map_").append(foreign.getSQLName()).append(" ON ");
-            			pKeys = rootElement.getAllPrimaryKeys().iterator();
-            			int pkCount=0;
-            			while (pKeys.hasNext())
+                          sb.append(") AS ").append("map_").append(foreign.getSQLName()).append(" ON ");
+                          pKeys = rootElement.getAllPrimaryKeys().iterator();
+                          int pkCount=0;
+                          while (pKeys.hasNext())
                         {
                             SchemaFieldI pKey = (SchemaFieldI)pKeys.next();
                             if (pkCount++ != 0)
@@ -555,18 +590,18 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                             String localCol = this.getTableAndFieldSQL(pKey.getXMLPathString(rootElement.getFullXMLName()));
                             String foreignCol = mappingQO.translateXMLPath(pKey.getXMLPathString(rootElement.getFullXMLName()),"map_" + foreign.getSQLName());
 
-                			sb.append(localCol).append("=");
-                			sb.append(foreignCol);
+                          sb.append(localCol).append("=");
+                          sb.append(foreignCol);
                         }
 
 
                         //BUILD CONNECTION FROM FOREIGN TO EXTENSION
                         String query = qo.buildQuery();
-            			sb.append(" LEFT JOIN (").append(query);
-            			sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
+                          sb.append(" LEFT JOIN (").append(query);
+                          sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
 
-            			pks = extension.getAllPrimaryKeys().iterator();
-            			pkCount=0;
+                          pks = extension.getAllPrimaryKeys().iterator();
+                          pkCount=0;
                         while (pks.hasNext())
                         {
                             SchemaFieldI sf = (SchemaFieldI)pks.next();
@@ -577,10 +612,10 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                             String localCol = mappingQO.translateXMLPath(localSyntax + sf.getXMLPathString(""),"map_" + foreign.getSQLName());
                             String foreignCol = qo.translateXMLPath(xmlPath + sf.getXMLPathString(""),foreign.getSQLName());
 
-                			sb.append(localCol).append("=");
-                			sb.append(foreignCol);
+                          sb.append(localCol).append("=");
+                          sb.append(foreignCol);
                         }
-            			joins.append(sb.toString());
+            			      joins.append(sb.toString());
                     }
                 }else{
                     //NO CONNECTION FOUND
@@ -642,7 +677,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     }else{
                         SchemaElement extension = SchemaElement.GetElement(mappingElement);
 
-                        QueryOrganizer mappingQO = new QueryOrganizer(extension,this.getUser(),ViewManager.ALL);
+                        QueryOrganizer mappingQO = new QueryOrganizer(extension,this.getUser(),ViewManager.ALL,_rootQueries);
                         mappingQO.setIsMappingTable(true);
 
                         Iterator pks = foreign.getAllPrimaryKeys().iterator();
@@ -661,16 +696,16 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                             mappingQO.addField(pKey.getXMLPathString(rootElement.getFullXMLName()));
                         }
 
-            			final StringBuilder sb = new StringBuilder();
+                          final StringBuilder sb = new StringBuilder();
 
-            			//BUILD MAPPING TABLE
-            			String mappingTableName = "map_" + extension.getSQLName() + "_" + foreign.getSQLName();
-                        String mappingQuery = mappingQO.buildQuery();
-                        sb.append(" LEFT JOIN (").append(mappingQuery);
-            			sb.append(") AS ").append(mappingTableName).append(" ON ");
-            			pKeys = rootElement.getAllPrimaryKeys().iterator();
-            			int pkCount=0;
-            			while (pKeys.hasNext())
+                          //BUILD MAPPING TABLE
+                          String mappingTableName = "map_" + extension.getSQLName() + "_" + foreign.getSQLName();
+                            String mappingQuery = mappingQO.buildQuery();
+                            sb.append(" LEFT JOIN (").append(mappingQuery);
+                          sb.append(") AS ").append(mappingTableName).append(" ON ");
+                          pKeys = rootElement.getAllPrimaryKeys().iterator();
+                          int pkCount=0;
+                          while (pKeys.hasNext())
                         {
                             SchemaFieldI pKey = (SchemaFieldI)pKeys.next();
                             if (pkCount++ != 0)
@@ -681,18 +716,18 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                             String localCol = this.getTableAndFieldSQL(pKey.getXMLPathString(rootElement.getFullXMLName()));
                             String foreignCol = mappingQO.translateXMLPath(pKey.getXMLPathString(rootElement.getFullXMLName()),mappingTableName);
 
-                			sb.append(localCol).append("=");
-                			sb.append(foreignCol);
+                          sb.append(localCol).append("=");
+                          sb.append(foreignCol);
                         }
 
 
                         //BUILD CONNECTION FROM FOREIGN TO EXTENSION
                         String query = qo.buildQuery();
-            			sb.append(" LEFT JOIN (").append(query);
-            			sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
+                          sb.append(" LEFT JOIN (").append(query);
+                          sb.append(") AS ").append(foreign.getSQLName()).append(" ON ");
 
-            			pks = foreign.getAllPrimaryKeys().iterator();
-            			pkCount=0;
+                          pks = foreign.getAllPrimaryKeys().iterator();
+                          pkCount=0;
                         while (pks.hasNext())
                         {
                             SchemaFieldI sf = (SchemaFieldI)pks.next();
@@ -820,7 +855,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
     private String getArcJoinCount(ArcDefinition arcDefine,SchemaElement foreign) throws Exception
     {
-		QueryOrganizer qo = new QueryOrganizer(foreign,this.getUser(),level);
+		QueryOrganizer qo = new QueryOrganizer(foreign,this.getUser(),level,_rootQueries);
         final StringBuilder  sb = new StringBuilder();
         if (arcDefine.getBridgeElement().equalsIgnoreCase(rootElement.getFullXMLName()))
 		{
@@ -898,7 +933,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 			String foreignField = (String)foreignArc.getCommonFields().get(distinctField);
 			String rootField = (String)rootArc.getCommonFields().get(distinctField);
 
-			String arcMapQuery = DisplayManager.GetArcDefinitionQuery(arcDefine,(new SchemaElement(rootElement.getGenericXFTElement())),foreign,user);
+			String arcMapQuery = DisplayManager.GetArcDefinitionQuery(arcDefine,(new SchemaElement(rootElement.getGenericXFTElement())),foreign,user, _rootQueries);
 			String arcTableName = DisplayManager.ARC_MAP + rootElement.getSQLName()+"_"+foreign.getSQLName();
 
 			DisplayField rDF = (new SchemaElement(rootElement.getGenericXFTElement())).getDisplayField(rootField);
@@ -1046,24 +1081,24 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
         final StringBuilder sb = new StringBuilder();
 
         final String rootElementFullXMLName = rootElement.getFullXMLName();
-		String rootFilterField = getFilterField(this.getRootElement().getFullXMLName());
-		if (rootFilterField != null)
-		{
-            log.debug("'{}' query: adding field for root filter field '{}'", rootElementFullXMLName, rootFilterField);
-		    addField(rootFilterField);
-		}
+        String rootFilterField = getFilterField(this.getRootElement().getFullXMLName());
+        if (rootFilterField != null)
+        {
+                log.debug("'{}' query: adding field for root filter field '{}'", rootElementFullXMLName, rootFilterField);
+            addField(rootFilterField);
+        }
 
         for (final Object object : rootElement.getAllPrimaryKeys()) {
 		    final SchemaFieldI sf = (SchemaFieldI) object;
             final String xmlPathString = sf.getXMLPathString(rootElementFullXMLName);
             log.debug("'{}' query: adding field for primary key field '{}'", rootElementFullXMLName, xmlPathString);
             addField(xmlPathString);
-		}
+        }
 
-		if (getAddOns().isEmpty())
-		{
-			rootFilterField = null;
-		}
+        if (getAddOns().isEmpty())
+        {
+          rootFilterField = null;
+        }
 
         String join = buildJoin();
         sb.append("SELECT ");
@@ -1085,7 +1120,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     String tableName = layers[1].substring(layers[1].lastIndexOf(".") + 1);
                     String colName   = layers[2];
 
-					String viewColName = ViewManager.GetViewColumnName(se.getGenericXFTElement(),s,ViewManager.ACTIVE,true,true);
+					          String viewColName = ViewManager.GetViewColumnName(se.getGenericXFTElement(),s,ViewManager.ACTIVE,true,true);
 
 
                     if (tableAliases.get(tableName)!= null)
@@ -1106,8 +1141,8 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                         alias = XftStringUtils.Last62Chars(viewColName);
                     }
                     if (!selected.contains(alias.toLowerCase()))
-		            {
-			            selected.add(alias.toLowerCase());
+                    {
+                        selected.add(alias.toLowerCase());
 //	                    if (!selected.contains(tableName.toLowerCase() + "_" + colName.toLowerCase()))
 //	                    {
 //	                        selected.add(tableName.toLowerCase() + "_" + colName.toLowerCase());
@@ -1151,19 +1186,27 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                       alias = XftStringUtils.CreateAlias(se.getSQLName(), alias);
                   }
                     if (!selected.contains(alias.toLowerCase()))
-		            {
+		                {
 		                selected.add(alias.toLowerCase());
 	                    QueryOrganizer subQO = getAddOns().get(se.getFullXMLName());
-	                    String subName = subQO.translateXMLPath(s);
+                      String subName = subQO.translateXMLPath(s);
+
+                      if(isOptimizedField(SchemaElement.GetElement(rootElement.getFullXMLName()),SchemaElement.GetElement(subQO.rootElement.getFullXMLName()))){
+                          //this field has been manually joined via an optimized strategy.
+                          tableName=(String)subQO.getTableAliases().get(tableName);
+                          subName=colName;
+                      }else{
+                          tableName=se.getSQLName();
+                      }
 
 	                    if (!selected.contains(tableName.toLowerCase() + "_" + colName.toLowerCase() + alias.toLowerCase()))
 	                    {
 	                        selected.add(tableName.toLowerCase() + "_" + colName.toLowerCase() + alias.toLowerCase());
 		                    if (counter++==0)
 		                    {
-		                        sb.append(se.getSQLName()).append(".").append(subName).append(" AS ").append(alias);
+		                        sb.append(tableName).append(".").append(subName).append(" AS ").append(alias);
 		                    }else{
-		                        sb.append(", ").append(se.getSQLName()).append(".").append(subName).append(" AS ").append(alias);
+		                        sb.append(", ").append(tableName).append(".").append(subName).append(" AS ").append(alias);
 		                    }
 
 		                    fieldAliases.put(s.toLowerCase(),alias);
@@ -1199,22 +1242,22 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 	                selected.add(temp.toLowerCase());
 		            String alias = temp;
 		            SchemaElementI se = SchemaElement.GetElement(elementName);
-		            if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName))
+                if(counter++>0){
+                    sb.append(", ");
+                }
+                  //This is where view references could be hijacted for alternate implementations (like Calculated Columns)
+//                if(StringUtils.equals(s,"SUB_PROJECTS.PROJECTS")){
+//                    sb.append("xnat_subjectdata.xs_projects").append(" AS ").append(temp);
+//                    fieldAliases.put(xmlPath.toLowerCase(),temp);
+//                    continue;
+//                }
+
+		            if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName) || isOptimizedField(rootElement.getFullXMLName(),se.getFullXMLName()))
 		            {
-		                if (counter++==0)
-		                {
-		                    sb.append(s).append(" AS ").append(temp);
-		                }else{
-		                    sb.append(", ").append(s).append(" AS ").append(temp);
-		                }
+		                sb.append(s).append(" AS ").append(temp);
 		            }else{
 		                alias = XftStringUtils.RegCharsAbbr(se.getSQLName()) + "_" + temp;
-		                if (counter++==0)
-		                {
-		                    sb.append(se.getSQLName()).append(".").append(temp).append(" AS ").append(alias);
-		                }else{
-		                    sb.append(", ").append(se.getSQLName()).append(".").append(temp).append(" AS ").append(alias);
-		                }
+		                sb.append(se.getSQLName()).append(".").append(temp).append(" AS ").append(alias);
 		            }
 
 		            fieldAliases.put(xmlPath.toLowerCase(),alias);
@@ -1245,7 +1288,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     SchemaElement se = SchemaElement.GetElement(elementName);
                     SQLQueryField df = (SQLQueryField) se.getDisplayField(s.substring(0, s.indexOf(".")));
                     s=temp + "." + df.getSQLContent(this);
-                    if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName))
+                    if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName) || isOptimizedField(rootElement.getFullXMLName(),se.getFullXMLName()))
                     {
                         if (counter++==0)
                         {
@@ -1345,8 +1388,11 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
             for (final String key : addOns.keySet()) {
 		        String foreignFilter = getFilterField(key);
 		        try {
-                    SchemaElementI foreign = SchemaElement.GetElement(key);
+                    SchemaElement foreign = SchemaElement.GetElement(key);
 
+                    if(isOptimizedField(SchemaElement.GetElement(rootElement.getFullXMLName()),foreign)){
+                        continue;
+                    }
                     SchemaFieldI foreignF = SchemaElement.GetSchemaField(foreignFilter);
                     String foreignT = foreignF.getGenericXFTField().getXMLType().getFullForeignType();
 
@@ -1387,6 +1433,9 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 		        String foreignFilter = getFilterField(key);
                 try {
                     SchemaElementI foreign = SchemaElement.GetElement(key);
+                    if(isOptimizedField(SchemaElement.GetElement(rootElement.getFullXMLName()),SchemaElement.GetElement(foreign.getFullXMLName()))){
+                        continue;
+                    }
 
                     SchemaFieldI foreignF = SchemaElement.GetSchemaField(foreignFilter);
                     String localT = rootF.getGenericXFTField().getXMLType().getLocalType();
@@ -1582,5 +1631,28 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
         }
 
+    }
+
+
+    public static class ManualJoin
+    {
+        private final String _srcType;
+        private final String _destType;
+        private final String[] _join;
+
+        public ManualJoin(String srcType, String destType, String joinPre, String joinPost) {
+            this._srcType = srcType;
+            this._destType = destType;
+            this._join = new String[]{joinPre,joinPost};
+        }
+    }
+
+    public final static List<ManualJoin> manualJoins=new ArrayList<>();
+
+    static{
+        manualJoins.add(new ManualJoin("xnat:subjectData","xnat:demographicData","FROM xnat_demographicData xnat_demographicData", " LEFT JOIN xnat_demographicData ON xnat_subjectData.demographics_xnat_abstractdemographicdata_id=xnat_demographicData.xnat_abstractdemographicdata_id"));
+        manualJoins.add(new ManualJoin("xnat:subjectAssessorData","xnat:subjectData", "FROM xnat_subjectData xnat_subjectData", " LEFT JOIN xnat_subjectData ON %2$s.subject_id=xnat_subjectData.id"));
+        manualJoins.add(new ManualJoin("xnat:imageScanData","xnat:imageSessionData", "FROM %1$s %1$s", " LEFT JOIN %1$s ON %2$s.image_session_id=%1$s.id"));
+        manualJoins.add(new ManualJoin("xnat:imageAssessorData","xnat:imageSessionData", "FROM %1$s %1$s", " LEFT JOIN %1$s ON %2$s.imagesession_id=%1$s.id"));
     }
 }

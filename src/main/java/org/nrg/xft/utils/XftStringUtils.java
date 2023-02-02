@@ -9,6 +9,7 @@
 
 package org.nrg.xft.utils;
 
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -512,6 +513,24 @@ public class XftStringUtils {
 		}
 	}
 
+	public static boolean containsIgnoreCase(final List<String> list, final String toMatch){
+			for(String s : list){
+					if(StringUtils.equalsIgnoreCase(toMatch,s)){
+							return true;
+					}
+			}
+			return false;
+	}
+
+	public static boolean addIfMissingIgnoreCase(final List<String> list, final String toAdd){
+			if(!containsIgnoreCase(list,toAdd)){
+					list.add(toAdd);
+					return true;
+			}
+			return false;
+	}
+
+
 	public static String CleanEndingInt(String next)
 	{
 		int index = next.length()-1;
@@ -584,6 +603,11 @@ public class XftStringUtils {
 	    }
 
 	    return fullString;
+	}
+
+	public static Boolean IsRootElementNameEqualTo(final String fullString, final String rootElementName)
+	{
+		return StringUtils.equalsIgnoreCase(GetRootElementName(fullString),rootElementName);
 	}
 
 	public static String GetFieldText(String fullString)
