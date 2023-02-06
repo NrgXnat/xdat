@@ -10,18 +10,25 @@
 package org.nrg.xdat.search;
 
 import org.apache.commons.lang3.StringUtils;
+import org.nrg.xdat.collections.DisplayFieldCollection;
 import org.nrg.xdat.XDAT;
 import org.nrg.xdat.display.DisplayField;
 import org.nrg.xdat.display.DisplayManager;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xdat.security.PermissionCriteriaI;
 import org.nrg.xdat.turbine.utils.AdminUtils;
+import org.nrg.xft.db.DBAction;
 import org.nrg.xft.db.PoolDBUtils;
+import org.nrg.xft.exception.ElementNotFoundException;
 import org.nrg.xft.exception.InvalidValueException;
+import org.nrg.xft.exception.XFTInitException;
 import org.nrg.xft.search.QueryOrganizerI;
 import org.nrg.xft.search.SQLClause;
+import org.nrg.xft.search.SearchCriteria;
 import org.nrg.xft.utils.XftStringUtils;
 
+import java.sql.JDBCType;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -339,6 +346,24 @@ public class DisplayCriteria implements SQLClause {
             newC.setValue(c.getFieldValue(), false);
             return newC;
         }
+    }
+
+    public SQLClause templatizeQuery(ValueTracker tracker) throws Exception{
+        DisplayCriteria copy = new DisplayCriteria();
+        copy.element = element;
+        copy.field = field;
+        copy.comparisonType = comparisonType;
+        copy.overrideDataFormatting = true;
+        copy.schemaFields = schemaFields;
+
+        SchemaElement e = SchemaElement.GetElement(getElement());
+        DisplayField df = e.getDisplayField(getField());
+
+        copy.o = tracker.trackValue(o,DBAction.TypeParser(o,df.getDataType(),false));
+
+        copy.where_value = tracker.trackValue(where_value, Types.VARCHAR);
+
+        return copy;
     }
 }
 

@@ -695,7 +695,7 @@ public class ViewManager {
 	public static String GetViewSQL(GenericWrapperElement e, String level, boolean allowMultiples,boolean isRoot)throws XFTInitException,ElementNotFoundException
 	{
 
-		QueryOrganizer qo = new QueryOrganizer(e,null,level);
+		QueryOrganizer qo = new QueryOrganizer(e,null,level,null);
 	    Iterator iter = ViewManager.GetFieldNames(e,level,allowMultiples,isRoot).iterator();
 	    while(iter.hasNext())
 	    {

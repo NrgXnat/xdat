@@ -376,5 +376,20 @@ public class SearchCriteria implements SQLClause {
 
         return newC;
     }
+
+    public SQLClause templatizeQuery(ValueTracker tracker) throws InvalidValueException {
+        SearchCriteria copy = new SearchCriteria();
+        copy.comparison_type=(this.comparison_type);
+        copy.cleanedType=(this.cleanedType);
+        copy.elementName=(elementName);
+        copy.field=(field);
+        copy.field_name=(field_name);
+        copy.overrideFormatting=(true);
+        copy.xmlPath=this.xmlPath;
+
+        copy.value=tracker.trackValue(value,DBAction.TypeParser(value,this.getCleanedType(),false));
+
+        return copy;
+    }
 }
 
