@@ -14,7 +14,7 @@
     <parent>
         <groupId>org.nrg</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8.6</version>
+        <version>1.8.7-RC-SNAPSHOT</version>
     </parent>
 
     <groupId>org.nrg.xdat</groupId>

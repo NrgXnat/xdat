@@ -1,5 +1,6 @@
 package org.nrg.xapi.rest.aspects;
 
+import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
@@ -104,7 +105,10 @@ public class XapiRequestMappingAspect {
             final UserI user = XDAT.getUserDetails();
             AccessLogger.LogResourceAccess(user != null ? user.getUsername() : "unknown", request, AccessLogger.getFullRequestUrl(request), UNAUTHORIZED);
         }
-        return null;
+        // If the return type is a primitive, this can't return null or Spring will complain, so return default value
+        // for the primitive type. If the return type isn't a primitive, it's not in the default values map and will
+        // return null, which is what we want.
+        return DEFAULT_VALUES.get(((MethodSignature) joinPoint.getSignature()).getReturnType());
     }
 
     private void evaluate(final JoinPoint joinPoint, final XapiRequestMapping xapiRequestMapping) throws InsufficientPrivilegesException, NotAuthenticatedException, NotFoundException {
@@ -189,10 +193,20 @@ public class XapiRequestMappingAspect {
         return ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getResponse();
     }
 
-    private static final AntPathMatcher PATH_MATCHER       = new AntPathMatcher();
-    private static final String         UNAUTHORIZED       = HttpStatus.UNAUTHORIZED.toString();
-    private static final int            UNAUTHORIZED_VALUE = HttpStatus.UNAUTHORIZED.value();
-    private static final String         FORBIDDEN          = HttpStatus.FORBIDDEN.toString();
+    private static final AntPathMatcher        PATH_MATCHER       = new AntPathMatcher();
+    private static final String                UNAUTHORIZED       = HttpStatus.UNAUTHORIZED.toString();
+    private static final int                   UNAUTHORIZED_VALUE = HttpStatus.UNAUTHORIZED.value();
+    private static final String                FORBIDDEN          = HttpStatus.FORBIDDEN.toString();
+    private static final Map<Class<?>, Object> DEFAULT_VALUES     = ImmutableMap.<Class<?>, Object>builder()
+                                                                                .put(byte.class, (byte) 0)
+                                                                                .put(short.class, (short) 0)
+                                                                                .put(int.class, 0)
+                                                                                .put(long.class, 0L)
+                                                                                .put(float.class, 0.0f)
+                                                                                .put(double.class, 0.0d)
+                                                                                .put(boolean.class, false)
+                                                                                .put(char.class, '\u0000')
+                                                                                .build();
 
     private final SiteConfigPreferences _preferences;
     private final String                _realm;
