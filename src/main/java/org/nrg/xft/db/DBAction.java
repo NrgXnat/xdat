@@ -43,6 +43,7 @@ import org.nrg.xft.utils.XftStringUtils;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -50,6 +51,43 @@ import java.util.*;
 @SuppressWarnings({"unchecked", "rawtypes", "UnusedReturnValue"})
 @Slf4j
 public class DBAction {
+
+    public static final String YYYY_MM_DD_HH_MM_SS_SSS = "yyyy-MM-dd HH:mm:ss.SSS";
+    public static final String NOW = "NOW()";
+    public static final String TIME = "time";
+    public static final String NULL = "NULL";
+    public static final String INFINITY_NEG = "'-Infinity'";
+    public static final String INFINITY = "'Infinity'";
+    public static final String NAN = "nan";
+    public static final String UNSIGNED_LONG = "unsignedLong";
+    public static final String NON_NEGATIVE_INTEGER = "nonNegativeInteger";
+    public static final String BYTE = "byte";
+    public static final String SHORT = "short";
+    public static final String INF = "inf";
+    public static final String INF1 = "-inf";
+    public static final String INFINITY1 = "Infinity";
+    public static final String INFINITY2 = "-Infinity";
+    public static final String NEGATIVE_INTEGER = "negativeInteger";
+    public static final String NON_POSITIVE_INTEGER = "nonPositiveInteger";
+    public static final String INTEGER = "integer";
+    public static final String DECIMAL = "decimal";
+    public static final String DOUBLE = "double";
+    public static final String FLOAT = "float";
+    public static final String BOOLEAN = "boolean";
+    public static final String ONE = "1";
+    public static final String ZERO = "0";
+    public static final String TRUE = "true";
+    public static final String ID = "ID";
+    public static final String STRING2 = "string";
+    public static final String UNSIGNED_INT = "unsignedInt";
+    public static final String UNSIGNED_SHORT = "unsignedShort";
+    public static final String UNSIGNED_BYTE = "unsignedByte";
+    public static final String POSITIVE_INTEGER = "positiveInteger";
+    public static final String DATE1 = "date";
+    public static final String DATE_TIME1 = "dateTime";
+    public static final String LONG = "long";
+    public static final String INT = "int";
+
     /**
      * This method is used to insert/update an item into the database.
      *
@@ -75,7 +113,7 @@ public class DBAction {
         log.debug("prepare-sql: {} ms", Calendar.getInstance().getTimeInMillis() - localStartTime);
         localStartTime = Calendar.getInstance().getTimeInMillis();
 
-        if (!cache.getSQL().equals("") && !cache.getSQL().equals("[]")) {
+        if (!cache.getSQL().equals(StringUtils.EMPTY) && !cache.getSQL().equals("[]")) {
             Quarantine(item, user, quarantine, overrideQuarantine, cache);
 
             log.debug("quarantine-sql: {} ms", Calendar.getInstance().getTimeInMillis() - localStartTime);
@@ -359,7 +397,7 @@ public class DBAction {
                                 }
                             } else {
                                 //            				      ITEM IS NEW
-                                if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                                if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                                     GenericWrapperField f    = GenericWrapperElement.GetFieldForXMLPath(item.getXSIType() + "/meta");
                                     XFTItem             meta = (XFTItem) item.getProperty(f);
                                     if (meta == null) {
@@ -397,7 +435,7 @@ public class DBAction {
                     } else {
                         if (!cache.getSaved().containsByPK(item, false)) {
                             //ITEM IS NEW
-                            if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                            if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                                 GenericWrapperField f    = GenericWrapperElement.GetFieldForXMLPath(item.getXSIType() + "/meta");
                                 XFTItem             meta = (XFTItem) item.getProperty(f);
                                 if (meta == null) {
@@ -487,7 +525,7 @@ public class DBAction {
                     } else {
                         if (!cache.getSaved().containsByUnique(item, false)) {
                             //ITEM IS NEW
-                            if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                            if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                                 GenericWrapperField f    = GenericWrapperElement.GetFieldForXMLPath(item.getXSIType() + "/meta");
                                 XFTItem             meta = (XFTItem) item.getProperty(f);
                                 if (meta == null) {
@@ -574,7 +612,7 @@ public class DBAction {
                         }
                     } else {
 //                		  ITEM IS NEW
-                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                             GenericWrapperField f    = GenericWrapperElement.GetFieldForXMLPath(item.getXSIType() + "/meta");
                             XFTItem             meta = (XFTItem) item.getProperty(f);
                             if (meta == null) {
@@ -610,7 +648,7 @@ public class DBAction {
                     }
                 } else {
                     //ITEM IS NEW
-                    if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                    if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                         GenericWrapperField f    = GenericWrapperElement.GetFieldForXMLPath(item.getXSIType() + "/meta");
                         XFTItem             meta = (XFTItem) item.getProperty(f);
                         if (meta == null) {
@@ -754,7 +792,7 @@ public class DBAction {
                             return true;
                         }
                     } else {
-                        if (!(newObject.toString().equals("NULL") || newObject.toString().equals(""))) {
+                        if (!(newObject.toString().equals(NULL) || newObject.toString().equals(StringUtils.EMPTY))) {
                             log.info("OLD:NULL NEW: {}", newObject);
                             return true;
                         }
@@ -805,7 +843,7 @@ public class DBAction {
                         GenericWrapperElement e = (GenericWrapperElement) gwf.getReferenceElement();
 
                         Object newObject = oldHashClone.get(field);
-                        if (e.getAddin().equals("")) {
+                        if (e.getAddin().equals(StringUtils.EMPTY)) {
                             if (!(newObject instanceof XFTItem)) {
                                 final String newString = newObject.toString();
                                 if (StringUtils.isNotBlank(newString)) {
@@ -862,13 +900,13 @@ public class DBAction {
                 return true;
             }
         } else {
-            if (type.equalsIgnoreCase("")) {
+            if (type.equalsIgnoreCase(StringUtils.EMPTY)) {
                 if (!oldValue.equals(newValue)) {
                     log.info("OLD: {} NEW: {}", oldValue, newValue);
                     return true;
                 }
             } else {
-                if (type.equalsIgnoreCase("integer")) {
+                if (type.equalsIgnoreCase(INTEGER)) {
                     Integer o1 = Integer.valueOf(oldValue);
                     Integer o2 = Integer.valueOf(newValue);
 
@@ -876,17 +914,17 @@ public class DBAction {
                         log.info("OLD: {} NEW: {}", oldValue, newValue);
                         return true;
                     }
-                } else if (type.equalsIgnoreCase("boolean")) {
+                } else if (type.equalsIgnoreCase(BOOLEAN)) {
                     Boolean o1;
                     Boolean o2;
 
-                    if (oldValue.equalsIgnoreCase("true") || oldValue.equalsIgnoreCase("1")) {
+                    if (oldValue.equalsIgnoreCase(TRUE) || oldValue.equalsIgnoreCase(ONE)) {
                         o1 = Boolean.TRUE;
                     } else {
                         o1 = Boolean.FALSE;
                     }
 
-                    if (newValue.equalsIgnoreCase("true") || newValue.equalsIgnoreCase("1")) {
+                    if (newValue.equalsIgnoreCase(TRUE) || newValue.equalsIgnoreCase(ONE)) {
                         o2 = Boolean.TRUE;
                     } else {
                         o2 = Boolean.FALSE;
@@ -896,7 +934,7 @@ public class DBAction {
                         log.info("OLD: {} NEW: {}", oldValue, newValue);
                         return true;
                     }
-                } else if (type.equalsIgnoreCase("float")) {
+                } else if (type.equalsIgnoreCase(FLOAT)) {
                     if (oldValue.equalsIgnoreCase("NaN")) {
                         oldValue = "'NaN'";
                     }
@@ -904,13 +942,13 @@ public class DBAction {
                         newValue = "'NaN'";
                     }
                     if (oldValue.equalsIgnoreCase("INF")) {
-                        oldValue = "'Infinity'";
+                        oldValue = INFINITY;
                     }
                     if (oldValue.equalsIgnoreCase("-INF")) {
-                        oldValue = "'-Infinity'";
+                        oldValue = INFINITY_NEG;
                     }
                     if (newValue.equalsIgnoreCase("-INF")) {
-                        newValue = "'-Infinity'";
+                        newValue = INFINITY_NEG;
                     }
                     if (oldValue.equals("'NaN'") || newValue.equals("'NaN'")) {
                         if (!oldValue.equals(newValue)) {
@@ -931,7 +969,7 @@ public class DBAction {
                             return true;
                         }
                     }
-                } else if (type.equalsIgnoreCase("double")) {
+                } else if (type.equalsIgnoreCase(DOUBLE)) {
                     if (oldValue.equalsIgnoreCase("NaN")) {
                         oldValue = "'NaN'";
                     }
@@ -939,23 +977,23 @@ public class DBAction {
                         newValue = "'NaN'";
                     }
                     if (oldValue.equalsIgnoreCase("INF")) {
-                        oldValue = "'Infinity'";
+                        oldValue = INFINITY;
                     }
                     if (newValue.equalsIgnoreCase("INF")) {
-                        newValue = "'Infinity'";
+                        newValue = INFINITY;
                     }
                     if (oldValue.equalsIgnoreCase("-INF")) {
-                        oldValue = "'-Infinity'";
+                        oldValue = INFINITY_NEG;
                     }
                     if (newValue.equalsIgnoreCase("-INF")) {
-                        newValue = "'-Infinity'";
+                        newValue = INFINITY_NEG;
                     }
                     if (oldValue.equals("'NaN'") || newValue.equals("'NaN'")) {
                         if (!oldValue.equals(newValue)) {
                             log.info("OLD: {} NEW: {}", oldValue, newValue);
                             return true;
                         }
-                    } else if (oldValue.contains("Infinity") || newValue.contains("Infinity")) {
+                    } else if (oldValue.contains(INFINITY) || newValue.contains(INFINITY)) {
                         if (!oldValue.equals(newValue)) {
                             log.info("OLD: {} NEW: {}", oldValue, newValue);
                             return true;
@@ -969,7 +1007,7 @@ public class DBAction {
                             return true;
                         }
                     }
-                } else if (type.equalsIgnoreCase("decimal")) {
+                } else if (type.equalsIgnoreCase(DECIMAL)) {
                     if (oldValue.equalsIgnoreCase("NaN")) {
                         oldValue = "'NaN'";
                     }
@@ -977,13 +1015,13 @@ public class DBAction {
                         newValue = "'NaN'";
                     }
                     if (oldValue.equalsIgnoreCase("INF")) {
-                        oldValue = "'Infinity'";
+                        oldValue = INFINITY;
                     }
                     if (oldValue.equalsIgnoreCase("-INF")) {
-                        oldValue = "'-Infinity'";
+                        oldValue = INFINITY_NEG;
                     }
                     if (newValue.equalsIgnoreCase("-INF")) {
-                        newValue = "'-Infinity'";
+                        newValue = INFINITY_NEG;
                     }
                     if (oldValue.equals("'NaN'") || newValue.equals("'NaN'")) {
                         if (!oldValue.equals(newValue)) {
@@ -1004,7 +1042,7 @@ public class DBAction {
                             return true;
                         }
                     }
-                } else if (type.equalsIgnoreCase("date")) {
+                } else if (type.equalsIgnoreCase(DATE1)) {
                     try {
                         Date o1 = DateUtils.parseDate(oldValue);
                         Date o2 = DateUtils.parseDate(newValue);
@@ -1014,11 +1052,11 @@ public class DBAction {
                             return true;
                         }
                     } catch (ParseException e) {
-                        log.error("", e);
+                        log.error(StringUtils.EMPTY, e);
                         log.info("OLD: {} NEW: {}", oldValue, newValue);
                         return true;
                     }
-                } else if (type.equalsIgnoreCase("dateTime")) {
+                } else if (type.equalsIgnoreCase(DATE_TIME1)) {
                     try {
                         Date o1 = DateUtils.parseDateTime(oldValue);
                         Date o2 = DateUtils.parseDateTime(newValue);
@@ -1028,11 +1066,11 @@ public class DBAction {
                             return true;
                         }
                     } catch (ParseException e) {
-                        log.error("", e);
+                        log.error(StringUtils.EMPTY, e);
                         log.info("OLD: {} NEW: {}", oldValue, newValue);
                         return true;
                     }
-                } else if (type.equalsIgnoreCase("time")) {
+                } else if (type.equalsIgnoreCase(TIME)) {
                     try {
                         Date o1 = DateUtils.parseTime(oldValue);
                         Date o2 = DateUtils.parseTime(newValue);
@@ -1042,7 +1080,7 @@ public class DBAction {
                             return true;
                         }
                     } catch (ParseException e) {
-                        log.error("", e);
+                        log.error(StringUtils.EMPTY, e);
                         log.info("OLD: {} NEW: {}", oldValue, newValue);
                         return true;
                     }
@@ -1078,7 +1116,7 @@ public class DBAction {
                                         isNoIdentifierTable = true;
                                     }
                                 } catch (FieldNotFoundException e1) {
-                                    log.error("", e1);
+                                    log.error(StringUtils.EMPTY, e1);
                                 }
                             }
 
@@ -1130,7 +1168,7 @@ public class DBAction {
                 }
             }
         } catch (ElementNotFoundException e) {
-            log.error("", e);
+            log.error(StringUtils.EMPTY, e);
         }
         return item;
     }
@@ -1149,7 +1187,7 @@ public class DBAction {
                     //check for one column table (if found, see if root item is already stored.  If, the item already was stored and has
                     // a fk value for this table that should be used. Else, this ref item will be stored and the root item will be updated with the fk value
                     boolean isNoIdentifierTable = false;
-                    String  keyName             = "";
+                    String  keyName             = StringUtils.EMPTY;
                     if (temp.getPossibleFieldNames().size() == 1) {
                         keyName = (String) temp.getPossibleFieldNames().get(0)[0];
                         if (temp.getProperty(keyName) == null) {
@@ -1195,7 +1233,7 @@ public class DBAction {
                         Object              rootFKValue = item.getProperty(localKey);
 
                         if (rootFKValue != null) {
-                            if (keyName.equals("")) {
+                            if (keyName.equals(StringUtils.EMPTY)) {
                                 keyName = foreignKey.getId();
                                 temp.setFieldValue(keyName, rootFKValue);
                                 if (temp.getGenericSchemaElement().isExtension()) {
@@ -1253,7 +1291,7 @@ public class DBAction {
                 //check for one column table (if found, see if root item is already stored.  If, the item already was stored and has
                 // a fk value for this table that should be used. Else, this ref item will be stored and the root item will be updated with the fk value
                 boolean isNoIdentifierTable = false;
-                String  keyName             = "";
+                String  keyName             = StringUtils.EMPTY;
                 if (temp.getPossibleFieldNames().size() == 1) {
                     keyName = (String) temp.getPossibleFieldNames().get(0)[0];
                     if (temp.getProperty(keyName) == null) {
@@ -1295,7 +1333,7 @@ public class DBAction {
                     Object              rootFKValue = item.getProperty(localKey);
 
                     if (rootFKValue != null) {
-                        if (keyName.equals("")) {
+                        if (keyName.equals(StringUtils.EMPTY)) {
                             keyName = foreignKey.getId();
                             temp.setFieldValue(keyName, rootFKValue);
                             if (temp.getGenericSchemaElement().isExtension()) {
@@ -1827,12 +1865,12 @@ public class DBAction {
 
     private static void Quarantine(XFTItem oldI, UserI user, boolean quarantine, boolean overrideQuarantine, DBItemCache cache) throws Exception {
         // MARK MODIFIED AS TRUE
-        if (oldI.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+        if (oldI.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
             Object metaDataId = oldI.getProperty(oldI.getGenericSchemaElement().getMetaDataFieldName().toLowerCase());
             if (metaDataId != null) {
                 XFTItem oldMeta = XFTItem.NewItem(oldI.getGenericSchemaElement().getFullXMLName() + "_meta_data", null);
                 oldMeta.setFieldValue("meta_data_id", metaDataId);
-                oldMeta.setFieldValue("modified", "1");
+                oldMeta.setFieldValue("modified", ONE);
                 oldMeta.setFieldValue("last_modified", Calendar.getInstance().getTime());
 
                 boolean q;
@@ -1865,7 +1903,7 @@ public class DBAction {
     private static final List<String> modifiable_status = Arrays.asList(ViewManager.ACTIVE, ViewManager.QUARANTINE);
 
     private static XFTItem StoreHistoryAndMeta(XFTItem oldI, UserI user, Boolean quarantine, DBItemCache cache) throws Exception {
-        if (oldI.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+        if (oldI.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
             XFTItem meta = (XFTItem) oldI.getMeta();
 
             //STORE HISTORY ITEM
@@ -1875,7 +1913,7 @@ public class DBAction {
             }
 
             if (meta != null) {
-                meta.setFieldValue("modified", "1");
+                meta.setFieldValue("modified", ONE);
                 meta.setFieldValue("last_modified", cache.getModTime());//other processes may change this as well, like modifications to a child element
                 meta.setFieldValue("row_last_modified", cache.getModTime());//added to track specific changes to this row
                 meta.setFieldValue("xft_version", cache.getChangeId());//added to track specific changes to this row
@@ -1991,7 +2029,7 @@ public class DBAction {
                                 if (field.isReference()) {
                                     GenericWrapperElement e = (GenericWrapperElement) field.getReferenceElement();
 
-                                    if (e.getAddin().equals("")) {
+                                    if (e.getAddin().equals(StringUtils.EMPTY)) {
                                         if (counter++ == 0) {
                                             query.append(key).append("= NULL");
                                         } else {
@@ -2085,10 +2123,10 @@ public class DBAction {
 
 
             String type = buildType(field);
-            if (type.equalsIgnoreCase("")) {
+            if (type.equalsIgnoreCase(StringUtils.EMPTY)) {
                 if (object instanceof String) {
-                    if (object.toString().equalsIgnoreCase("NULL")) {
-                        return "NULL";
+                    if (object.toString().equalsIgnoreCase(NULL)) {
+                        return NULL;
                     } else {
                         return "'" + object.toString() + "'";
                     }
@@ -2109,8 +2147,8 @@ public class DBAction {
             }
         } else {
             if (object instanceof String) {
-                if (object.toString().equalsIgnoreCase("NULL")) {
-                    return "NULL";
+                if (object.toString().equalsIgnoreCase(NULL)) {
+                    return NULL;
                 } else {
                     return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
                 }
@@ -2131,16 +2169,91 @@ public class DBAction {
      *
      * @throws InvalidValueException When an invalid value is specified for item properties.
      */
-    public static String ValueParser(Object object, String type, boolean allowInvalidValues) throws InvalidValueException {
+    public static int TypeParser(Object object, String type, boolean allowInvalidValues) throws InvalidValueException {
         if (object != null) {
-            if (object.toString().equalsIgnoreCase("NULL")) {
-                return "NULL";
+            if (object.toString().equalsIgnoreCase(NULL)) {
+                return Types.OTHER;
             }
         } else {
-            return "";
+            return Types.OTHER;
         }
 
-        if (type.equalsIgnoreCase("string")) {
+        if (type.equalsIgnoreCase(STRING2)) {
+                return Types.VARCHAR;
+        } else if (type.equalsIgnoreCase("anyURI")) {
+            return Types.VARCHAR;
+        } else if (type.equalsIgnoreCase(ID)) {
+            return Types.VARCHAR;
+        } else if (type.equalsIgnoreCase(BOOLEAN)) {
+            return Types.BOOLEAN;
+        } else if (type.equalsIgnoreCase(FLOAT)) {
+            return Types.FLOAT;
+        } else if (type.equalsIgnoreCase(DOUBLE)) {
+            return Types.FLOAT;
+        } else if (type.equalsIgnoreCase(DECIMAL)) {
+            return Types.NUMERIC;
+        } else if (type.equalsIgnoreCase(INTEGER)) {
+            return Types.INTEGER;
+        } else if (type.equalsIgnoreCase(NON_POSITIVE_INTEGER)) {
+            return Types.INTEGER;
+        } else if (type.equalsIgnoreCase(NEGATIVE_INTEGER)) {
+            return Types.INTEGER;
+        } else if (type.equalsIgnoreCase("long")) {
+            return Types.BIGINT;
+        } else if (type.equalsIgnoreCase(INT)) {
+            return Types.INTEGER;
+        } else if (type.equalsIgnoreCase(SHORT)) {
+            return Types.SMALLINT;
+        } else if (type.equalsIgnoreCase(BYTE)) {
+            return Types.TINYINT;
+        } else if (type.equalsIgnoreCase(NON_NEGATIVE_INTEGER)) {
+            return Types.INTEGER;
+        } else if (type.equalsIgnoreCase(UNSIGNED_LONG)) {
+            return Types.FLOAT;
+        } else if (type.equalsIgnoreCase(UNSIGNED_INT)) {
+            return Types.INTEGER;
+        } else if (type.equalsIgnoreCase(UNSIGNED_SHORT)) {
+            return Types.SMALLINT;
+        } else if (type.equalsIgnoreCase(UNSIGNED_BYTE)) {
+            return Types.TINYINT;
+        } else if (type.equalsIgnoreCase(POSITIVE_INTEGER)) {
+            return Types.INTEGER;
+        } else if (type.equalsIgnoreCase(TIME)) {
+            return Types.TIME;
+        } else if (type.equalsIgnoreCase(DATE1)) {
+            return Types.DATE;
+        } else if (type.equalsIgnoreCase(DATE_TIME1)) {
+            return Types.TIMESTAMP;
+        } else {
+            return Types.OTHER;
+        }
+    }
+
+    private static String toStringWrap(Object o){
+        return String.format("'%s'",o.toString());
+    }
+
+    /**
+     * Formats the object to a string for SQL interaction based on the submitted type.
+     *
+     * @param object             The The object containing the value to be parsed.
+     * @param type               The type to be used for conversion.
+     * @param allowInvalidValues Indicates whether an invalid value show trigger an exception and possible email to the site administrator.
+     *
+     * @return The string parsed from the object.
+     *
+     * @throws InvalidValueException When an invalid value is specified for item properties.
+     */
+    public static String ValueParser(Object object, String type, boolean allowInvalidValues) throws InvalidValueException {
+        if (object != null) {
+            if (object.toString().equalsIgnoreCase(NULL)) {
+                return NULL;
+            }
+        } else {
+            return StringUtils.EMPTY;
+        }
+
+        if (type.equalsIgnoreCase(STRING2)) {
             if (object.getClass().getName().equalsIgnoreCase("[B")) {
                 byte[]                        b    = (byte[]) object;
                 java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
@@ -2149,8 +2262,8 @@ public class DBAction {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                if (baos.toString().equalsIgnoreCase("NULL")) {
-                    return "NULL";
+                if (baos.toString().equalsIgnoreCase(NULL)) {
+                    return NULL;
                 } else {
                     String s     = baos.toString();
                     String upper = s.toUpperCase();
@@ -2166,10 +2279,10 @@ public class DBAction {
                             throw new InvalidValueException("Use of '<' and '>' are not allowed in content.");
                         }
                     }
-                    return "'" + XftStringUtils.CleanForSQLValue(s) + "'";
+                    return toStringWrap(XftStringUtils.CleanForSQLValue(s));
                 }
-            } else if (object.toString().equalsIgnoreCase("NULL")) {
-                return "NULL";
+            } else if (object.toString().equalsIgnoreCase(NULL)) {
+                return NULL;
             } else {
                 String s     = object.toString();
                 String upper = s.toUpperCase();
@@ -2185,11 +2298,11 @@ public class DBAction {
                         throw new InvalidValueException("Use of '<' and '>' are not allowed in content.");
                     }
                 }
-                return "'" + XftStringUtils.CleanForSQLValue(s) + "'";
+                return toStringWrap(XftStringUtils.CleanForSQLValue(s));
             }
         } else if (type.equalsIgnoreCase("anyURI")) {
-            if (object.toString().equalsIgnoreCase("NULL")) {
-                return "NULL";
+            if (object.toString().equalsIgnoreCase(NULL)) {
+                return NULL;
             } else {
                 final String uri = object.toString().replace('\\', '/');
                 if (uri.contains("..")) {
@@ -2202,173 +2315,173 @@ public class DBAction {
                     }
 
                 }
-                return "'" + XftStringUtils.CleanForSQLValue(uri) + "'";
+                return toStringWrap(XftStringUtils.CleanForSQLValue(uri));
             }
-        } else if (type.equalsIgnoreCase("ID")) {
-            return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
-        } else if (type.equalsIgnoreCase("boolean")) {
-            if (object.toString().equalsIgnoreCase("true") || object.toString().equalsIgnoreCase("1")) {
-                return "1";
+        } else if (type.equalsIgnoreCase(ID)) {
+            return toStringWrap(XftStringUtils.CleanForSQLValue(object.toString()));
+        } else if (type.equalsIgnoreCase(BOOLEAN)) {
+            if (object.toString().equalsIgnoreCase(TRUE) || object.toString().equalsIgnoreCase(ONE)) {
+                return ONE;
             } else {
-                return "0";
+                return ZERO;
             }
-        } else if (type.equalsIgnoreCase("float")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
-            } else {
-                return object.toString();
-            }
-        } else if (type.equalsIgnoreCase("double")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(FLOAT)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("decimal")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(DOUBLE)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("integer")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(DECIMAL)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("nonPositiveInteger")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(INTEGER)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("negativeInteger")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(NON_POSITIVE_INTEGER)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("long")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(NEGATIVE_INTEGER)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("int")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(LONG)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("short")) {
+        } else if (type.equalsIgnoreCase(INT)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
+            } else {
+                return object.toString();
+            }
+        } else if (type.equalsIgnoreCase(SHORT)) {
             return object.toString();
-        } else if (type.equalsIgnoreCase("byte")) {
+        } else if (type.equalsIgnoreCase(BYTE)) {
             return object.toString();
-        } else if (type.equalsIgnoreCase("nonNegativeInteger")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(NON_NEGATIVE_INTEGER)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY1)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("unsignedLong")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(UNSIGNED_LONG)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("unsignedInt")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(UNSIGNED_INT)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("unsignedShort")) {
+        } else if (type.equalsIgnoreCase(UNSIGNED_SHORT)) {
             return object.toString();
-        } else if (type.equalsIgnoreCase("unsignedByte")) {
+        } else if (type.equalsIgnoreCase(UNSIGNED_BYTE)) {
             return object.toString();
-        } else if (type.equalsIgnoreCase("positiveInteger")) {
-            if (object.toString().equalsIgnoreCase("nan")) {
-                return "'" + object.toString() + "'";
-            } else if (object.toString().equalsIgnoreCase("inf") || object.toString().equalsIgnoreCase("Infinity")) {
-                return "'Infinity'";
-            } else if (object.toString().equalsIgnoreCase("-inf") || object.toString().equalsIgnoreCase("-Infinity")) {
-                return "'-Infinity'";
-            } else if (object.toString().equals("")) {
-                return "NULL";
+        } else if (type.equalsIgnoreCase(POSITIVE_INTEGER)) {
+            if (object.toString().equalsIgnoreCase(NAN)) {
+                return toStringWrap(object);
+            } else if (object.toString().equalsIgnoreCase(INF) || object.toString().equalsIgnoreCase(INFINITY)) {
+                return INFINITY;
+            } else if (object.toString().equalsIgnoreCase(INF1) || object.toString().equalsIgnoreCase(INFINITY2)) {
+                return INFINITY_NEG;
+            } else if (object.toString().equals(StringUtils.EMPTY)) {
+                return NULL;
             } else {
                 return object.toString();
             }
-        } else if (type.equalsIgnoreCase("time")) {
-            return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
-        } else if (type.equalsIgnoreCase("date")) {
-            return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
-        } else if (type.equalsIgnoreCase("dateTime")) {
+        } else if (type.equalsIgnoreCase(                TIME)) {
+            return toStringWrap(XftStringUtils.CleanForSQLValue(object.toString()));
+        } else if (type.equalsIgnoreCase(DATE1)) {
+            return toStringWrap(XftStringUtils.CleanForSQLValue(object.toString()));
+        } else if (type.equalsIgnoreCase(DATE_TIME1)) {
             Date d;
             if (object instanceof Date) {
                 d = (Date) object;
@@ -2376,20 +2489,20 @@ public class DBAction {
                 try {
                     d = DateUtils.parseDateTime(object.toString());
                 } catch (ParseException e) {
-                    if (object.toString().trim().equals("NOW()")) {
-                        return "NOW()";
+                    if (object.toString().trim().equals(NOW)) {
+                        return NOW;
                     } else {
-                        return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
+                        return toStringWrap(XftStringUtils.CleanForSQLValue(object.toString()));
                     }
                 }
             }
 
             if (d != null) {
-                SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+                SimpleDateFormat df = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS_SSS);
 
-                return "'" + df.format(d) + "'";
+                return toStringWrap(df.format(d));
             } else {
-                return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
+                return toStringWrap(XftStringUtils.CleanForSQLValue(object.toString()));
             }
         } else {
             return object.toString();
@@ -2408,7 +2521,7 @@ public class DBAction {
         RemoveItemReference(item, xmlPath, toRemove, user, cache, false, false);
 
         PoolDBUtils con;
-        if (!cache.getSQL().equals("") && !cache.getSQL().equals("[]")) {
+        if (!cache.getSQL().equals(StringUtils.EMPTY) && !cache.getSQL().equals("[]")) {
             String  username     = null;
             Integer xdat_user_id = null;
             if (user != null) {
@@ -2456,7 +2569,7 @@ public class DBAction {
 
             boolean             foundField = false;
             GenericWrapperField field      = null;
-            if (xmlPath != null && !xmlPath.equals("")) {
+            if (xmlPath != null && !xmlPath.equals(StringUtils.EMPTY)) {
                 field = GenericWrapperElement.GetFieldForXMLPath(xmlPath);
             } else {
                 for (final GenericWrapperField f : root.getReferenceFields(true)) {
@@ -2549,7 +2662,7 @@ public class DBAction {
                                     try {
                                         StoreHistoryAndMeta(updateItem, user, null, cache);
                                     } catch (ElementNotFoundException e) {
-                                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                                             throw e;
                                         }
                                     }
@@ -2558,7 +2671,7 @@ public class DBAction {
                                 refsCols = ref.getKeyRelations().iterator();
                                 while (refsCols.hasNext()) {
                                     XFTRelationSpecification spec = (XFTRelationSpecification) refsCols.next();
-                                    updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), "NULL");
+                                    updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), NULL);
                                 }
 
                                 //UPDATE ITEM
@@ -2631,7 +2744,7 @@ public class DBAction {
                                     try {
                                         StoreHistoryAndMeta(updateItem, user, null, cache);
                                     } catch (ElementNotFoundException e) {
-                                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                                             throw e;
                                         }
                                     }
@@ -2641,7 +2754,7 @@ public class DBAction {
                                 refsCols = ref.getKeyRelations().iterator();
                                 while (refsCols.hasNext()) {
                                     XFTRelationSpecification spec = (XFTRelationSpecification) refsCols.next();
-                                    updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), "NULL");
+                                    updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), NULL);
                                 }
 
 
@@ -2677,7 +2790,7 @@ public class DBAction {
                                     try {
                                         StoreHistoryAndMeta(updateItem, user, null, cache);
                                     } catch (ElementNotFoundException e) {
-                                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                                        if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                                             throw e;
                                         }
                                     }
@@ -2687,7 +2800,7 @@ public class DBAction {
                                 refsCols = ref.getKeyRelations().iterator();
                                 while (refsCols.hasNext()) {
                                     XFTRelationSpecification spec = (XFTRelationSpecification) refsCols.next();
-                                    updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), "NULL");
+                                    updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), NULL);
                                 }
 
 
@@ -2770,7 +2883,7 @@ public class DBAction {
                                 try {
                                     StoreHistoryAndMeta(updateItem, user, null, cache);
                                 } catch (ElementNotFoundException e) {
-                                    if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                                    if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                                         throw e;
                                     }
                                 }
@@ -2780,7 +2893,7 @@ public class DBAction {
                             refsCols = ref.getKeyRelations().iterator();
                             while (refsCols.hasNext()) {
                                 XFTRelationSpecification spec = (XFTRelationSpecification) refsCols.next();
-                                updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), "NULL");
+                                updateItem.setProperty(updateItem.getXSIType() + "." + spec.getLocalCol(), NULL);
                             }
 
 
@@ -2939,7 +3052,7 @@ public class DBAction {
             try {
                 StoreHistoryAndMeta(item, user, null, cache);
             } catch (Exception e) {
-                if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                     throw e;
                 }
             }
@@ -2960,7 +3073,7 @@ public class DBAction {
 
                 if (!ref.getPreventLoop() || !possibleLoop) {
                     for (final XFTItem child : item.getChildItems(xmlPath)) {
-                        if (child.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                        if (child.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                             if (extensionItem == null || (!XFTItem.CompareItemsByPKs(child, extensionItem))) {
                                 DBAction.RemoveItemReference(item, xmlPath, child.getCurrentDBVersion(true, true), user, cache, true, cleanHistory);
                             }
@@ -2984,7 +3097,7 @@ public class DBAction {
 
             try {
                 // MARK META_DATA to DELETED
-                if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase("")) {
+                if (item.getGenericSchemaElement().getAddin().equalsIgnoreCase(StringUtils.EMPTY)) {
                     Object metaDataId = item.getProperty(item.getGenericSchemaElement().getMetaDataFieldName().toLowerCase());
                     if (metaDataId != null) {
                         XFTItem oldMeta = XFTItem.NewItem(item.getGenericSchemaElement().getFullXMLName() + "_meta_data", null);
@@ -2994,7 +3107,7 @@ public class DBAction {
                     }
                 }
             } catch (Exception e) {
-                log.error("", e);
+                log.error(StringUtils.EMPTY, e);
             }
 
             //DELETE
@@ -3062,7 +3175,7 @@ public class DBAction {
             // Migration: Parameterize all array lists, hashtables, etc.
             for (final Object object : XFTManager.GetInstance().getAllElements()) {
                 GenericWrapperElement e = (GenericWrapperElement) object;
-                if (e.getAddin().equals("")) {
+                if (e.getAddin().equals(StringUtils.EMPTY)) {
                     InsertMetaDatas(e.getXSIType());
                 }
             }
@@ -3080,7 +3193,7 @@ public class DBAction {
             ArrayList<GenericWrapperField> keys      = element.getAllPrimaryKeys();
             StringBuilder                  keyString = new StringBuilder();
             for (GenericWrapperField key : keys) {
-                if (!keyString.toString().equals("")) {
+                if (!keyString.toString().equals(StringUtils.EMPTY)) {
                     keyString.append(",");
                 }
                 keyString.append(key.getSQLName());
@@ -3097,7 +3210,7 @@ public class DBAction {
                     keyString = new StringBuilder();
                     int count = 0;
                     for (GenericWrapperField key : keys) {
-                        if (!keyString.toString().equals("")) {
+                        if (!keyString.toString().equals(StringUtils.EMPTY)) {
                             keyString.append(" AND ");
                         }
                         keyString.append(key.getSQLName()).append("=").append(DBAction.ValueParser(row[count++], key, true));
@@ -3110,7 +3223,7 @@ public class DBAction {
             } else {
                 log.info("{} has all meta rows.", element.getFullXMLName());
             }
-            if (!cache.getSQL().equals("") && !cache.getSQL().equals("[]")) {
+            if (!cache.getSQL().equals(StringUtils.EMPTY) && !cache.getSQL().equals("[]")) {
                 try {
                     PoolDBUtils con = new PoolDBUtils();
                     con.sendBatch(cache, element.getDbName(), null);
@@ -3161,7 +3274,7 @@ public class DBAction {
                         adjustSequence(input.getSequenceName(), input.getAllPrimaryKeys().get(0).getSQLName(), input.getSQLName(), input.getDbName());
                     }
                 } catch (Exception e) {
-                    log.error("", e);
+                    log.error(StringUtils.EMPTY, e);
                 }
             }
 
@@ -3170,11 +3283,11 @@ public class DBAction {
                     final XFTManyToManyReference map = (XFTManyToManyReference) object;
                     adjustSequence(DBAction.getSequenceName(map.getMappingTable(), map.getMappingTable() + "_id", map.getElement1().getDbName()), map.getMappingTable() + "_id", map.getMappingTable(), map.getElement1().getDbName());
                 } catch (Exception e) {
-                    log.error("", e);
+                    log.error(StringUtils.EMPTY, e);
                 }
             }
         } catch (Exception e) {
-            log.error("", e);
+            log.error(StringUtils.EMPTY, e);
         }
         log.info("Finished db sequence check {} ms", Calendar.getInstance().getTimeInMillis() - startTime);
     }
@@ -3284,7 +3397,7 @@ public class DBAction {
                 }), Predicates.notNull()), ", ");
 
                 PoolDBUtils.CreateCache(dbname = item.getDBName(), username);
-                commands.add(String.format("SELECT update_ls_%s(%s,%s)", schemaElement.getFormattedName(), ids, ObjectUtils.defaultIfNull(userId, "NULL").toString()));
+                commands.add(String.format("SELECT update_ls_%s(%s,%s)", schemaElement.getFormattedName(), ids, ObjectUtils.defaultIfNull(userId, NULL).toString()));
             } catch (ElementNotFoundException e) {
                 log.error("Element not found while trying to process item of type {}", e.ELEMENT, e);
             }

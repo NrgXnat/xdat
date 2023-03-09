@@ -9,8 +9,8 @@
 
 package org.nrg.xdat.search;
 
-import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.nrg.xdat.XDAT;
 import org.nrg.xdat.collections.DisplayFieldCollection.DisplayFieldNotFoundException;
 import org.nrg.xdat.collections.DisplayFieldWrapperCollection;
 import org.nrg.xdat.display.*;
@@ -34,13 +34,13 @@ import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.schema.design.SchemaFieldI;
 import org.nrg.xft.search.CriteriaCollection;
 import org.nrg.xft.search.*;
+import org.nrg.xft.search.QueryOrganizer.CachedRootQuery;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.XftStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.regex.Pattern;
 
 /**
  * @author Tim
@@ -183,8 +183,12 @@ public class DisplaySearch implements TableSearchI {
         table = null;
     }
 
+    private boolean hasCriteria() {
+        return this.criteria != null && this.criteria.numClauses() > 0;
+    }
+
     private boolean hasSchemaOnlyCriteria() {
-        return this.criteria != null && this.criteria.numClauses() > 0 && this.criteria.numClauses() == this.criteria.numSchemaClauses();
+        return hasCriteria() && this.criteria.numClauses() == this.criteria.numSchemaClauses();
     }
 
     public String getSQLQuery(PresentationA presenter) throws Exception {
@@ -305,7 +309,7 @@ public class DisplaySearch implements TableSearchI {
         StringBuilder select = new StringBuilder();
         StringBuilder orderBy = new StringBuilder();
 
-        QueryOrganizer qo = new QueryOrganizer(this.getRootElement(), user, level);
+        QueryOrganizer qo = new QueryOrganizer(this.getRootElement(), user, level, new LinkedHashMap<>());
 
         if (hasSchemaOnlyCriteria()) {
             qo.setWhere(criteria);
@@ -319,12 +323,14 @@ public class DisplaySearch implements TableSearchI {
 
 //		build ORDER BY clause
         if ((sortBy == null || sortBy.equalsIgnoreCase("")) && (customSortBy.equalsIgnoreCase(""))) {
-            if (dv == null) {
-                DisplayFieldWrapper dfw = ((DisplayFieldWrapper) this.getFields().getSortedFields().get(0));
-                sortBy = dfw.getId();
-            } else {
-                sortBy = dv.getDefaultOrderBy();
-                sortOrder = dv.getDefaultSortOrder();
+            if(XDAT.getBoolSiteConfigurationProperty("defaultToSortedListings",Boolean.TRUE)) {
+                if (dv == null) {
+                    DisplayFieldWrapper dfw = ((DisplayFieldWrapper) this.getFields().getSortedFields().get(0));
+                    sortBy = dfw.getId();
+                } else {
+                    sortBy = dv.getDefaultOrderBy();
+                    sortOrder = dv.getDefaultSortOrder();
+                }
             }
         }
 
@@ -362,7 +368,7 @@ public class DisplaySearch implements TableSearchI {
                     String s = (String) o[0];
                     qo.addField(s);
                 }
-            } else {
+            } else if(StringUtils.isNotEmpty(sortBy)) {
                 DisplayField df = rootElement.getDisplayField(sortBy);
                 for (final Object[] o : df.getSchemaFields()) {
                     String s = (String) o[0];
@@ -518,8 +524,9 @@ public class DisplaySearch implements TableSearchI {
             if (rootField != null) {
                 for (final Object addon : addons) {
                     String fName = (String) addon;
-                    SchemaElementI foreign = SchemaElement.GetElement(fName);
-                    if (isMultipleRelationship(foreign)) {
+                    SchemaElement foreign = SchemaElement.GetElement(fName);
+
+                    if (isMultipleRelationship(foreign) && !qo.isOptimizedField(rootElement,foreign)) {
                         final String foreignFilter = foreign.getGenericXFTElement().getFilterField();
                         final String localType = GenericWrapperElement.GetFieldForXMLPath(rootField).getXMLType().getLocalType();
                         final String foreignType = GenericWrapperElement.GetFieldForXMLPath(foreignFilter).getXMLType().getLocalType();
@@ -537,60 +544,61 @@ public class DisplaySearch implements TableSearchI {
             select.append(keyCol).append(" AS KEY ");
         }
 
-        orderBy.append(" ORDER BY ");
-        if (this.getCustomSortBy().equalsIgnoreCase("")) {
-            if (sortBy.contains(".")) {
-                SchemaElement e = SchemaElement.GetElement(sortBy.substring(0, sortBy.indexOf(".")));
-                String fieldID = sortBy.substring(sortBy.indexOf(".") + 1);
-                if (fieldID.contains(".")) {
-                    fieldID = fieldID.substring(0, fieldID.indexOf("."));
-                }
-                DisplayField df = e.getDisplayField(fieldID);
-                String content = this.getSQLContent(df, qo);
-                if (df instanceof SQLQueryField) {
-                    iter = displayFields.iterator();
-                    boolean matched = false;
-                    DisplayFieldReferenceI dfr = null;
-                    while (iter.hasNext()) {
-                        dfr = (DisplayFieldReferenceI) iter.next();
-                        if (dfr.getDisplayField().getId().equals(df.getId())) {
-                            matched = true;
-                            break;
+        if(StringUtils.isNotEmpty(sortBy)) {
+            orderBy.append(" ORDER BY ");
+            if (this.getCustomSortBy().equalsIgnoreCase("")) {
+                if (sortBy.contains(".")) {
+                    SchemaElement e = SchemaElement.GetElement(sortBy.substring(0, sortBy.indexOf(".")));
+                    String fieldID = sortBy.substring(sortBy.indexOf(".") + 1);
+                    if (fieldID.contains(".")) {
+                        fieldID = fieldID.substring(0, fieldID.indexOf("."));
+                    }
+                    DisplayField df = e.getDisplayField(fieldID);
+                    String content = this.getSQLContent(df, qo);
+                    if (df instanceof SQLQueryField) {
+                        iter = displayFields.iterator();
+                        boolean matched = false;
+                        DisplayFieldReferenceI dfr = null;
+                        while (iter.hasNext()) {
+                            dfr = (DisplayFieldReferenceI) iter.next();
+                            if (dfr.getDisplayField().getId().equals(df.getId())) {
+                                matched = true;
+                                break;
+                            }
                         }
+
+                        if (matched) {
+                            String df_value = (dfr.getValue() == null) ? "NULL" : dfr.getValue().toString();
+
+                            content = qo.getFieldAlias(df.getParentDisplay().getElementName() + ".SUBQUERYFIELD_" + df.getId() + "." + df_value);
+                        } else {
+                            content = "1";
+                        }
+
                     }
 
-                    if (matched) {
-                        String df_value = (dfr.getValue() == null) ? "NULL" : dfr.getValue().toString();
-
-                        content = qo.getFieldAlias(df.getParentDisplay().getElementName() + ".SUBQUERYFIELD_" + df.getId() + "." + df_value);
-                    } else {
-                        content = "1";
+                    orderBy.append("(").append(content).append(") ");
+                    sortOrder = sortOrder.trim();
+                    if (sortOrder.equalsIgnoreCase("desc") || sortOrder.equalsIgnoreCase("asc")) {
+                        orderBy.append(sortOrder);
                     }
 
+                } else {
+                    DisplayField df = rootElement.getDisplayField(sortBy);
+                    String content = this.getSQLContent(df, qo);
+                    orderBy.append("(").append(content).append(") ");
+                    sortOrder = sortOrder.trim();
+                    if (sortOrder.equalsIgnoreCase("desc") || sortOrder.equalsIgnoreCase("asc")) {
+                        orderBy.append(sortOrder);
+                    }
                 }
-
-                orderBy.append("(").append(content).append(") ");
-                sortOrder = sortOrder.trim();
-                if (sortOrder.equalsIgnoreCase("desc") || sortOrder.equalsIgnoreCase("asc")) {
-                    orderBy.append(sortOrder);
-                }
-
             } else {
-                DisplayField df = rootElement.getDisplayField(sortBy);
-                String content = this.getSQLContent(df, qo);
-                orderBy.append("(").append(content).append(") ");
-                sortOrder = sortOrder.trim();
-                if (sortOrder.equalsIgnoreCase("desc") || sortOrder.equalsIgnoreCase("asc")) {
-                    orderBy.append(sortOrder);
-                }
+                orderBy.append(this.getCustomSortBy());
             }
-        } else {
-            orderBy.append(this.getCustomSortBy());
         }
 
-        if (!hasSchemaOnlyCriteria()) {
-
-            QueryOrganizer whereqo = new QueryOrganizer(this.getRootElement(), user, level);
+        if (hasCriteria() && !hasSchemaOnlyCriteria()) {
+            QueryOrganizer whereqo = new QueryOrganizer(this.getRootElement(), user, level, qo.getRootQueries());
 
             //build WHERE clause
             Iterator criteriaIter = criteria.getSchemaFields().iterator();
@@ -718,6 +726,25 @@ public class DisplaySearch implements TableSearchI {
         } else {
             sb.append(query);
         }
+
+
+        //ADD ROOT QUERIES VIA WITH SYNTAX
+        if(qo.getRootQueries().size()>0){
+            int clauses = 0;
+            final StringBuilder withClause = new StringBuilder();
+            withClause.append("WITH ");
+
+            for(CachedRootQuery cachedQuery: qo.getRootQueries().values()){
+                if(clauses++ > 0){
+                    withClause.append(", ");
+                }
+
+                withClause.append(cachedQuery.getAlias()).append(" AS (").append(cachedQuery.getQuery()).append(") ");
+            }
+
+            sb.insert(0,withClause.toString());
+        }
+
         return sb.toString();
     }
 
