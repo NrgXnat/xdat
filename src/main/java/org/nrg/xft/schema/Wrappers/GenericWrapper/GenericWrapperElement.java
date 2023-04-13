@@ -446,25 +446,37 @@ public class GenericWrapperElement extends XFTElementWrapper implements SchemaEl
 	}
 
 	private ArrayList<GenericWrapperField> pks=null;
+
 	/**
 	 * Gets all primary key fields including stated PKs and default PKs.
 	 * @return ArrayList of GenericWrapperFields
 	 */
 	public ArrayList<GenericWrapperField> getAllPrimaryKeys(){
-		if(pks==null || !XFTManager.isComplete()) {
-			pks = new ArrayList();
+		if (pks == null) {
+			// Check for completeness before beginning
+			final boolean xftIsComplete = XFTManager.isComplete();
+
+			// load everything into al as before
+			final ArrayList al = new ArrayList();
 
 			try {
-				pks.addAll(getStatedPrimaryKeyFields());
+				al.addAll(getStatedPrimaryKeyFields());
 
-				if (pks.size() == 0) {
-					pks.add((GenericWrapperField) getDefaultKey());
+				if (al.size() == 0) {
+					al.add((GenericWrapperField) getDefaultKey());
 				}
 
-				pks.trimToSize();
+				al.trimToSize();
 			} catch (XFTInitException e) {
 				logger.error("", e);
 			}
+
+			// If XFT was initialized when we began, cache al
+			// else return al without caching
+			if (!xftIsComplete) {
+				return al;
+			}
+			pks = al;
 		}
 		return pks;
 	}
