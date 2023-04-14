@@ -589,13 +589,14 @@ public class QueryOrganizer implements QueryOrganizerI{
         }
 
         int clauses = 0;
+        final String rootDatatype=getRootElement().getXSIType();
+        final String origROOTName="S_"+getRootElement().getSQLName();
+        final String permROOTName="P_"+getRootElement().getSQLName();
 
-        if(project!=null  && this.getWhere().numClauses()==2) {
+        if(getRootQueries().containsKey(rootDatatype) && getRootQueries().containsKey(permROOTName) && project!=null  && this.getWhere().numClauses()==2) {
             //only project filter
-            String rootDatatype=getRootElement().getXSIType();
-            String origROOTName="S_"+getRootElement().getSQLName();
             boolean modified = false;
-            if(getRootQueries().containsKey(rootDatatype) && query.indexOf(origROOTName)>-1){
+            if(query.indexOf(origROOTName)>-1){
                 if(getRootElement().instanceOf("xnat:subjectData")){
                     getRootQueries().remove(rootDatatype);
                     getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(PROJ_SUBJ_QUERY1,project)));
@@ -625,9 +626,7 @@ public class QueryOrganizer implements QueryOrganizerI{
                     return withClause.toString();
                 }
             }
-        }else if (project==null){
-            String rootDatatype=getRootElement().getXSIType();
-            String origROOTName="S_"+getRootElement().getSQLName();
+        }else if (getRootQueries().containsKey(permROOTName) && project==null){
             boolean modified = false;
             if(getRootQueries().containsKey(rootDatatype) && query.indexOf(origROOTName)>-1){
                 if(getRootElement().instanceOf("xnat:subjectData")){
@@ -643,6 +642,7 @@ public class QueryOrganizer implements QueryOrganizerI{
                 }
 
                 if(modified){
+                    //the site wide search query needs to do a DISTINCT on the UNION results due to possible duplicate rows
                     final StringBuilder withClause = new StringBuilder();
                     withClause.append("WITH ");
                     for (CachedRootQuery cachedQuery : this.getRootQueries().values()) {
