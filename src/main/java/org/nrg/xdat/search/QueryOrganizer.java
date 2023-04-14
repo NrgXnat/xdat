@@ -48,7 +48,7 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
     }
 
     public QueryOrganizer(String elementName, UserI u, String level) throws ElementNotFoundException {
-        super(elementName, u, level,  (u!=null)?new LinkedHashMap<>():null);
+        super(elementName, u, level,  null);
     }
 
     public QueryOrganizer(SchemaElementI se, UserI u, String level, Map<String, CachedRootQuery> rootQueries) {
@@ -57,6 +57,10 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
 
     public QueryOrganizer(SchemaElementI se, UserI u, String level) {
         this(se,u,level,null);
+    }
+
+    public static QueryOrganizer buildXDATQueryOrganizerWithClause(final SchemaElementI se, final UserI u, final String level){
+        return new QueryOrganizer(se,u,level,new LinkedHashMap<>());
     }
 
     public void addSubquery(String key, DisplayFieldReferenceI df){
@@ -1712,13 +1716,9 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
         }
     }
 
-    public final static List<ManualJoin> manualJoins=new ArrayList<>();
-
-    static{
-        //WARNING: these joins hardcode the business rule, that if you have access to a child object, you must also have access to its parent.
-        manualJoins.add(new ManualJoin("xnat:subjectData","xnat:demographicData","FROM xnat_demographicData xnat_demographicData", " LEFT JOIN xnat_demographicData ON xnat_subjectData.demographics_xnat_abstractdemographicdata_id=xnat_demographicData.xnat_abstractdemographicdata_id"));
-        manualJoins.add(new ManualJoin("xnat:subjectAssessorData","xnat:subjectData", "FROM xnat_subjectData xnat_subjectData", " LEFT JOIN xnat_subjectData ON %2$s.subject_id=xnat_subjectData.id"));
-        manualJoins.add(new ManualJoin("xnat:imageScanData","xnat:imageSessionData", "FROM %1$s %1$s", " LEFT JOIN %1$s ON %2$s.image_session_id=%1$s.id"));
-        manualJoins.add(new ManualJoin("xnat:imageAssessorData","xnat:imageSessionData", "FROM %1$s %1$s", " LEFT JOIN %1$s ON %2$s.imagesession_id=%1$s.id"));
-    }
+    public final static List<ManualJoin> manualJoins=Lists.newArrayList(
+        new ManualJoin("xnat:subjectData","xnat:demographicData","FROM xnat_demographicData xnat_demographicData", " LEFT JOIN xnat_demographicData ON xnat_subjectData.demographics_xnat_abstractdemographicdata_id=xnat_demographicData.xnat_abstractdemographicdata_id"),
+        new ManualJoin("xnat:subjectAssessorData","xnat:subjectData", "FROM xnat_subjectData xnat_subjectData", " LEFT JOIN xnat_subjectData ON %2$s.subject_id=xnat_subjectData.id"),
+        new ManualJoin("xnat:imageScanData","xnat:imageSessionData", "FROM %1$s %1$s", " LEFT JOIN %1$s ON %2$s.image_session_id=%1$s.id"),
+        new ManualJoin("xnat:imageAssessorData","xnat:imageSessionData", "FROM %1$s %1$s", " LEFT JOIN %1$s ON %2$s.imagesession_id=%1$s.id"));
 }

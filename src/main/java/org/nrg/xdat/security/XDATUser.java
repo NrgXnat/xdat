@@ -751,7 +751,7 @@ public class XDATUser extends XdatUser implements UserI, Serializable {
         ArrayList results = new ArrayList();
         try {
 
-            QueryOrganizer qo = new QueryOrganizer(rootElement, this, ViewManager.ALL, new LinkedHashMap<>());
+            QueryOrganizer qo = new QueryOrganizer(rootElement, this, ViewManager.ALL,null);
 
             ArrayList fields = XftStringUtils.CommaDelimitedStringToArrayList(xmlPaths);
             for (Object field : fields) {

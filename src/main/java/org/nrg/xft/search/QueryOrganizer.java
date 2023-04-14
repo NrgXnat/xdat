@@ -27,6 +27,7 @@ import org.nrg.xft.XFT;
 import org.nrg.xft.db.ViewManager;
 import org.nrg.xft.exception.ElementNotFoundException;
 import org.nrg.xft.exception.FieldNotFoundException;
+import org.nrg.xft.exception.InvalidPermissionException;
 import org.nrg.xft.exception.XFTInitException;
 import org.nrg.xft.references.*;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
@@ -72,7 +73,7 @@ public class QueryOrganizer implements QueryOrganizerI{
 
     private boolean skipSecurity=false;
 
-    final String PROJECT_QUERY = "SELECT xnat_projectData.* "
+    static final String PROJECT_QUERY = "SELECT xnat_projectData.* "
         + " FROM xnat_projectdata "
         + "              LEFT JOIN xnat_projectData_meta_data meta ON xnat_projectdata.projectData_info = meta.meta_data_id \n"
         + "WHERE ID IN (\n"
@@ -85,55 +86,116 @@ public class QueryOrganizer implements QueryOrganizerI{
         + "\t\tWHERE gid.groups_groupid_xdat_user_xdat_user_id IN (%1$s) OR xea.xdat_user_xdat_user_id IN (%2$s) \n"
         + "                GROUP BY xfm.field_value)";
 
-    final String PERMISSIONS_QUERY = "SELECT \n"
+    static final String PERMISSIONS_QUERY = "SELECT \n"
         + "                  xfm.field_value \n"
         + "                FROM xdat_element_access xea \n"
         + "\t\tLEFT JOIN xdat_usergroup grp ON xea.xdat_usergroup_xdat_usergroup_id=grp.xdat_usergroup_id\n"
         + "\t\tLEFT JOIN xdat_user_groupid gid ON grp.id=gid.groupid\n"
         + "\t\tLEFT JOIN xdat_field_mapping_set fms ON xea.xdat_element_access_id=fms.permissions_allow_set_xdat_elem_xdat_element_access_id\n"
         + "\t\tLEFT JOIN xdat_field_mapping xfm ON fms.xdat_field_mapping_set_id=xfm.xdat_field_mapping_set_xdat_field_mapping_set_id AND xfm.read_element=1 AND '%1$s/project'=xfm.field\n"
-        + "\t\tWHERE gid.groups_groupid_xdat_user_xdat_user_id IN (%2$s) OR xea.xdat_user_xdat_user_id IN (%3$s) \n"
+        + "\t\tWHERE  (field_value IS NOT NULL AND field_value NOT IN ('','*')) AND (gid.groups_groupid_xdat_user_xdat_user_id IN (%2$s) OR xea.xdat_user_xdat_user_id IN (%3$s)) \n"
         + "                GROUP BY xfm.field_value";
 
-    final String SCAN_QUERY = " SELECT root.*\n"
+    static final String SCAN_QUERY = " SELECT root.*\n"
         + "\tFROM xnat_imageScanData table20 \n"
         + "              LEFT JOIN xnat_imageScanData_meta_data meta ON table20.imageScanData_info = meta.meta_data_id \n"
         + "              LEFT JOIN xnat_imageScanData_share table40 ON table20.xnat_imagescandata_id = table40.sharing_share_xnat_imagescandat_xnat_imagescandata_id \n"
         + "              RIGHT JOIN %1$s root ON table20.xnat_imagescandata_id=root.xnat_imagescandata_id\n"
         + "              WHERE (table20.project IN (SELECT field_value FROM P_%1$s) OR table40.project IN (SELECT field_value FROM P_%1$s))";
 
-    final String EXPERIMENT_QUERY = " SELECT root.*\n"
+    static final String EXPERIMENT_QUERY = " SELECT root.*\n"
         + "\tFROM xnat_experimentData table20 \n"
         + "              LEFT JOIN xnat_experimentData_meta_data meta ON table20.experimentData_info=meta.meta_data_id \n"
         + "              LEFT JOIN xnat_experimentData_share table40 ON table20.id = table40.sharing_share_xnat_experimentDa_id \n"
         + "              RIGHT JOIN %1$s root ON table20.id=root.id\n"
         + "              WHERE (table20.project IN (SELECT field_value FROM P_%1$s) OR table40.project IN (SELECT field_value FROM P_%1$s))";
 
-    final String SUBJECT_QUERY="SELECT xnat_subjectData.* \n"
+    static final String SUBJECT_QUERY="SELECT xnat_subjectData.* \n"
         + "  \tFROM xnat_subjectData xnat_subjectData \n"
-        + "        LEFT JOIN xnat_subjectData_meta_data meta ON xnat_subjectData.subjectData_info = meta.meta_data_id \n"
         + "        LEFT JOIN xnat_projectParticipant xpp ON xnat_subjectData.id = xpp.subject_id \n"
         + "        WHERE (xnat_subjectData.project IN (SELECT field_value FROM P_XNAT_SUBJECTDATA) OR xpp.project IN (SELECT field_value FROM P_XNAT_SUBJECTDATA))";
+    static final String SUBJECT_QUERY1="SELECT xnat_subjectData.* \n"
+        + "  \tFROM xnat_subjectData xnat_subjectData \n"
+        + "        WHERE (xnat_subjectData.project IN (SELECT field_value FROM P_XNAT_SUBJECTDATA) )";
+    static final String SUBJECT_QUERY2="SELECT xnat_subjectData.* \n"
+        + "  \tFROM xnat_projectParticipant xpp\n"
+        + "  \t INNER JOIN xnat_subjectData ON xpp.subject_id=xnat_subjectData.id\n"
+        + "     WHERE (xpp.project IN (SELECT field_value FROM P_XNAT_SUBJECTDATA))";
 
-    final String PROJ_SUBJ_QUERY="SELECT DISTINCT ON (id) xnat_subjectData.* \n"
+    static final String PROJ_SUBJ_QUERY="SELECT DISTINCT ON (id) xnat_subjectData.* \n"
         + "\tFROM xnat_subjectData\n"
         + "        LEFT JOIN xnat_subjectData_meta_data meta ON xnat_subjectData.subjectData_info = meta.meta_data_id \n"
         + "\tLEFT JOIN xnat_projectParticipant xpp ON xnat_subjectData.id=xpp.subject_id\n"
         + "\tWHERE (xnat_subjectData.project='%1$s' OR xpp.project='%1$s')";
+    private static final String PROJ_SUBJ_QUERY1 ="SELECT xnat_subjectData.* FROM xnat_subjectData WHERE project = '%1$s'";
+    private static final String PROJ_SUBJ_QUERY2 ="SELECT xnat_subjectData.* FROM xnat_projectParticipant xpp LEFT JOIN xnat_subjectdata ON xpp.subject_id=xnat_subjectdata.id WHERE xpp.project = '%1$s'";
 
-    final String PROJ_EXPT_QUERY="SELECT DISTINCT ON (id) root.* \n"
-        + "\tFROM xnat_experimentData\n"
-        + "              LEFT JOIN xnat_experimentData_meta_data meta ON xnat_experimentData.experimentData_info=meta.meta_data_id \n"
-        + "\tLEFT JOIN xnat_experimentData_share xpp ON xnat_experimentData.id=xpp.sharing_share_xnat_experimentda_id\n"
-        + " RIGHT JOIN %2$s root ON xnat_experimentData.id=root.id"
-        + "\tWHERE (xnat_experimentData.project='%1$s' OR xpp.project='%1$s')";
+    static  final String PROJ_EXPT_QUERY="SELECT DISTINCT ON (id) root.* \n"
+        + "\tFROM xnat_experimentData expt\n"
+        + "              LEFT JOIN xnat_experimentData_meta_data meta ON expt.experimentData_info=meta.meta_data_id \n"
+        + "\tLEFT JOIN xnat_experimentData_share xpp ON expt.id=xpp.sharing_share_xnat_experimentda_id\n"
+        + " RIGHT JOIN %2$s root ON expt.id=root.id"
+        + "\tWHERE (expt.project='%1$s' OR xpp.project='%1$s')";
 
-    final String PROJ_SCAN_QUERY="SELECT DISTINCT ON (id) root.* \n"
+    static final String PROJ_SCAN_QUERY="SELECT DISTINCT ON (id) root.* \n"
         + "\tFROM xnat_imageScanData\n"
         + "              LEFT JOIN xnat_imageScanData_meta_data meta ON xnat_imageScanData.imageScanData_info = meta.meta_data_id \n"
         + "\tLEFT JOIN xnat_imageScanData_share xpp ON xnat_imageScanData.xnat_imagescandata_id=xpp.sharing_share_xnat_imagescandat_xnat_imagescandata_id\n"
         + " RIGHT JOIN %2$s root ON xnat_imageScanData.xnat_imagescandata_id=root.xnat_imagescandata_id"
         + "\tWHERE (xnat_imageScanData.project='%1$s' OR xpp.project='%1$s')";
+
+    static final String EXPT_NON_ROOT_PERMS="SELECT field_value, xme.xdat_meta_element_id FROM xdat_element_access xea \n"
+        + "    LEFT JOIN xdat_usergroup grp ON xea.xdat_usergroup_xdat_usergroup_id = grp.xdat_usergroup_id \n"
+        + "    LEFT JOIN xdat_user_groupid gid ON grp.id = gid.groupid \n"
+        + "    LEFT JOIN xdat_field_mapping_set fms ON xea.xdat_element_access_id = fms.permissions_allow_set_xdat_elem_xdat_element_access_id \n"
+        + "    LEFT JOIN xdat_field_mapping xfm ON fms.xdat_field_mapping_set_id = xfm.xdat_field_mapping_set_xdat_field_mapping_set_id \n"
+        + "                  AND xfm.read_element = 1 \n"
+        + "    LEFT JOIN xdat_meta_element xme ON xea.element_name = xme.element_name \n"
+        + "    WHERE  (xfm.field LIKE '%%/sharing/share/project' AND field_value IS NOT NULL AND field_value NOT IN ('','*')) AND (gid.groups_groupid_xdat_user_xdat_user_id IN (%1$s) OR xea.xdat_user_xdat_user_id IN (%2$s))\n"
+        + "    GROUP BY field_value, xme.xdat_meta_element_id\n"
+        + "    ORDER BY field_value, xme.xdat_meta_element_id";
+
+    static final String EXPT_NON_ROOT_QUERY="SELECT \n"
+        + "    %1$s.* \n"
+        + "  FROM P_xnat_experimentData \n"
+        + "    LEFT JOIN xnat_experimentData_share ON P_xnat_experimentData.field_value=xnat_experimentData_share.project\n"
+        + "    INNER JOIN xnat_experimentData expt ON (xnat_experimentData_share.sharing_share_xnat_experimentda_id=expt.id OR P_xnat_experimentData.field_value=expt.project) AND P_xnat_experimentData.xdat_meta_element_id=expt.extension"
+        + "    INNER JOIN %1$s ON expt.id=%1$s.id";
+    static final String EXPT_NON_ROOT_QUERY1="SELECT %1$s.*\n"
+        + "    FROM P_xnat_experimentData \n"
+        + "    INNER JOIN xnat_experimentData expt ON P_xnat_experimentData.field_value=expt.project AND P_xnat_experimentData.xdat_meta_element_id=expt.extension"
+        + "    INNER JOIN %1$s ON expt.id=%1$s.id";
+    static final String EXPT_NON_ROOT_QUERY2="SELECT %1$s.*\n"
+        + "    FROM P_xnat_experimentData \n"
+        + "    INNER JOIN xnat_experimentData_share ON P_xnat_experimentData.field_value=xnat_experimentData_share.project\n"
+        + "    INNER JOIN xnat_experimentData expt ON xnat_experimentData_share.sharing_share_xnat_experimentda_id=expt.id AND P_xnat_experimentData.xdat_meta_element_id=expt.extension"
+        + "    INNER JOIN %1$s ON expt.id=%1$s.id";
+
+    static final String PROJ_EXPT_NON_ROOT_PERMS="SELECT xme.xdat_meta_element_id FROM xdat_element_access xea "
+        + "      LEFT JOIN xdat_usergroup grp ON xea.xdat_usergroup_xdat_usergroup_id = grp.xdat_usergroup_id "
+        + "      LEFT JOIN xdat_user_groupid gid ON grp.id = gid.groupid "
+        + "      LEFT JOIN xdat_field_mapping_set fms ON xea.xdat_element_access_id = fms.permissions_allow_set_xdat_elem_xdat_element_access_id "
+        + "      LEFT JOIN xdat_field_mapping xfm ON fms.xdat_field_mapping_set_id = xfm.xdat_field_mapping_set_xdat_field_mapping_set_id "
+        + "                    AND xfm.read_element = 1 "
+        + "      LEFT JOIN xdat_meta_element xme ON xea.element_name = xme.element_name "
+        + "      WHERE xfm.field_value = '%1$s' AND (gid.groups_groupid_xdat_user_xdat_user_id IN (%2$s) OR xea.xdat_user_xdat_user_id IN (%3$s))"
+        + "      GROUP BY xme.xdat_meta_element_id";
+
+    static final String PROJ_EXPT_NON_ROOT_QUERY="SELECT DISTINCT ON (id) root.* "
+        + "        FROM xnat_experimentData expt"
+        + "        LEFT JOIN xnat_experimentData_meta_data meta ON expt.experimentData_info=meta.meta_data_id "
+        + "        LEFT JOIN xnat_experimentData_share xpp ON expt.id=xpp.sharing_share_xnat_experimentda_id"
+        + "        JOIN %2$s root ON expt.id=root.id"
+        + "        WHERE (expt.project='%1$s' OR xpp.project='%1$s') AND expt.extension IN (SELECT xdat_meta_element_id FROM P_%2$s) ";
+    static final String PROJ_EXPT_NON_ROOT_QUERY1="SELECT DISTINCT ON (id) root.* "
+        + "        FROM xnat_experimentData expt"
+         + "       INNER JOIN %2$s root ON expt.id=root.id"
+        + "        WHERE (expt.project='%1$s') AND expt.extension IN (SELECT xdat_meta_element_id FROM P_%2$s) ";
+    static final String PROJ_EXPT_NON_ROOT_QUERY2="SELECT DISTINCT ON (id) root.* "
+        + "        FROM xnat_experimentData_share"
+        + "        INNER JOIN xnat_experimentData expt ON xnat_experimentData_share.sharing_share_xnat_experimentda_id=expt.id"
+        + "        INNER JOIN %2$s root ON expt.id=root.id"
+        + "        WHERE (xnat_experimentData_share.project='%1$s') AND expt.extension IN (SELECT xdat_meta_element_id FROM P_%2$s) ";
 
     public QueryOrganizer(String elementName, UserI u, String level, Map<String,CachedRootQuery> rootQueries) throws ElementNotFoundException
     {
@@ -164,6 +226,14 @@ public class QueryOrganizer implements QueryOrganizerI{
 
     public QueryOrganizer(SchemaElementI se, UserI u, String level) {
         this(se,u,level,null);
+    }
+
+    public static QueryOrganizer buildXFTQueryOrganizerWithClause(SchemaElementI se, UserI u){
+        return new QueryOrganizer(se, u, ViewManager.ALL, new LinkedHashMap<>());
+    }
+
+    public static QueryOrganizer buildXFTQueryOrganizerWithClause(String se, UserI u) throws ElementNotFoundException {
+        return new QueryOrganizer(se, u, ViewManager.ALL, new LinkedHashMap<>());
     }
 
     public void setJoinCounter(final Integer index){
@@ -372,7 +442,7 @@ public class QueryOrganizer implements QueryOrganizerI{
                 log.info("JOINING: " + localSyntax + " to " + xmlPath);
                 SchemaFieldI gwf;
                 SchemaElementI extension;
-                if (localSyntax.indexOf(XFT.PATH_SEPARATOR) == -1)
+                if (rootElement.getGenericXFTElement().instanceOf(foreign.getFullXMLName()) || localSyntax.indexOf(XFT.PATH_SEPARATOR) == -1)
                 {
                     extension = rootElement;
 
@@ -501,6 +571,108 @@ public class QueryOrganizer implements QueryOrganizerI{
 
         return joins.toString();
     }
+
+    /***************************
+     * Builds an SQL statement that is ready for execution, including any WITH clauses.
+     * @return
+     * @throws Exception
+     */
+    public String buildFullQuery() throws Exception{
+        final String project = getProjectForSpecificQuery();
+
+        final String query = this.buildQuery();
+        if ((this.getRootQueries() == null || this.getRootQueries().size() == 0)) {
+            return query;
+        }
+
+        int clauses = 0;
+
+        if(project!=null  && this.getWhere().numClauses()==2) {
+            //only project filter
+            String rootDatatype=getRootElement().getXSIType();
+            String origROOTName="S_"+getRootElement().getSQLName();
+            boolean modified = false;
+            if(getRootQueries().containsKey(rootDatatype) && query.indexOf(origROOTName)>-1){
+                if(getRootElement().instanceOf("xnat:subjectData")){
+                    getRootQueries().remove(rootDatatype);
+                    getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(PROJ_SUBJ_QUERY1,project)));
+                    getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(PROJ_SUBJ_QUERY2,project)));
+                    modified=true;
+                }else if(getRootElement().instanceOf("xnat:experimentData")){
+                    getRootQueries().remove(rootDatatype);
+                    getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(PROJ_EXPT_NON_ROOT_QUERY1,project,getRootElement().getSQLName())));
+                    getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(PROJ_EXPT_NON_ROOT_QUERY2,project,getRootElement().getSQLName())));
+                    modified=true;
+                }
+
+                if(modified){
+                    final StringBuilder withClause = new StringBuilder();
+                    withClause.append("WITH ");
+                    for (CachedRootQuery cachedQuery : this.getRootQueries().values()) {
+                        if (clauses++ > 0) {
+                            withClause.append(", ");
+                        }
+
+                        withClause.append(cachedQuery.getAlias()).append(" AS (").append(cachedQuery.getQuery()).append(") ");
+                    }
+
+                    withClause.append(query.replace(origROOTName,origROOTName+"1"));
+                    withClause.append(" UNION ");
+                    withClause.append(query.replace(origROOTName,origROOTName+"2"));
+                    return withClause.toString();
+                }
+            }
+        }else if (project==null){
+            String rootDatatype=getRootElement().getXSIType();
+            String origROOTName="S_"+getRootElement().getSQLName();
+            boolean modified = false;
+            if(getRootQueries().containsKey(rootDatatype) && query.indexOf(origROOTName)>-1){
+                if(getRootElement().instanceOf("xnat:subjectData")){
+                    getRootQueries().remove(rootDatatype);
+                    getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(SUBJECT_QUERY1)));
+                    getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(SUBJECT_QUERY2)));
+                    modified=true;
+                }else if(getRootElement().instanceOf("xnat:experimentData")){
+                    getRootQueries().remove(rootDatatype);
+                    getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(EXPT_NON_ROOT_QUERY1,getRootElement().getSQLName())));
+                    getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(EXPT_NON_ROOT_QUERY2,getRootElement().getSQLName())));
+                    modified=true;
+                }
+
+                if(modified){
+                    final StringBuilder withClause = new StringBuilder();
+                    withClause.append("WITH ");
+                    for (CachedRootQuery cachedQuery : this.getRootQueries().values()) {
+                        if (clauses++ > 0) {
+                            withClause.append(", ");
+                        }
+
+                        withClause.append(cachedQuery.getAlias()).append(" AS (").append(cachedQuery.getQuery()).append(") ");
+                    }
+                    withClause.append("SELECT DISTINCT * FROM (");
+                    withClause.append(query.replace(origROOTName,origROOTName+"1"));
+                    withClause.append(" UNION ");
+                    withClause.append(query.replace(origROOTName,origROOTName+"2"));
+                    withClause.append(" ) SRCH");
+                    return withClause.toString();
+                }
+            }
+        }
+
+        final StringBuilder withClause = new StringBuilder();
+        withClause.append("WITH ");
+        for (CachedRootQuery cachedQuery : this.getRootQueries().values()) {
+            if (clauses++ > 0) {
+                withClause.append(", ");
+            }
+
+            withClause.append(cachedQuery.getAlias()).append(" AS (").append(cachedQuery.getQuery()).append(") ");
+        }
+
+        withClause.append(query);
+        return withClause.toString();
+    }
+
 
     public String buildQuery() throws Exception
     {
@@ -658,7 +830,7 @@ public class QueryOrganizer implements QueryOrganizerI{
                 return _rootQueries.get(e.getXSIType()).getAlias();
             }
 
-            if(_rootQueries==null || user==null || user.isGuest() || !ElementSecurity.IsSecureElement(e.getFullXMLName())){
+            if(_rootQueries==null || user==null || user.isGuest()){
                 return getLegacyRootQuery(e,sql_name,level);
             }else if( !(e.instanceOf("xnat:subjectdata") || StringUtils.equals("xnat:projectData",e.getXSIType()) || StringUtils.equals("xnat:subjectData",e.getXSIType()) || e.instanceOf("xnat:experimentData") || e.instanceOf("xnat:imageScanData"))) {
                 return getLegacyRootQuery(e,sql_name,level);
@@ -923,9 +1095,26 @@ public class QueryOrganizer implements QueryOrganizerI{
                  securityQO.addField(key);
              }
 
-             StringBuilder securityQuery = this.getRootInnerQuery(securityQO,keyXMLFields);
+            StringBuilder securityQuery = new StringBuilder();
+             if(coll!=null && coll.numClauses()>0) {
+                 StringBuilder subQuery = this.getRootInnerQuery(securityQO, keyXMLFields);
+                 securityQuery.append("SELECT DISTINCT ON (");
 
-             StringBuilder query = new StringBuilder("SELECT SEARCH.* FROM (" + securityQuery + ") SECURITY LEFT JOIN " + e.getSQLName() + " SEARCH ON ");
+                 for (int i = 0; i < keyXMLFields.size(); i++) {
+                     if (i > 0)
+                         securityQuery.append(", ");
+                     securityQuery.append(securityQO.getFieldAlias((String) keyXMLFields.get(i)));
+                 }
+
+                 securityQuery.append(") * FROM (").append(subQuery).append(") SECURITY WHERE ");
+                 securityQuery.append(coll.getSQLClause(securityQO));
+             }else{
+                 securityQuery.append(getRootInnerQuery(securityQO, keyXMLFields));
+             }
+
+             StringBuilder query = new StringBuilder();
+             query.append("SELECT SEARCH.* FROM (").append(securityQuery).append(") SECURITY LEFT JOIN ")
+                 .append(e.getSQLName()).append(" SEARCH ON ");
 
              keys = rootElement.getAllPrimaryKeys().iterator();
              int keyCounter=0;
@@ -971,11 +1160,18 @@ public class QueryOrganizer implements QueryOrganizerI{
         return SUBJECT_QUERY;
     }
 
-    private String getExperimentQuery(Integer userId, String fullXMLName, String sqlName){
-        CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(PERMISSIONS_QUERY,fullXMLName,userId,Users.getUserId("guest")));
-        getRootQueries().put(crq.getAlias(),crq);
+    private String getExperimentQuery(Integer userId, SchemaElementI se, String sqlName) throws Exception {
+        if(ElementSecurity.IsSecureElement(se.getFullXMLName())){
+            CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(PERMISSIONS_QUERY,se.getFullXMLName(),userId,Users.getUserId("guest")));
+            getRootQueries().put(crq.getAlias(),crq);
 
-        return String.format(EXPERIMENT_QUERY,sqlName);
+            return String.format(EXPERIMENT_QUERY,sqlName);
+        }else{
+            CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(EXPT_NON_ROOT_PERMS,userId,Users.getUserId("guest")));
+            getRootQueries().put(crq.getAlias(),crq);
+
+            return String.format(EXPT_NON_ROOT_QUERY,se.getSQLName());
+        }
     }
 
     private String getScanQuery(Integer userId, String fullXMLName, String sqlName){
@@ -1012,9 +1208,9 @@ public class QueryOrganizer implements QueryOrganizerI{
             return null;
         }
 
-        if((clause.getCriteriaCollection().size()!=2)){
+        if((clause.getCriteriaCollection().size()!=2) || clause.containsNestedQuery()){
             if(StringUtils.equals(clause.getJoinType(),"OR") && clause.getCriteriaCollection().size()!=1){
-                //or's aren't negate the effect of the project specification clause here
+                //or's negate the effect of the project specification clause here
                 return null;
             }
 
@@ -1036,26 +1232,55 @@ public class QueryOrganizer implements QueryOrganizerI{
         int matched = 0;
 
         for(final SQLClause child: clause.getCriteriaCollection()){
-            if((child instanceof ElementCriteria && StringUtils.equals(((ElementCriteria)child).getComparison_type(),"=") ) ){
-                if(StringUtils.equalsAnyIgnoreCase(owned,((ElementCriteria) child).getXMLPath()) ||
-                    StringUtils.equalsAnyIgnoreCase(shared,((ElementCriteria) child).getXMLPath())){
+            if(StringUtils.equals(getComparisonType(child),"=")){
+                if(StringUtils.equalsAnyIgnoreCase(owned,getXMLPath(child)) ||
+                    StringUtils.equalsAnyIgnoreCase(shared,getXMLPath(child))){
                     //is expected owned or shared
-                    if(project!=null && !StringUtils.equals(project,(String)((ElementCriteria) child).getValue())){
+                    if(project!=null && !StringUtils.equals(project,(String)getValue(child))){
                         //mis-matched project ids
                         break;
                     }
-                    project=(String)((ElementCriteria) child).getValue();
+                    project=(String)getValue(child);
                     matched++;
 
                 }
             }
         }
-
         if(matched==2){
             return project;
         }
 
         return null;
+    }
+
+    private static String getComparisonType(final SQLClause child) {
+        if (child instanceof ElementCriteria) {
+            return ((ElementCriteria) child).getComparison_type();
+        }else if (child instanceof SearchCriteria) {
+            return ((SearchCriteria) child).getComparison_type();
+        }else{
+            return null;
+        }
+    }
+
+    private static String getXMLPath(final SQLClause child) {
+        if (child instanceof ElementCriteria) {
+            return ((ElementCriteria) child).getXMLPath();
+        }else if (child instanceof SearchCriteria) {
+            return ((SearchCriteria) child).getXMLPath();
+        }else{
+            return null;
+        }
+    }
+
+    private static Object getValue(final SQLClause child) {
+        if (child instanceof ElementCriteria) {
+            return ((ElementCriteria) child).getValue();
+        }else if (child instanceof SearchCriteria) {
+            return ((SearchCriteria) child).getValue();
+        }else{
+            return null;
+        }
     }
 
     private StringBuilder getRootInnerQuery(QueryOrganizer securityQO, List keyXMLFields) throws Exception {
@@ -1068,12 +1293,22 @@ public class QueryOrganizer implements QueryOrganizerI{
 
             boolean modified = false;
             if(project!=null){
+                //check security, otherwise this could skip security.
+                checkAccess(user,rootElement,project);
+
                 //project specific query
                 if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
                     securedQuery=String.format(PROJ_SUBJ_QUERY,project);
                     modified=true;
                 } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
-                    securedQuery=String.format(PROJ_EXPT_QUERY,project,rootElement.getSQLName());
+                    if(ElementSecurity.IsSecureElement(rootElement.getFullXMLName())){
+                        securedQuery=String.format(PROJ_EXPT_QUERY,project,rootElement.getSQLName());
+                    }else{
+                        CachedRootQuery crq = new CachedRootQuery("P_"+rootElement.getSQLName(),String.format(PROJ_EXPT_NON_ROOT_PERMS,project,user.getID(),Users.getUserId("guest")));
+                        getRootQueries().put(crq.getAlias(),crq);
+
+                        securedQuery=String.format(PROJ_EXPT_NON_ROOT_QUERY,project,rootElement.getSQLName());
+                    }
                     modified=true;
                 } else if (rootElement.getGenericXFTElement().instanceOf("xnat:imageScanData")) {
                     securedQuery=String.format(PROJ_SCAN_QUERY,project,rootElement.getSQLName());
@@ -1085,7 +1320,7 @@ public class QueryOrganizer implements QueryOrganizerI{
                         securedQuery = getSubjectQuery(user.getID());
                         modified = true;
                     } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
-                        securedQuery = getExperimentQuery(user.getID(), rootElement.getFullXMLName(), rootElement.getSQLName());
+                        securedQuery = getExperimentQuery(user.getID(), rootElement, rootElement.getSQLName());
                         modified = true;
                     } else if (rootElement.getGenericXFTElement().instanceOf("xnat:projectData")) {
                         securedQuery = getProjectQuery(user.getID());
@@ -1121,6 +1356,12 @@ public class QueryOrganizer implements QueryOrganizerI{
 
         securityQuery.append(") * FROM (").append(subQuery).append(") SECURITY");
         return securityQuery;
+    }
+
+    private void checkAccess(final UserI user, final SchemaElementI rootElement, final String project) throws Exception{
+        if(!Permissions.canRead(user,rootElement.getFullXMLName()+"/project",project)){
+            throw new InvalidPermissionException(user.getUsername(),rootElement.getFullXMLName(),project);
+        }
     }
 	
     private String figureItOut(final SchemaFieldI field) {
@@ -1567,6 +1808,13 @@ public class QueryOrganizer implements QueryOrganizerI{
      */
     public void setWhere(CriteriaCollection where) {
         this.where = where;
+    }
+
+    public void addWhere(SQLClause clause){
+        if(this.where==null){
+            this.where= new CriteriaCollection("AND");
+        }
+        where.addClause(clause);
     }
 
 
@@ -2040,4 +2288,5 @@ public class QueryOrganizer implements QueryOrganizerI{
             return _query;
         }
     }
+
 }

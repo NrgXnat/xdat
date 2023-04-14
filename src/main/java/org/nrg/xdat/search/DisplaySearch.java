@@ -309,7 +309,8 @@ public class DisplaySearch implements TableSearchI {
         StringBuilder select = new StringBuilder();
         StringBuilder orderBy = new StringBuilder();
 
-        QueryOrganizer qo = new QueryOrganizer(this.getRootElement(), user, level, new LinkedHashMap<>());
+        QueryOrganizer qo = QueryOrganizer.buildXDATQueryOrganizerWithClause(getRootElement(),user,level);
+
 
         if (hasSchemaOnlyCriteria()) {
             qo.setWhere(criteria);

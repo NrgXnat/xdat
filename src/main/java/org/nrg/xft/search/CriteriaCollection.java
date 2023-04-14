@@ -9,6 +9,8 @@
 
 package org.nrg.xft.search;
 
+import com.google.common.collect.Lists;
+import java.util.Collections;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.nrg.xdat.search.DisplayCriteria;
@@ -284,5 +286,33 @@ public class CriteriaCollection implements SQLClause {
 
         return null;
     }
+
+    /*****************************
+     * if this collection contains another sub-collection, then true, else false
+     *
+     * @return
+     */
+    public boolean containsNestedQuery(){
+        for (final SQLClause c: collection) {
+            if(c instanceof CriteriaCollection){
+                return true;
+            }
+        }
+        return false;
+    }
+
+  public void prune() {
+      for (final SQLClause c: Lists.reverse(collection) ) {
+          if(c instanceof CriteriaCollection){
+              //prune children
+              ((CriteriaCollection) c).prune();
+
+              //remove if empty
+              if(((CriteriaCollection) c).size()==0){
+                  collection.remove(c);
+              }
+          }
+      }
+  }
 }
 
