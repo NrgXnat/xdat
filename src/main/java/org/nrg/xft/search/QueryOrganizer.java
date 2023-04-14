@@ -121,8 +121,8 @@ public class QueryOrganizer implements QueryOrganizerI{
         + "        WHERE (xnat_subjectData.project IN (SELECT field_value FROM P_XNAT_SUBJECTDATA) )";
     static final String SUBJECT_QUERY2="SELECT xnat_subjectData.* \n"
         + "  \tFROM xnat_projectParticipant xpp\n"
-        + "        LEFT JOIN xnat_subjectData_meta_data meta ON xnat_subjectData.subjectData_info = meta.meta_data_id \n"
         + "  \t INNER JOIN xnat_subjectData ON xpp.subject_id=xnat_subjectData.id\n"
+        + "     LEFT JOIN xnat_subjectData_meta_data meta ON xnat_subjectData.subjectData_info = meta.meta_data_id \n"
         + "     WHERE (xpp.project IN (SELECT field_value FROM P_XNAT_SUBJECTDATA))";
 
     static final String PROJ_SUBJ_QUERY="SELECT DISTINCT ON (id) xnat_subjectData.* \n"
