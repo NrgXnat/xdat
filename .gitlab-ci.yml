@@ -5,5 +5,7 @@ include:
     file: security-scans.yml
 
 gemnasium-maven-dependency_scanning:
-  before_script:
-    - mvn clean install
+  variables:
+    SECURE_LOG_LEVEL: debug
+  # before_script:
+  #   - maven clean build
