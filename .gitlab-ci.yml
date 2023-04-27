@@ -3,3 +3,7 @@ include:
   - project: flywheel-io/infrastructure/ci-templates
     ref: master
     file: security-scans.yml
+
+gemnasium-maven-dependency_scanning:
+  before_script:
+    - mvn clean install
