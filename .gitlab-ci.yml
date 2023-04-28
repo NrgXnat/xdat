@@ -6,8 +6,4 @@ include:
 
 gemnasium-maven-dependency_scanning:
   variables:
-    SECURE_LOG_LEVEL: debug
-    # MAVEN_CLI_OPTS: "--debug -DskipTests --batch-mode"
     DS_JAVA_VERSION: 8
-  # before_script:
-  #   - maven clean build
