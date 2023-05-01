@@ -22,6 +22,7 @@ import org.nrg.xdat.turbine.utils.AdminUtils;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.XFTTable;
+import org.nrg.xft.cache.CacheManager;
 import org.nrg.xft.collections.ItemCollection;
 import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.exception.*;
@@ -1745,6 +1746,9 @@ public class DBAction {
 
         cache.handlePostModificationAction(item, "insert");
 
+        if (StringUtils.equalsIgnoreCase(XFTItem.XDAT_META_ELEMENT, item.getXSIType())) {
+            CacheManager.GetInstance().put(XFTItem.XDAT_META_ELEMENT, item.getStringProperty(XFTItem.XDAT_META_ELEMENT_NAME), item);
+        }
         if (!element.getFullXMLName().toLowerCase().startsWith("xdat")) {
             log.info("{} stored.", element.getFullXMLName());
         }
@@ -2098,7 +2102,7 @@ public class DBAction {
             } else if (type.equalsIgnoreCase("LONGVARCHAR")) {
                 return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
             } else if (type.equalsIgnoreCase("jsonb")) {
-                return "'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'::jsonb";
+                return "E'" + XftStringUtils.CleanForSQLValue(object.toString()) + "'";
             }  else {
                 if (type.equalsIgnoreCase("string")) {
                     if (field.getWrapped().getRule().getBaseType().equals("xs:anyURI")) {
