@@ -9,49 +9,48 @@
 
 package org.nrg.xft.entities;
 
-import java.util.regex.Pattern;
+import org.apache.commons.lang3.StringUtils;
+import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 
+import javax.persistence.Cacheable;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 import javax.persistence.UniqueConstraint;
 import javax.xml.bind.annotation.XmlRootElement;
-
-import org.apache.commons.lang3.StringUtils;
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
-import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
+import java.util.regex.Pattern;
 
 @XmlRootElement
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"scope", "targetId", "pattern"}))
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
+@Cacheable
 public class XftFieldExclusion extends AbstractHibernateEntity {
-
     private static final long serialVersionUID = 3198994247860829365L;
 
     public void setScope(XftFieldExclusionScope scope) {
         _scope = scope;
     }
+
     public XftFieldExclusionScope getScope() {
         return _scope;
     }
+
     public void setTargetId(String targetId) {
         _targetId = targetId;
     }
+
     public String getTargetId() {
         return _targetId;
     }
+
     public void setPattern(String pattern) {
         _pattern = Pattern.compile(pattern);
     }
+
     public String getPattern() {
-        if (_pattern == null) {
-            return null;
-        }
-        return _pattern.pattern();
+        return _pattern == null ? null : _pattern.pattern();
     }
-    
+
     @Transient
     public boolean matches(String candidate) {
         return _pattern.matcher(candidate).matches();
@@ -64,16 +63,16 @@ public class XftFieldExclusion extends AbstractHibernateEntity {
 
     @Override
     public boolean equals(Object object) {
-        if (object == null || !(object instanceof XftFieldExclusion)) {
+        if (!super.equals(object)) {
             return false;
         }
         XftFieldExclusion other = (XftFieldExclusion) object;
-        return _scope == other.getScope() && 
-                         StringUtils.equals(getTargetId(), other.getTargetId()) &&
-                         StringUtils.equals(getPattern(), other.getPattern());
+        return _scope == other.getScope() &&
+               StringUtils.equals(getTargetId(), other.getTargetId()) &&
+               StringUtils.equals(getPattern(), other.getPattern());
     }
 
     private XftFieldExclusionScope _scope = XftFieldExclusionScope.Default;
-    private String _targetId;
-    private Pattern _pattern;
+    private String                 _targetId;
+    private Pattern                _pattern;
 }
