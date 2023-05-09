@@ -185,6 +185,15 @@ public class QueryOrganizer implements QueryOrganizerI{
         + "      LEFT JOIN xdat_meta_element xme ON xea.element_name = xme.element_name "
         + "      WHERE xfm.field_value = '%1$s' AND (gid.groups_groupid_xdat_user_xdat_user_id IN (%2$s) OR xea.xdat_user_xdat_user_id IN (%3$s))"
         + "      GROUP BY xme.xdat_meta_element_id";
+    static final String PROJ_EXPT_NON_ROOT_PERMS_ALL_ACCESS="SELECT xme.xdat_meta_element_id FROM xdat_element_access xea "
+        + "      LEFT JOIN xdat_usergroup grp ON xea.xdat_usergroup_xdat_usergroup_id = grp.xdat_usergroup_id "
+        + "      LEFT JOIN xdat_user_groupid gid ON grp.id = gid.groupid "
+        + "      LEFT JOIN xdat_field_mapping_set fms ON xea.xdat_element_access_id = fms.permissions_allow_set_xdat_elem_xdat_element_access_id "
+        + "      LEFT JOIN xdat_field_mapping xfm ON fms.xdat_field_mapping_set_id = xfm.xdat_field_mapping_set_xdat_field_mapping_set_id "
+        + "                    AND xfm.read_element = 1 "
+        + "      LEFT JOIN xdat_meta_element xme ON xea.element_name = xme.element_name "
+        + "      WHERE xfm.field_value = '%1$s'"
+        + "      GROUP BY xme.xdat_meta_element_id";
 
     static final String PROJ_EXPT_NON_ROOT_QUERY="SELECT DISTINCT ON (id) root.* "
         + "        FROM xnat_experimentData expt"
@@ -1311,7 +1320,13 @@ public class QueryOrganizer implements QueryOrganizerI{
                     if(ElementSecurity.IsSecureElement(rootElement.getFullXMLName())){
                         securedQuery=String.format(PROJ_EXPT_QUERY,project,rootElement.getSQLName());
                     }else{
-                        CachedRootQuery crq = new CachedRootQuery("P_"+rootElement.getSQLName(),String.format(PROJ_EXPT_NON_ROOT_PERMS,project,user.getID(),Users.getUserId("guest")));
+                        final String permissionQueryTemplate;
+                        if(Groups.isDataAccess(user) || Groups.isDataAdmin(user)){
+                            permissionQueryTemplate=PROJ_EXPT_NON_ROOT_PERMS_ALL_ACCESS;
+                        }else{
+                            permissionQueryTemplate=PROJ_EXPT_NON_ROOT_PERMS;
+                        }
+                        CachedRootQuery crq = new CachedRootQuery("P_"+rootElement.getSQLName(),String.format(permissionQueryTemplate,project,user.getID(),Users.getUserId("guest")));
                         getRootQueries().put(crq.getAlias(),crq);
 
                         securedQuery=String.format(PROJ_EXPT_NON_ROOT_QUERY,project,rootElement.getSQLName());
