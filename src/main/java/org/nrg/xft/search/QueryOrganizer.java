@@ -46,6 +46,11 @@ import java.util.*;
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Slf4j
 public class QueryOrganizer implements QueryOrganizerI{
+
+    public static final String XNAT_SUBJECT_DATA = "xnat:subjectData";
+    public static final String XNAT_EXPERIMENT_DATA = "xnat:experimentData";
+    public static final String XNAT_PROJECT_DATA = "xnat:projectData";
+    public static final String XNAT_IMAGE_SCAN_DATA = "xnat:imageScanData";
     protected SchemaElementI       rootElement = null;
     protected UserI                user;
 
@@ -610,12 +615,12 @@ public class QueryOrganizer implements QueryOrganizerI{
             //only project filter
             boolean modified = false;
             if(query.indexOf(origROOTName)>-1){
-                if(getRootElement().instanceOf("xnat:subjectData")){
+                if(getRootElement().instanceOf(XNAT_SUBJECT_DATA)){
                     getRootQueries().remove(rootDatatype);
                     getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(PROJ_SUBJ_QUERY1,project)));
                     getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(PROJ_SUBJ_QUERY2,project)));
                     modified=true;
-                }else if(getRootElement().instanceOf("xnat:experimentData")){
+                }else if(getRootElement().instanceOf(XNAT_EXPERIMENT_DATA)){
                     getRootQueries().remove(rootDatatype);
                     getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(PROJ_EXPT_NON_ROOT_QUERY1,project,getRootElement().getSQLName())));
                     getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(PROJ_EXPT_NON_ROOT_QUERY2,project,getRootElement().getSQLName())));
@@ -642,12 +647,12 @@ public class QueryOrganizer implements QueryOrganizerI{
         }else if (getRootQueries().containsKey(permROOTName) && project==null){
             boolean modified = false;
             if(getRootQueries().containsKey(rootDatatype) && query.indexOf(origROOTName)>-1){
-                if(getRootElement().instanceOf("xnat:subjectData")){
+                if(getRootElement().instanceOf(XNAT_SUBJECT_DATA)){
                     getRootQueries().remove(rootDatatype);
                     getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(SUBJECT_QUERY1)));
                     getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(SUBJECT_QUERY2)));
                     modified=true;
-                }else if(getRootElement().instanceOf("xnat:experimentData")){
+                }else if(getRootElement().instanceOf(XNAT_EXPERIMENT_DATA)){
                     getRootQueries().remove(rootDatatype);
                     getRootQueries().put(origROOTName+"1",new CachedRootQuery(origROOTName+"1",String.format(EXPT_NON_ROOT_QUERY1,getRootElement().getSQLName())));
                     getRootQueries().put(origROOTName+"2",new CachedRootQuery(origROOTName+"2",String.format(EXPT_NON_ROOT_QUERY2,getRootElement().getSQLName())));
@@ -848,7 +853,7 @@ public class QueryOrganizer implements QueryOrganizerI{
 
             if(_rootQueries==null || user==null || user.isGuest()){
                 return getLegacyRootQuery(e,sql_name,level);
-            }else if( !(e.instanceOf("xnat:subjectdata") || StringUtils.equals("xnat:projectData",e.getXSIType()) || StringUtils.equals("xnat:subjectData",e.getXSIType()) || e.instanceOf("xnat:experimentData") || e.instanceOf("xnat:imageScanData"))) {
+            }else if( !(e.instanceOf(XNAT_SUBJECT_DATA) || StringUtils.equals(XNAT_PROJECT_DATA,e.getXSIType()) || StringUtils.equals(XNAT_SUBJECT_DATA,e.getXSIType()) || e.instanceOf(XNAT_EXPERIMENT_DATA) || e.instanceOf(XNAT_IMAGE_SCAN_DATA))) {
                 return getLegacyRootQuery(e,sql_name,level);
             }else {
                 if(this.skipSecurity){
@@ -1158,7 +1163,7 @@ public class QueryOrganizer implements QueryOrganizerI{
 
     private Boolean hasPublicData(){
         try {
-            return Permissions.canReadAny(Users.getGuest(),"xnat:subjectData");
+            return Permissions.canReadAny(Users.getGuest(), XNAT_SUBJECT_DATA);
         } catch (UserNotFoundException|UserInitException e) {
             log.error("",e);
             return false;
@@ -1166,11 +1171,11 @@ public class QueryOrganizer implements QueryOrganizerI{
     }
 
     private String getProjectQuery(Integer userId){
-        return String.format(PROJECT_QUERY,userId,Users.getUserId("guest"));
+        return String.format(PROJECT_QUERY,userId,Users.getUserId(Users.DEFAULT_GUEST_USERNAME));
     }
 
     private String getSubjectQuery(Integer userId){
-        CachedRootQuery crq = new CachedRootQuery("P_XNAT_SUBJECTDATA",String.format(PERMISSIONS_QUERY,"xnat:subjectData",userId,Users.getUserId("guest")));
+        CachedRootQuery crq = new CachedRootQuery("P_XNAT_SUBJECTDATA",String.format(PERMISSIONS_QUERY, XNAT_SUBJECT_DATA,userId,Users.getUserId(Users.DEFAULT_GUEST_USERNAME)));
         getRootQueries().put(crq.getAlias(),crq);
 
         return SUBJECT_QUERY;
@@ -1178,12 +1183,12 @@ public class QueryOrganizer implements QueryOrganizerI{
 
     private String getExperimentQuery(Integer userId, SchemaElementI se, String sqlName) throws Exception {
         if(ElementSecurity.IsSecureElement(se.getFullXMLName())){
-            CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(PERMISSIONS_QUERY,se.getFullXMLName(),userId,Users.getUserId("guest")));
+            CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(PERMISSIONS_QUERY,se.getFullXMLName(),userId,Users.getUserId(Users.DEFAULT_GUEST_USERNAME)));
             getRootQueries().put(crq.getAlias(),crq);
 
             return String.format(EXPERIMENT_QUERY,sqlName);
         }else{
-            CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(EXPT_NON_ROOT_PERMS,userId,Users.getUserId("guest")));
+            CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(EXPT_NON_ROOT_PERMS,userId,Users.getUserId(Users.DEFAULT_GUEST_USERNAME)));
             getRootQueries().put(crq.getAlias(),crq);
 
             return String.format(EXPT_NON_ROOT_QUERY,se.getSQLName());
@@ -1191,7 +1196,7 @@ public class QueryOrganizer implements QueryOrganizerI{
     }
 
     private String getScanQuery(Integer userId, String fullXMLName, String sqlName){
-        CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(PERMISSIONS_QUERY,fullXMLName,userId,Users.getUserId("guest")));
+        CachedRootQuery crq = new CachedRootQuery("P_"+sqlName,String.format(PERMISSIONS_QUERY,fullXMLName,userId,Users.getUserId(Users.DEFAULT_GUEST_USERNAME)));
         getRootQueries().put(crq.getAlias(),crq);
 
         return String.format(SCAN_QUERY,sqlName);
@@ -1313,10 +1318,10 @@ public class QueryOrganizer implements QueryOrganizerI{
                 checkAccess(user,rootElement,project);
 
                 //project specific query
-                if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
+                if (rootElement.getGenericXFTElement().instanceOf(XNAT_SUBJECT_DATA)) {
                     securedQuery=String.format(PROJ_SUBJ_QUERY,project);
                     modified=true;
-                } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
+                } else if (rootElement.getGenericXFTElement().instanceOf(XNAT_EXPERIMENT_DATA)) {
                     if(ElementSecurity.IsSecureElement(rootElement.getFullXMLName())){
                         securedQuery=String.format(PROJ_EXPT_QUERY,project,rootElement.getSQLName());
                     }else{
@@ -1326,28 +1331,28 @@ public class QueryOrganizer implements QueryOrganizerI{
                         }else{
                             permissionQueryTemplate=PROJ_EXPT_NON_ROOT_PERMS;
                         }
-                        CachedRootQuery crq = new CachedRootQuery("P_"+rootElement.getSQLName(),String.format(permissionQueryTemplate,project,user.getID(),Users.getUserId("guest")));
+                        CachedRootQuery crq = new CachedRootQuery("P_"+rootElement.getSQLName(),String.format(permissionQueryTemplate,project,user.getID(),Users.getUserId(Users.DEFAULT_GUEST_USERNAME)));
                         getRootQueries().put(crq.getAlias(),crq);
 
                         securedQuery=String.format(PROJ_EXPT_NON_ROOT_QUERY,project,rootElement.getSQLName());
                     }
                     modified=true;
-                } else if (rootElement.getGenericXFTElement().instanceOf("xnat:imageScanData")) {
+                } else if (rootElement.getGenericXFTElement().instanceOf(XNAT_IMAGE_SCAN_DATA)) {
                     securedQuery=String.format(PROJ_SCAN_QUERY,project,rootElement.getSQLName());
                     modified=true;
                 }
             }else{
                 if(PREVENT_DATA_ADMINS || (!Groups.isDataAdmin(user) && !Groups.isDataAccess(user))) {
-                    if (rootElement.getGenericXFTElement().instanceOf("xnat:subjectData")) {
+                    if (rootElement.getGenericXFTElement().instanceOf(XNAT_SUBJECT_DATA)) {
                         securedQuery = getSubjectQuery(user.getID());
                         modified = true;
-                    } else if (rootElement.getGenericXFTElement().instanceOf("xnat:experimentData")) {
+                    } else if (rootElement.getGenericXFTElement().instanceOf(XNAT_EXPERIMENT_DATA)) {
                         securedQuery = getExperimentQuery(user.getID(), rootElement, rootElement.getSQLName());
                         modified = true;
-                    } else if (rootElement.getGenericXFTElement().instanceOf("xnat:projectData")) {
+                    } else if (rootElement.getGenericXFTElement().instanceOf(XNAT_PROJECT_DATA)) {
                         securedQuery = getProjectQuery(user.getID());
                         modified = true;
-                    } else if (rootElement.getGenericXFTElement().instanceOf("xnat:imageScanData")) {
+                    } else if (rootElement.getGenericXFTElement().instanceOf(XNAT_IMAGE_SCAN_DATA)) {
                         securedQuery = getScanQuery(user.getID(), rootElement.getFullXMLName(), rootElement.getSQLName());
                         modified = true;
                     }
