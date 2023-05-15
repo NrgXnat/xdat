@@ -9,11 +9,10 @@
 
 package org.nrg.xdat.entities;
 
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.nrg.framework.orm.hibernate.annotations.Auditable;
 
+import javax.persistence.Cacheable;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
@@ -22,7 +21,7 @@ import java.util.Objects;
 @Auditable
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"role", "username", "disabled"}))
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
+@Cacheable
 @SuppressWarnings("deprecation")
 public class UserRole extends AbstractHibernateEntity {
     public static String ROLE_NON_EXPIRING  = "non_expiring";

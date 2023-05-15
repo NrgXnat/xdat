@@ -24,8 +24,6 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.net.util.SubnetUtils;
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.nrg.framework.utilities.Patterns;
 import org.nrg.xdat.preferences.SiteConfigPreferences;
@@ -38,7 +36,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
+@Cacheable
 public class AliasToken extends AbstractHibernateEntity {
     private static final long serialVersionUID = 4092063619908333740L;
 

@@ -9,13 +9,12 @@
 
 package org.nrg.xdat.entities;
 
+import javax.persistence.Cacheable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.nrg.framework.orm.hibernate.annotations.Auditable;
 import org.nrg.xdat.security.helpers.FeatureDefinitionI;
@@ -23,7 +22,7 @@ import org.nrg.xdat.security.helpers.FeatureDefinitionI;
 @Auditable
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"key","disabled"}))
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
+@Cacheable
 public class FeatureDefinition extends AbstractHibernateEntity implements FeatureDefinitionI{
 
 	@Override

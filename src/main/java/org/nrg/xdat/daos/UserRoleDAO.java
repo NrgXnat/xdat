@@ -9,44 +9,32 @@
 
 package org.nrg.xdat.daos;
 
-import org.hibernate.Criteria;
-import org.hibernate.criterion.Restrictions;
 import org.nrg.framework.orm.hibernate.AbstractHibernateDAO;
 import org.nrg.xdat.entities.UserRole;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@SuppressWarnings("unchecked")
 @Repository
 public class UserRoleDAO extends AbstractHibernateDAO<UserRole> {
+
+    public static final String ROLE     = "role";
+    public static final String USERNAME = "username";
+
     public List<UserRole> findByRole(final String role) {
-        final Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("role", role));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<UserRole>) criteria.list();
+        return findByProperty(ROLE, role);
     }
 
     public List<UserRole> findByUser(final String username) {
-        final Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("username", username));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<UserRole>) criteria.list();
+        return findByProperty(USERNAME, username);
     }
 
     public UserRole findByUserRole(final String username, final String role) {
-        final Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("username", username));
-        criteria.add(Restrictions.eq("role", role));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        if (criteria.list().isEmpty()) {
-            return null;
-        }
-        return (UserRole) criteria.list().get(0);
+        return findByUniqueProperties(parameters(USERNAME, username, ROLE, role));
     }
 
+    @SuppressWarnings("unused")
     public boolean isUserRole(final String username, final String role) {
-        return exists(parameters("username", username, "role", role));
+        return exists(parameters(USERNAME, username, ROLE, role));
     }
-
 }
