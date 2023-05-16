@@ -12,6 +12,7 @@ package org.nrg.xdat.collections;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Hashtable;
 
 import org.nrg.xdat.display.DisplayFieldRef;
 import org.nrg.xdat.sortable.Sortable;
@@ -80,7 +81,7 @@ public class DisplayFieldRefCollection extends XFTCollection {
 	
 	public java.util.Hashtable getDisplayFieldRefHash()
 	{
-		return this.getItemHash();
+		return new Hashtable(this.getItemHash());
 	}
 
     @SuppressWarnings("serial")

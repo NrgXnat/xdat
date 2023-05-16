@@ -13,11 +13,15 @@ package org.nrg.xdat.collections;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.nrg.xdat.display.DisplayField;
 import org.nrg.xft.collections.XFTCollection;
 import org.nrg.xft.exception.DuplicateKeyException;
 import org.nrg.xft.exception.ItemNotFoundException;
+import org.nrg.xft.identifier.Identifier;
 import org.nrg.xft.sequence.SequenceComparator;
 
 /**
@@ -62,30 +66,29 @@ public class DisplayFieldCollection extends XFTCollection {
 		    df.setSortIndex(this.getItemHash().size());
 			this.addStoredItemWException(df);
 		} catch (DuplicateKeyException e) {
-			throw new DuplicateDisplayFieldException(df.getParentDisplay().getElementName(),df.getId());
+			throw new DuplicateDisplayFieldException(df.getParentDisplay().getElementName(), df.getId());
 		}
 	}
 
-	public ArrayList<DisplayField> getSortedFields()
+	public List<DisplayField> getSortedFields()
 	{
-	    ArrayList<DisplayField> al = new ArrayList<DisplayField>();
-	    al.addAll(this.getItemHash().values());
-	    Collections.sort(al,SequenceComparator.SequenceComparator);
-	    return al;
+		List<DisplayField> al = getItemHash().values().stream().filter(identifier -> identifier instanceof DisplayField).map(DisplayField.class::cast).collect(Collectors.toList());
+		Collections.sort(al, SequenceComparator.SequenceComparator);
+		return al;
 	}
 
-	public Iterator getDisplayFieldIterator()
+	public Iterator<Identifier> getDisplayFieldIterator()
 	{
 		return this.getItemIterator();
 	}
 
-	public java.util.Hashtable getDisplayFieldHash()
+	public Map<String, Identifier> getDisplayFieldHash()
 	{
 		return this.getItemHash();
 	}
 
     @SuppressWarnings("serial")
-	public class DisplayFieldNotFoundException extends Exception{
+	public static class DisplayFieldNotFoundException extends Exception{
 		public DisplayFieldNotFoundException(ItemNotFoundException e)
 		{
 			super("Display Field not found: '" + e.ELEMENT + "'", e);
@@ -93,7 +96,7 @@ public class DisplayFieldCollection extends XFTCollection {
 	}
 
     @SuppressWarnings("serial")
-	public class DuplicateDisplayFieldException extends Exception{
+	public static class DuplicateDisplayFieldException extends Exception{
 		public DuplicateDisplayFieldException(org.nrg.xft.exception.DuplicateKeyException e)
 		{
 			super("Duplicate Display Field: '" + e.ELEMENT + "'.'" + e.FIELD + "'");

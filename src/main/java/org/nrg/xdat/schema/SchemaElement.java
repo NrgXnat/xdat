@@ -199,7 +199,7 @@ public class SchemaElement implements SchemaElementI {
 		{
 			if (getDisplay() != null)
 			{
-				arcs = getDisplay().getArcs();
+				arcs = new Hashtable(getDisplay().getArcs());
 			}else
 			{
 				arcs = new Hashtable();

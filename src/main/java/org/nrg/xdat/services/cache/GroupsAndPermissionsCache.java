@@ -172,7 +172,7 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      * @return The groups for the tag, empty list otherwise.
      */
     @Nonnull
-    List<UserGroupI> getGroupsForTag(final String tag);
+    List<UserGroupI> getGroupsForProject(final String tag);
 
     /**
      * Gets the groups for the user with the specified username. Returns an empty map if no groups are found for the
@@ -202,7 +202,7 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      *
      * @return The group with the associated tag and user.
      */
-    UserGroupI getGroupForUserAndTag(final String username, final String tag) throws UserNotFoundException;
+    UserGroupI getGroupForUserAndProject(final String username, final String tag) throws UserNotFoundException;
 
     /**
      * Gets a list of all of the user IDs associated with the specified group.

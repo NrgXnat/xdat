@@ -15,6 +15,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xdat.display.ElementDisplay;
 import org.nrg.xdat.schema.SchemaElement;
@@ -32,6 +33,7 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.nrg.xdat.security.PermissionCriteria.ACTIVATE_ELEMENT;
 import static org.nrg.xdat.security.PermissionCriteria.READ_ELEMENT;
@@ -43,13 +45,9 @@ import static org.nrg.xdat.security.PermissionCriteria.READ_ELEMENT;
 @Slf4j
 public class ElementAccessManager {
     public static Map<String, ElementAccessManager> initialize(final NamedParameterJdbcTemplate template, final String query, final SqlParameterSource parameters) {
-        final List<Map<String, Object>> results = Lists.newArrayList(Iterables.filter(template.queryForList(query, parameters), new Predicate<Map<String, Object>>() {
-            @Override
-            public boolean apply(@Nullable final Map<String, Object> definition) {
-                // Use having read and active elements as a proxy for not actually being populated properly.
-                return definition != null && definition.get(READ_ELEMENT) != null && definition.get(ACTIVATE_ELEMENT) != null;
-            }
-        }));
+        final List<Map<String, Object>> results = template.queryForList(query, parameters).stream()
+                                                          .filter(definition -> definition != null && ObjectUtils.allNotNull(definition.get(READ_ELEMENT), definition.get(ACTIVATE_ELEMENT)))
+                                                          .collect(Collectors.toList());
         if (results.isEmpty()) {
             return Collections.emptyMap();
         }

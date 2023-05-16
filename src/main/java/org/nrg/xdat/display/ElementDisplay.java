@@ -10,6 +10,7 @@
 
 package org.nrg.xdat.display;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.apache.velocity.app.Velocity;
 import org.nrg.xdat.collections.DisplayFieldCollection;
@@ -21,6 +22,7 @@ import org.nrg.xft.exception.XFTInitException;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 /**
  * @author Tim
@@ -33,12 +35,12 @@ public class ElementDisplay extends DisplayFieldCollection {
     private String displayLabel = "";
     private String briefDescription = "";
     private String fullDescription = "";
-    private Hashtable<String, DisplayVersion> versions = new Hashtable<>();
-    private Hashtable views = new Hashtable();
-    private Hashtable arcs = new Hashtable();
-    private Hashtable schemaLinks = new Hashtable();
+    private final Map<String, DisplayVersion> versions = new HashMap<>();
+    private final Map<String, SQLView> views = new HashMap<>();
+    private final Map<String, Arc> arcs = new HashMap<>();
+    private final Map<String, SchemaLink> schemaLinks = new HashMap<>();
 
-    private Hashtable viewLinks = new Hashtable();
+    private final Map<String, ViewLink> viewLinks = new HashMap<>();
 
     private SchemaElement schemaElement = null;
 
@@ -64,7 +66,7 @@ public class ElementDisplay extends DisplayFieldCollection {
     /**
      * @return The versions.
      */
-    public Hashtable<String, DisplayVersion> getVersions() {
+    public Map<String, DisplayVersion> getVersions() {
         return versions;
     }
 
@@ -79,7 +81,8 @@ public class ElementDisplay extends DisplayFieldCollection {
      * @param versions The versions to set.
      */
     public void setVersions(Hashtable<String, DisplayVersion> versions) {
-        this.versions = versions;
+        this.versions.clear();
+        this.versions.putAll(versions);
     }
 
     public void addVersion(DisplayVersion dv) {
@@ -140,18 +143,18 @@ public class ElementDisplay extends DisplayFieldCollection {
     /**
      * @return A table of all of the views.
      */
-    public Hashtable getViews() {
+    public Map<String, SQLView> getViews() {
         return views;
     }
 
     /**
      * @param views The views to set.
      */
-    public void setViews(Hashtable views) {
-        this.views = views;
+    public void setViews(Map<String, SQLView> views) {
+        this.views.clear();
+        this.views.putAll(views);
     }
 
-    @SuppressWarnings("unchecked")
     public void addView(SQLView sv) {
         views.put(sv.getName(), sv);
     }
@@ -167,7 +170,7 @@ public class ElementDisplay extends DisplayFieldCollection {
     /**
      * @return Returns the available arc folders.
      */
-    public Hashtable getArcs() {
+    public Map<String, Arc> getArcs() {
         return arcs;
     }
 
@@ -175,11 +178,11 @@ public class ElementDisplay extends DisplayFieldCollection {
      * @param arcs Sets the available arc folders.
      */
     @SuppressWarnings("unused")
-    public void setArcs(Hashtable arcs) {
-        this.arcs = arcs;
+    public void setArcs(Map<String, Arc> arcs) {
+        this.arcs.clear();
+        this.arcs.putAll(arcs);
     }
 
-    @SuppressWarnings("unchecked")
     public void addArc(Arc arc) {
         arcs.put(arc.getName(), arc);
     }
@@ -187,11 +190,10 @@ public class ElementDisplay extends DisplayFieldCollection {
     /**
      * @return The schema links for the display.
      */
-    public Hashtable getSchemaLinks() {
+    public Map<String, SchemaLink> getSchemaLinks() {
         return schemaLinks;
     }
 
-    @SuppressWarnings("unchecked")
     public void addSchemaLink(SchemaLink sl) {
         schemaLinks.put(sl.getElement(), sl);
     }
@@ -199,11 +201,10 @@ public class ElementDisplay extends DisplayFieldCollection {
     /**
      * @return The view links for the display.
      */
-    public Hashtable getViewLinks() {
+    public Map<String, ViewLink> getViewLinks() {
         return viewLinks;
     }
 
-    @SuppressWarnings("unchecked")
     public void addViewLink(ViewLink vl) {
         viewLinks.put(vl.getAlias(), vl);
     }
@@ -289,21 +290,9 @@ public class ElementDisplay extends DisplayFieldCollection {
      *
      * @return A list of the available searchable display fields.
      */
-    @SuppressWarnings("unchecked")
-    public Collection getSearchableFields() {
-        ArrayList al = new ArrayList();
-
-        for (final DisplayField df : getSortedFields()) {
-            if (df.isSearchable()) {
-                al.add(df);
-            }
-        }
-
-        if (al.size() == 0) {
-            return this.getDisplayFieldHash().values();
-        }
-
-        return al;
+    public Collection<DisplayField> getSearchableFields() {
+        List<DisplayField> searchable = getSortedFields().stream().filter(DisplayField::isSearchable).collect(Collectors.toList());
+        return !searchable.isEmpty() ? searchable : getDisplayFieldHash().values().stream().filter(DisplayField.class::isInstance).map(DisplayField.class::cast).collect(Collectors.toList());
     }
 
 
