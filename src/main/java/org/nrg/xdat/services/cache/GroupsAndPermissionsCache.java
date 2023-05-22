@@ -14,7 +14,7 @@ import java.util.*;
 import static org.nrg.xdat.security.SecurityManager.*;
 
 public interface GroupsAndPermissionsCache extends XnatCache {
-    String       CACHE_NAME                = "GroupsAndPermissionsCache";
+    String       CACHE_NAME                = "groupsAndPermissionsCache";
     List<String> ACTIONS                   = Arrays.asList(READ, EDIT, CREATE);
     String       QUERY_GET_GROUPS_FOR_USER = "SELECT " +
                                              "    g.groupid " +
@@ -95,6 +95,15 @@ public interface GroupsAndPermissionsCache extends XnatCache {
     Map<String, Long> getReadableCounts(final UserI user);
 
     /**
+     * Get the readable counts for the indicated user.
+     *
+     * @param username The name of the user to retrieve readable counts for.
+     *
+     * @return The readable counts for the indicated user.
+     */
+    Map<String, Long> getReadableCounts(final String username);
+
+    /**
      * Get the browseable element displays for the indicated user.
      *
      * @param user The user to retrieve browseable element displays for.
@@ -122,6 +131,14 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      */
     List<ElementDisplay> getActionElementDisplays(final UserI user, final String action) throws Exception;
 
+    /**
+     * Get the action element displays for the indicated user.
+     *
+     * @param username The name of the user for which to retrieve action element displays.
+     * @param action   The action for which to retrieve action element displays.
+     *
+     * @return The action element displays for the indicated user.
+     */
     List<ElementDisplay> getActionElementDisplays(String username, String action);
 
     /**

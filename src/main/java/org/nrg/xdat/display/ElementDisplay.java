@@ -49,6 +49,10 @@ public class ElementDisplay extends DisplayFieldCollection {
 
     private Integer sortOrder = null;
 
+    public static String formatElementDisplays(final List<ElementDisplay> elementDisplays) {
+        return elementDisplays.stream().map(ElementDisplay::getElementName).collect(Collectors.joining(", "));
+    }
+
     /**
      * @return The element name.
      */
