@@ -10,11 +10,10 @@
 package org.nrg.xdat.daos;
 
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.query.Query;
 import org.nrg.framework.orm.hibernate.AbstractHibernateDAO;
 import org.nrg.xdat.entities.XdatUserAuth;
 import org.springframework.stereotype.Repository;
-
-import javax.persistence.Query;
 
 @Repository
 public class XdatUserAuthDAO extends AbstractHibernateDAO<XdatUserAuth> {
@@ -23,21 +22,20 @@ public class XdatUserAuthDAO extends AbstractHibernateDAO<XdatUserAuth> {
     }
 
     public boolean hasUserByNameAndAuth(final String user, final String authMethod, final String authMethodId) {
-        final Query query = getSession().createQuery(StringUtils.isBlank(authMethodId) ? QUERY_HAS_USER_AND_AUTH : QUERY_HAS_USER_AND_AUTH_AND_ID)
-                                        .setParameter("authUser", user)
-                                        .setParameter("authMethod", authMethod);
+        final Query<Boolean> query = createQuery(StringUtils.isBlank(authMethodId) ? QUERY_HAS_USER_AND_AUTH : QUERY_HAS_USER_AND_AUTH_AND_ID, Boolean.class)
+                .setParameter("authUser", user)
+                .setParameter("authMethod", authMethod);
         if (StringUtils.isNotBlank(authMethodId)) {
             query.setParameter("authMethodId", authMethodId);
         }
-        return (boolean) query.getSingleResult();
+        return query.getSingleResult();
     }
 
     public String getUsernameByNameAndAuth(final String user, final String authMethod, final String authMethodId) {
-        final Query query = getSession().createQuery(QUERY_GET_USERNAME_BY_USER_AND_AUTH_AND_ID);
-        query.setParameter("authUser", user);
-        query.setParameter("authMethod", authMethod);
-        query.setParameter("authMethodId", authMethodId);
-        return (String) query.getSingleResult();
+        return createQuery(QUERY_GET_USERNAME_BY_USER_AND_AUTH_AND_ID, String.class).setParameter("authUser", user)
+                                                                                    .setParameter("authMethod", authMethod)
+                                                                                    .setParameter("authMethodId", authMethodId)
+                                                                                    .getSingleResult();
     }
 
     private static final String QUERY_HAS_USER_AND_AUTH                    = "SELECT COUNT(*) > 0 FROM XdatUserAuth where enabled = true AND authUser = :authUser AND authMethod = :authMethod";
