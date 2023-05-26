@@ -22,6 +22,7 @@ import org.nrg.framework.services.impl.ValidationHandler;
 import org.nrg.xdat.XDAT;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xdat.security.ElementSecurity;
+import org.nrg.xdat.security.helpers.Features;
 import org.nrg.xdat.turbine.utils.TurbineUtils;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.event.EventUtils;
@@ -49,7 +50,12 @@ public class XMLUpload extends SecureAction {
     public void doPerform(final RunData data, final Context context) throws Exception {
         final UserI user = getUser();
         if (user.isGuest()) {
-            handleInvalidPermissions(data);
+            handleInvalidPermissions(data, MESSAGE_NO_GUEST_PERMISSIONS);
+            return;
+        }
+
+        if(!Features.checkFeatureForAnyTag(user,Features.XML_UPLOAD)){
+            handleInvalidPermissions(data, org.nrg.xdat.turbine.modules.screens.XMLUpload.MESSAGE_FEATURE_BLOCKED);
             return;
         }
 
@@ -129,8 +135,8 @@ public class XMLUpload extends SecureAction {
         }
     }
 
-    private void handleInvalidPermissions(final RunData data) {
+    private void handleInvalidPermissions(final RunData data, final String s) {
         data.setScreenTemplate("Error.vm");
-        data.setMessage("Permissions Exception.<BR><BR>" + MESSAGE_NO_GUEST_PERMISSIONS);
+        data.setMessage("Permissions Exception.<BR><BR>" + s);
     }
 }

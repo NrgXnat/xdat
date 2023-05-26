@@ -11,11 +11,13 @@ package org.nrg.xdat.turbine.modules.screens;
 
 import org.apache.turbine.util.RunData;
 import org.apache.velocity.context.Context;
+import org.nrg.xdat.security.helpers.Features;
 import org.nrg.xft.security.UserI;
 
 @SuppressWarnings("unused")
 public class XMLUpload extends SecureScreen {
     public static final String MESSAGE_NO_GUEST_PERMISSIONS = "Guest users are not permitted to perform any write operations";
+    public static final String MESSAGE_FEATURE_BLOCKED = "XML Upload disabled.";
 
     @Override
     protected void doBuildTemplate(final RunData data, final Context context) throws Exception {
@@ -24,5 +26,12 @@ public class XMLUpload extends SecureScreen {
             data.setScreenTemplate("Error.vm");
             data.setMessage("Permissions Exception.<BR><BR>" + MESSAGE_NO_GUEST_PERMISSIONS);
         }
+
+        if(!Features.checkFeatureForAnyTag(user,Features.XML_UPLOAD)){
+            data.setScreenTemplate("Error.vm");
+            data.setMessage("Permissions Exception.<BR><BR>" + MESSAGE_FEATURE_BLOCKED);
+            return;
+        }
+
     }
 }
