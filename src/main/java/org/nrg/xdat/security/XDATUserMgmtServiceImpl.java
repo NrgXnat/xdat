@@ -25,6 +25,7 @@ import org.nrg.xdat.security.user.exceptions.UserNotFoundException;
 import org.nrg.xdat.security.validators.PasswordValidator;
 import org.nrg.xdat.services.XdatUserAuthService;
 import org.nrg.xdat.turbine.utils.PopulateItem;
+import org.nrg.xft.cache.CacheManager;
 import org.nrg.xft.event.EventDetails;
 import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.persist.PersistentWorkflowI;
@@ -47,6 +48,23 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
+    private synchronized static XDATUser cacheUser(XDATUser user){
+        CacheManager.GetInstance().put(XDATUser.SCHEMA_ELEMENT_NAME,user.getXdatUserId(),user);
+        return user;
+    }
+
+    private synchronized static XDATUser getCachedUser(Integer userId){
+        return (XDATUser)CacheManager.GetInstance().retrieve(XDATUser.SCHEMA_ELEMENT_NAME,userId);
+    }
+
+    private synchronized static void invalidateCachedUser(Integer userId){
+        CacheManager.GetInstance().remove(XDATUser.SCHEMA_ELEMENT_NAME,userId);
+    }
+
+    private synchronized static void invalidateCachedUser(String username){
+        CacheManager.GetInstance().remove(XDATUser.SCHEMA_ELEMENT_NAME,Users.getUserId(username));
+    }
+
     @Autowired
     public XDATUserMgmtServiceImpl(final NamedParameterJdbcTemplate template) {
         _template = template;
@@ -68,7 +86,12 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
         if (Users.isGuest(username)) {
             return getGuestUser();
         }
-        return new XDATUser(username);
+
+        Integer userId=Users.getUserId(username);
+        if(userId==null){
+            throw new UserNotFoundException("Unknown username: "+username);
+        }
+        return getUser(userId);
     }
 
     @Override
@@ -76,7 +99,18 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
         if (Objects.equals(getGuestUserId(), userId)) {
             return _guest;
         }
-        return new XDATUser(Optional.ofNullable(XdatUser.getXdatUsersByXdatUserId(userId, null, true)).orElseThrow(() -> new UserNotFoundException(userId)).getItem());
+
+        XDATUser u= getCachedUser(userId);
+        if(u!=null){
+            return u;
+        }
+
+        XdatUser user = XdatUser.getXdatUsersByXdatUserId(userId, null, true);
+        if (user != null) {
+            return cacheUser(new XDATUser(user.getItem()));
+        } else {
+            throw new UserNotFoundException(userId);
+        }
     }
 
     @Override
@@ -140,6 +174,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Override
     public void clearCache(UserI user) {
         if (user instanceof XDATUser) {
+            invalidateCachedUser(((XDATUser) user).getXdatUserId());
             ((XDATUser) user).clearLocalCache();
         }
     }
@@ -176,6 +211,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
             PersistentWorkflowUtils.fail(wrk, wrk.buildEvent());
             throw e;
         }
+        invalidateCachedUser(user.getUsername());
     }
 
     /* (non-Javadoc)
@@ -272,6 +308,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
                 }
             }
         }
+        invalidateCachedUser(user.getUsername());
     }
 
     @Override
