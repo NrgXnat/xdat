@@ -102,9 +102,11 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
         XDATUser u= getCachedUser(userId);
         if(u!=null){
+            System.out.print("u");
             return u;
         }
 
+        System.out.print("U");
         XdatUser user = XdatUser.getXdatUsersByXdatUserId(userId, null, true);
         if (user != null) {
             return cacheUser(new XDATUser(user.getItem()));

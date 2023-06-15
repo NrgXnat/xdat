@@ -11,10 +11,55 @@ package org.nrg.xft.cache;
 
 import org.nrg.xdat.XDAT;
 import org.nrg.xdat.services.cache.XnatCache;
+import org.springframework.cache.support.SimpleValueWrapper;
 
 public interface CacheManager extends XnatCache {
+    static CacheManager _passthroughCache = new ExternalCache();
+
     static CacheManager GetInstance() {
-        return XDAT.getContextService().getBeanSafely(CacheManager.class);
+        return _passthroughCache;
+    }
+
+
+    public static class ExternalCache implements CacheManager{
+        @Override
+        public String getCacheName() {
+            return "xft-cache";
+        }
+
+        @Override
+        public void clearAll() {
+            XDAT.getCacheManager().getCache(getCacheName()).clear();
+        }
+
+        @Override
+        public void clearXsiType(String xsiType) {
+            //is there a way to do this?
+            XDAT.getCacheManager().getCache(getCacheName()).clear();
+        }
+
+        @Override
+        public Object retrieve(String xsiType, Object id) {
+            SimpleValueWrapper obj = ((SimpleValueWrapper) XDAT.getCacheManager().getCache(getCacheName()).get(id));
+            if(obj!=null){
+                return obj.get();
+            }
+
+            return null;
+        }
+
+        @Override
+        public Object put(String xsiType, Object id, Object item) {
+            XDAT.getCacheManager().getCache(getCacheName()).put(id,item);
+            return item;
+        }
+
+        @Override
+        public Object remove(String xsiType, Object id) {
+            Object temp = retrieve(xsiType,id);
+            XDAT.getCacheManager().getCache(getCacheName()).evict(id);
+            return temp;
+        }
     }
 
 

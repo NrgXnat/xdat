@@ -178,6 +178,7 @@ public class Features {
      */
     public static void enableFeatureForGroup(UserGroupI group, String feature, UserI user) throws Exception {
         getFeatureService().addFeatureForGroup(group, feature, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -189,6 +190,7 @@ public class Features {
      */
     public static void disableFeatureForGroup(UserGroupI group, String feature, UserI user) throws Exception {
         getFeatureService().disableFeatureForGroup(group, feature, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -200,6 +202,7 @@ public class Features {
      */
     public static void blockFeatureForGroup(UserGroupI group, String feature, UserI user) throws Exception {
         getFeatureService().blockFeatureForGroup(group, feature, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -211,6 +214,7 @@ public class Features {
      */
     public static void unblockFeatureForGroup(UserGroupI group, String feature, UserI user) throws Exception {
         getFeatureService().unblockFeatureForGroup(group, feature, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -223,6 +227,7 @@ public class Features {
     @SuppressWarnings("unused")
     public static void deleteFeatureSettingFromGroup(UserGroupI group, String feature, UserI user) throws Exception {
         getFeatureService().removeFeatureSettingFromGroup(group, feature, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -234,6 +239,7 @@ public class Features {
     @SuppressWarnings("unused")
     public static void deleteAllFeaturesFromGroup(UserGroupI group, UserI user) throws Exception {
         getFeatureService().removeAllFeatureSettingsFromGroup(group, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -307,9 +313,6 @@ public class Features {
     public static boolean checkRestrictedFeature(UserI user, String tag, String feature) {
         return getFeatureService().checkRestrictedFeature(user, tag, feature);
     }
-    
-
-    //TODO: Probably want some caching (memoization) for the banned and on by defaults
 
     /**
      * Checks whether the indicated feature is banned on the server.
@@ -319,8 +322,18 @@ public class Features {
      * @return Returns true if the feature is banned, false otherwise.
      */
     public static Boolean isBanned(final String feature) {
+        final String cacheKey = feature+"_isBan";
+        Boolean cached=getLocalCachedBoolean(cacheKey);
+        if(cached!=null){
+            System.out.print("f");
+            return cached;
+        }
+
+        System.out.print("F");
         final FeatureDefinitionI def = getFeatureRepositoryService().getByKey(feature);
-        return def == null || def.isBanned();
+        final Boolean isBanned= (def == null || def.isBanned());
+        setLocalCachedBoolean(cacheKey,isBanned);
+        return isBanned;
     }
 
     /**
@@ -355,8 +368,18 @@ public class Features {
      * @return Returns true if the feature is on by default, false otherwise.
      */
     public static Boolean isOnByDefault(String feature) {
-        FeatureDefinitionI def = getFeatureRepositoryService().getByKey(feature);
-        return def != null && def.isOnByDefault();
+        final String cacheKey = feature+"_on";
+        Boolean cached=getLocalCachedBoolean(cacheKey);
+        if(cached!=null){
+            System.out.print("f");
+            return cached;
+        }
+
+        System.out.print("F");
+        final FeatureDefinitionI def = getFeatureRepositoryService().getByKey(feature);
+        final Boolean isOnByDefault= (def == null || def.isOnByDefault());
+        setLocalCachedBoolean(cacheKey,isOnByDefault);
+        return isOnByDefault;
     }
 
 
@@ -391,6 +414,7 @@ public class Features {
      */
     public static void banFeature(String feature) {
         getFeatureRepositoryService().banFeature(feature);
+        invalidateLocalCache();
     }
 
     /**
@@ -400,6 +424,7 @@ public class Features {
      */
     public static void unBanFeature(String feature) {
         getFeatureRepositoryService().unBanFeature(feature);
+        invalidateLocalCache();
     }
 
     /**
@@ -418,6 +443,7 @@ public class Features {
      */
     public static void disableByDefault(String feature) {
         getFeatureRepositoryService().disableByDefault(feature);
+        invalidateLocalCache();
     }
 
     /**
@@ -429,6 +455,7 @@ public class Features {
      */
     public static void blockByGroupType(String feature, String tag, UserI user) {
         getFeatureService().blockByGroupType(feature, tag, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -440,6 +467,7 @@ public class Features {
      */
     public static void unblockByGroupType(String feature, String tag, UserI user) {
         getFeatureService().unblockByGroupType(feature, tag, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -451,6 +479,7 @@ public class Features {
      */
     public static void enableIsOnByDefaultByGroupType(String feature, String tag, UserI user) {
         getFeatureService().enableIsOnByDefaultByGroupType(feature, tag, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -462,6 +491,7 @@ public class Features {
      */
     public static void disableIsOnByDefaultByGroupType(String feature, String tag, UserI user) {
         getFeatureService().disableIsOnByDefaultByGroupType(feature, tag, user);
+        invalidateLocalCache();
     }
 
     /**
@@ -551,6 +581,19 @@ public class Features {
         return null;
     }
 
+    private static Boolean getLocalCachedBoolean(String key){
+        return XDAT.getCacheManager().getCache(XDAT.CommonBooleans).get("feat-" + key,Boolean.class);
+    }
+
+    private static void setLocalCachedBoolean(String key, Boolean v){
+        XDAT.getCacheManager().getCache(XDAT.CommonBooleans).put("feat-" + key,v);
+    }
+
+    private static void invalidateLocalCache(){
+        XDAT.getCacheManager().getCache(XDAT.CommonBooleans).clear();
+    }
+
     private static FeatureServiceI           singleton  = null;
     private static FeatureRepositoryServiceI repository = null;
+
 }
