@@ -107,7 +107,6 @@ public class UserHelper {
     }
 
     public static void setUserHelper(final HttpServletRequest request, final UserI user) {
-        Users.clearCache(user);
         request.getSession().setAttribute(USER_HELPER, getUserHelperService(user));
     }
 

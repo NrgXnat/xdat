@@ -10,6 +10,7 @@
 package org.nrg.xdat.security.services.impl;
 
 import lombok.extern.slf4j.Slf4j;
+import org.nrg.xdat.XDAT;
 import org.nrg.xdat.entities.UserRole;
 import org.nrg.xdat.security.XDATUser;
 import org.nrg.xdat.security.services.RoleServiceI;
@@ -27,6 +28,7 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 public class RoleServiceImpl implements RoleServiceI {
+
     @Autowired
     public RoleServiceImpl(final UserRoleService service, final NamedParameterJdbcTemplate template) {
         _service = service;
@@ -46,6 +48,7 @@ public class RoleServiceImpl implements RoleServiceI {
      */
     @Override
     public boolean addRole(final UserI authenticatedUser, final UserI user, final String role) throws Exception {
+        XDAT.getCacheManager().getCache(XDAT.CommonBooleans).clear();
         return ((XDATUser) user).addRole(authenticatedUser, role);
     }
 
@@ -54,6 +57,7 @@ public class RoleServiceImpl implements RoleServiceI {
      */
     @Override
     public boolean deleteRole(final UserI authenticatedUser, final UserI user, final String role) throws Exception {
+        XDAT.getCacheManager().getCache(XDAT.CommonBooleans).clear();
         return ((XDATUser) user).deleteRole(authenticatedUser, role);
     }
 
@@ -86,7 +90,14 @@ public class RoleServiceImpl implements RoleServiceI {
      */
     @Override
     public boolean isSiteAdmin(final String username) {
-        return hasUsernameAndRole(username, UserRole.ROLE_ADMINISTRATOR);
+        final Boolean cached = XDAT.getCacheManager().getCache(XDAT.CommonBooleans).get("role-"+username,Boolean.class);
+        if(cached!=null){
+            return cached;
+        }
+
+        final Boolean isSiteAdmin = hasUsernameAndRole(username, UserRole.ROLE_ADMINISTRATOR);
+        XDAT.getCacheManager().getCache(XDAT.CommonBooleans).put("role-"+username,isSiteAdmin);
+        return isSiteAdmin;
     }
 
     /**

@@ -70,6 +70,7 @@ import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperUtils;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.FileUtils;
 import org.slf4j.Logger;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -564,6 +565,7 @@ public class XDAT {
     	return _contextService;
 	}
 
+	public static final String CommonBooleans = "CommonBooleans";
 	/**
 	 * Returns an instance of the cache manager.
 	 * @return An instance of the {@link CacheManager} service.

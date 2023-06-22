@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.aspectj.util.Reflection;
 import org.nrg.framework.exceptions.NrgServiceError;
 import org.nrg.framework.exceptions.NrgServiceException;
+import org.nrg.xdat.XDAT;
 import org.nrg.xdat.base.BaseElement;
 import org.nrg.xdat.om.XdatElementAccess;
 import org.nrg.xdat.om.XdatFieldMapping;
@@ -63,6 +64,9 @@ import javax.annotation.Nullable;
 @Service
 @Slf4j
 public class PermissionsServiceImpl implements PermissionsServiceI {
+
+    public static final String USER_PERMS = "user-perms";
+
     @Autowired
     public PermissionsServiceImpl(final DataTypeAwareEventService eventService,
                                   final NamedParameterJdbcTemplate template,
@@ -565,6 +569,13 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
 
     private boolean can(final @Nonnull String username, final @Nonnull String action, final @Nullable String projectId, final @Nonnull String entityId) {
         final boolean hasProjectId = StringUtils.isNotBlank(projectId);
+
+        final String cacheId= username+action+projectId+entityId;
+        Boolean cachedValue = XDAT.getCacheManager().getCache(USER_PERMS).get(cacheId,Boolean.class);
+        if(cachedValue!=null){
+            return cachedValue;
+        }
+
         final String  query;
         switch (action) {
             case READ:
@@ -589,7 +600,11 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
         if (hasProjectId) {
             parameters.addValue("projectId", projectId);
         }
-        return _template.queryForObject(query, parameters, Boolean.class);
+
+        Boolean can = _template.queryForObject(query, parameters, Boolean.class);
+        XDAT.getCacheManager().getCache(USER_PERMS).put(cacheId,can);
+
+        return can;
     }
 
     private boolean securityCheck(final UserI user, final String action, final SchemaElementI root, final SecurityValues values) throws Exception {
@@ -812,6 +827,8 @@ public class PermissionsServiceImpl implements PermissionsServiceI {
                 }
                 ((XDATUser) affected).setElementAccess(elementAccess);
             }
+
+            XDAT.getCacheManager().getCache(USER_PERMS).clear();
 
             if (triggerEvent) {
                 _eventService.triggerEvent(builder().xsiType(elementName).id(fieldValue).action(UPDATE).build());
