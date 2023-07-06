@@ -113,6 +113,15 @@ public interface GroupsAndPermissionsCache extends XnatCache {
     Map<String, ElementDisplay> getBrowseableElementDisplays(final UserI user);
 
     /**
+     * Get the browseable element displays for the indicated user.
+     *
+     * @param username The name of the user to retrieve browseable element displays for.
+     *
+     * @return The browseable element displays for the indicated user.
+     */
+    Map<String, ElementDisplay> getBrowseableElementDisplays(final String username);
+
+    /**
      * Get the searchable element displays for the indicated user.
      *
      * @param user The user for which to retrieve action element displays.
@@ -120,6 +129,15 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      * @return The searchable element displays for the indicated user.
      */
     List<ElementDisplay> getSearchableElementDisplays(final UserI user) throws Exception;
+
+    /**
+     * Get the searchable element displays for the indicated user.
+     *
+     * @param username The name of the user to retrieve searchable element displays for.
+     *
+     * @return The searchable element displays for the indicated user.
+     */
+    List<ElementDisplay> getSearchableElementDisplays(final String username) throws Exception;
 
     /**
      * Get the action element displays for the indicated user.
@@ -255,6 +273,13 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      * @return The date and time of the latest update to any groups associated with the specified user.
      */
     Date getUserLastUpdateTime(final String username);
+
+    /**
+     * Clears all cache entries for the indicated user.
+     *
+     * @param user The user whose cache should be cleared.
+     */
+    void clearUserCache(final UserI user);
 
     /**
      * Clears all cache entries for the indicated user.

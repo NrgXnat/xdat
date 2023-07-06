@@ -29,7 +29,8 @@ import java.util.Map;
  * @author Tim Olsen &lt;tim@deck5consulting.com&gt;
  */
 public interface UserManagementServiceI {
-    String QUERY_CHECK_USER_EXISTS = "SELECT EXISTS(SELECT TRUE FROM xdat_user WHERE login = :username) AS exists";
+    String PARAM_USERNAME          = "username";
+    String QUERY_CHECK_USER_EXISTS = "SELECT EXISTS(SELECT TRUE FROM xdat_user WHERE login = :" + PARAM_USERNAME + ") AS exists";
 
     /**
      * Return a freshly created (empty) user.

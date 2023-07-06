@@ -799,6 +799,7 @@ public class XDATUser extends XdatUser implements UserI, Serializable {
         return XFTTable.Execute(query, getDBName(), this.getLogin()).toArrayListOfLists();
     }
 
+    // CACHING: This local cache must be removed and converted to use external caches
     protected ArrayList<ItemI> getCachedItems(String elementName, String security_permission, boolean preLoad) {
         if (!_userSessionCache.containsKey(elementName + security_permission + preLoad)) {
             ItemSearch       search = new ItemSearch();

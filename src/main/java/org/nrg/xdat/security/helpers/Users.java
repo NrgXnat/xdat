@@ -46,7 +46,9 @@ import org.nrg.xft.utils.SaveItemHelper;
 import org.nrg.xft.utils.ValidationUtils.ValidationResultsI;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.GrantedAuthority;
@@ -382,6 +384,26 @@ public class Users {
             default:
                 return getUserDataCache().getUserDataCacheFile(user, Paths.get(dirs[0], ArrayUtils.remove(dirs, 0)));
         }
+    }
+
+    /**
+     * Return a complete list of all the usernames in the database. This only returns enabled non-guest users.
+     *
+     * @return Returns a list of all usernames
+     */
+    public static List<String> getUsernames() {
+        return getUsernames(XDAT.getNamedParameterJdbcTemplate());
+    }
+
+    /**
+     * Return a complete list of all the usernames in the database. This only returns enabled non-guest users.
+     *
+     * @param template A JDBC template with which to query the database
+     *
+     * @return Returns a list of all usernames
+     */
+    public static List<String> getUsernames(final NamedParameterJdbcTemplate template) {
+        return template.queryForList(QUERY_GET_ALL_USERNAMES, EmptySqlParameterSource.INSTANCE, String.class);
     }
 
     /**
@@ -897,11 +919,12 @@ public class Users {
         return _users;
     }
 
-    private static final String USER_XDAT_USER_ID = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".user_xdat_user_id";
-    private static final String LOGIN_DATE        = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".login_date";
-    private static final String IP_ADDRESS        = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".ip_address";
-    private static final String NODE_ID           = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".node_id";
-    private static final String SESSION_ID        = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".session_id";
+    private static final String USER_XDAT_USER_ID       = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".user_xdat_user_id";
+    private static final String LOGIN_DATE              = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".login_date";
+    private static final String IP_ADDRESS              = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".ip_address";
+    private static final String NODE_ID                 = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".node_id";
+    private static final String SESSION_ID              = XdatUserLogin.SCHEMA_ELEMENT_NAME + ".session_id";
+    private static final String QUERY_GET_ALL_USERNAMES = "SELECT login FROM xdat_user WHERE enabled = 1 AND login != 'guest'";
 
     private static final Map<Integer, String>          _users               = new ConcurrentHashMap<>();
     private static final Map<String, GrantedAuthority> _authorities         = new HashMap<>();
