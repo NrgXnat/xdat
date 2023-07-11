@@ -9,6 +9,7 @@
 
 package org.nrg.xdat.security;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -317,6 +318,7 @@ public class UserGroup implements UserGroupI {
      *
      * @return The associated {@link XdatUsergroup}.
      */
+    @JsonIgnore
     public XdatUsergroup getUserGroupImpl() {
         return ObjectUtils.defaultIfNull(xdatGroup, getSavedUserGroupImpl(Users.getAdminUser()));
     }
@@ -470,7 +472,7 @@ public class UserGroup implements UserGroupI {
 
     /**
      * Adds the list of criteria to the group's permission sets.
-     *
+     * <p>
      * <b>Note:</b> The addition of the criteria here is completely transitive and is not persisted to the database. This can be used
      * to populate a new instance of the group or to update a cached instance to reflect changes in permissions elsewhere.
      *
@@ -484,7 +486,7 @@ public class UserGroup implements UserGroupI {
 
     /**
      * Adds the criterion entry to the group's permission sets.
-     *
+     * <p>
      * <b>Note:</b> The addition of the criterion entry here is completely transitive and is not persisted to the database. This can
      * be used to populate a new instance of the group or to update a cached instance to reflect changes in permissions elsewhere.
      *
