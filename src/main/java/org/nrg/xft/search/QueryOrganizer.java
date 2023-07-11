@@ -129,7 +129,7 @@ public class QueryOrganizer implements QueryOrganizerI{
         + "     LEFT JOIN xnat_subjectData_meta_data meta ON xnat_subjectData.subjectData_info = meta.meta_data_id \n"
         + "     WHERE (xpp.project IN (SELECT field_value FROM P_XNAT_SUBJECTDATA))";
 
-    static final String PROJ_SUBJ_QUERY="SELECT DISTINCT ON (id) xnat_subjectData.* \n"
+    static final String PROJ_SUBJ_QUERY="SELECT xnat_subjectData.* \n"
         + "\tFROM xnat_subjectData\n"
         + "        LEFT JOIN xnat_subjectData_meta_data meta ON xnat_subjectData.subjectData_info = meta.meta_data_id \n"
         + "\tLEFT JOIN xnat_projectParticipant xpp ON xnat_subjectData.id=xpp.subject_id\n"
@@ -137,14 +137,14 @@ public class QueryOrganizer implements QueryOrganizerI{
     private static final String PROJ_SUBJ_QUERY1 ="SELECT xnat_subjectData.* FROM xnat_subjectData WHERE project = '%1$s'";
     private static final String PROJ_SUBJ_QUERY2 ="SELECT xnat_subjectData.* FROM xnat_projectParticipant xpp LEFT JOIN xnat_subjectdata ON xpp.subject_id=xnat_subjectdata.id WHERE xpp.project = '%1$s'";
 
-    static  final String PROJ_EXPT_QUERY="SELECT DISTINCT ON (id) root.* \n"
+    static  final String PROJ_EXPT_QUERY="SELECT root.* \n"
         + "\tFROM xnat_experimentData expt\n"
         + "              LEFT JOIN xnat_experimentData_meta_data meta ON expt.experimentData_info=meta.meta_data_id \n"
         + "\tLEFT JOIN xnat_experimentData_share xpp ON expt.id=xpp.sharing_share_xnat_experimentda_id\n"
         + " RIGHT JOIN %2$s root ON expt.id=root.id"
         + "\tWHERE (expt.project='%1$s' OR xpp.project='%1$s')";
 
-    static final String PROJ_SCAN_QUERY="SELECT DISTINCT ON (id) root.* \n"
+    static final String PROJ_SCAN_QUERY="SELECT root.* \n"
         + "\tFROM xnat_imageScanData\n"
         + "              LEFT JOIN xnat_imageScanData_meta_data meta ON xnat_imageScanData.imageScanData_info = meta.meta_data_id \n"
         + "\tLEFT JOIN xnat_imageScanData_share xpp ON xnat_imageScanData.xnat_imagescandata_id=xpp.sharing_share_xnat_imagescandat_xnat_imagescandata_id\n"
@@ -203,7 +203,7 @@ public class QueryOrganizer implements QueryOrganizerI{
     static final String PROJ_EXPT_NON_ROOT_QUERY="SELECT DISTINCT ON (id) root.* "
         + "        FROM xnat_experimentData expt"
         + "        LEFT JOIN xnat_experimentData_meta_data meta ON expt.experimentData_info=meta.meta_data_id "
-        + "        LEFT JOIN xnat_experimentData_share xpp ON expt.id=xpp.sharing_share_xnat_experimentda_id"
+        + "        LEFT JOIN xnat_experimentData_share xpp ON expt.id=xpp.sharing_share_xnat_experimentda_id AND xpp.project='%1$s'"
         + "        JOIN %2$s root ON expt.id=root.id"
         + "        WHERE (expt.project='%1$s' OR xpp.project='%1$s') AND expt.extension IN (SELECT xdat_meta_element_id FROM P_%2$s) ";
     static final String PROJ_EXPT_NON_ROOT_QUERY1="SELECT DISTINCT ON (id) root.* "
