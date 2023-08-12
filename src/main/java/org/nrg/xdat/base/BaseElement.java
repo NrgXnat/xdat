@@ -12,6 +12,8 @@ package org.nrg.xdat.base;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
@@ -49,7 +51,8 @@ import java.util.*;
  *
  */
 @SuppressWarnings({"unchecked","rawtypes"})
-public abstract class BaseElement extends ItemWrapper implements ItemI {
+public abstract class BaseElement extends ItemWrapper implements ItemI, Serializable {
+  private static final long serialVersionUID = 2338626292552177495L;
 	static org.apache.log4j.Logger logger = Logger.getLogger(BaseElement.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -121,7 +124,8 @@ public abstract class BaseElement extends ItemWrapper implements ItemI {
     }
 
     public JsonNode getJSONProperty(String xmlPath) throws Exception {
-        return objectMapper.readTree(getItem().getStringProperty(xmlPath));
+        final String value = getItem().getStringProperty(xmlPath);
+        return StringUtils.isNotBlank(value) ? objectMapper.readTree(value) : null;
     }
 
 	public void setBooleanProperty(String xmlPath,boolean value) throws Exception
@@ -467,6 +471,10 @@ public abstract class BaseElement extends ItemWrapper implements ItemI {
         }
 	}
 
+    private void readObject(ObjectInputStream in)	throws IOException, ClassNotFoundException{
+      in.defaultReadObject();
+      readExternal(in);
+    }
 
     /* (non-Javadoc)
      * @see java.io.Externalizable#readExternal(java.io.ObjectInput)
@@ -475,6 +483,12 @@ public abstract class BaseElement extends ItemWrapper implements ItemI {
             ClassNotFoundException {
         getItem().readExternal(in);
     }
+
+    private void writeObject(ObjectOutputStream out) throws IOException{
+      out.defaultWriteObject();
+      writeExternal(out);
+    }
+
     /* (non-Javadoc)
      * @see java.io.Externalizable#writeExternal(java.io.ObjectOutput)
      */
@@ -496,7 +510,7 @@ public abstract class BaseElement extends ItemWrapper implements ItemI {
     public UserI getInsertUser(){
         return this.getItem().getInsertUser();
     }
-    
+
 	public SecurityValues getSecurityTags(){
 		return new SecurityValues();
 	}

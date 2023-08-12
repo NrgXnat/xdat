@@ -9,11 +9,14 @@
 
 package org.nrg.xft;
 
+import java.sql.Time;
 import org.apache.commons.text.StringEscapeUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.nrg.xft.db.PoolDBUtils;
 import org.nrg.xft.exception.DBPoolException;
+import org.nrg.xft.search.SQLClause;
+import org.nrg.xft.utils.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,10 +34,18 @@ public class XFTTable implements XFTTableI {
 
     private int rowCursor = 0;
     public ArrayList quarantineIndexs = new ArrayList();
+    private boolean isSorted = false;
 
     public static XFTTable Execute(String query, String dbName, String userName) throws SQLException, DBPoolException {
         final PoolDBUtils con = new PoolDBUtils();
         final XFTTable table = con.executeSelectQuery(query, dbName, userName);
+        table.resetRowCursor();
+        return table;
+    }
+
+    public static XFTTable ExecutePS(String query, SQLClause.ParamValue... params) throws SQLException, DBPoolException {
+        final PoolDBUtils con = new PoolDBUtils();
+        final XFTTable table = con.executeSelectPS(query, params);
         table.resetRowCursor();
         return table;
     }
@@ -47,6 +58,26 @@ public class XFTTable implements XFTTableI {
         t.setNumRows(numRows);
 
         return t;
+    }
+
+    /**
+     * Sets the flag that this table is already sorted
+     * Ref: XNAT-7798
+     *
+     * @param sorted Flag to set the sorted status of the XFTTable
+     */
+    public void isSorted(final boolean sorted) {
+        isSorted = sorted;
+    }
+
+
+    /**
+     * Gets the table sorted status
+     * Ref: XNAT-7798
+     * @return boolean - False(default): Table is not sorted; True: Table is sorted
+     */
+    public boolean isSorted() {
+        return isSorted;
     }
 
     /**
@@ -901,7 +932,13 @@ public class XFTTable implements XFTTableI {
             for (int i = 0; i < this.numCols; i++) {
                 ArrayList<String> columnSpec = columnsWType.get(i);
                 try {
-                    json.put(columnSpec.get(0), ValueParser(row[i]));
+                    if(row[i] instanceof Time){
+                        //XNAT-7784 conversion to capture milliseconds in output
+                        java.util.Date d = new java.util.Date(((Time)row[i]).getTime());
+                        json.put(columnSpec.get(0), DateUtils.format(d,"HH:mm:ss.SSS"));
+                    }else{
+                        json.put(columnSpec.get(0), ValueParser(row[i]));
+                    }
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -984,6 +1021,12 @@ public class XFTTable implements XFTTableI {
             if (i != null) {
                 indexes.add(i);
             }
+        }
+
+        if(indexes.size()==0){
+            //sorted by a column which is no longer in the table.
+            //this happens in the search listings if you sort on a column, then remove a column, then refresh the table
+            return;
         }
 
         Collections.sort(rows, new Comparator<Object[]>() {
