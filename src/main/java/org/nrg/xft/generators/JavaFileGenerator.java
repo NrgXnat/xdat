@@ -406,7 +406,7 @@ public class JavaFileGenerator {
                     {
                         formatted = "userProperty";
                     }
-                                        
+
                     if (type.equalsIgnoreCase("boolean"))
                     {
                         sb.append("\n\n\t").append("//FIELD");
@@ -498,7 +498,7 @@ public class JavaFileGenerator {
                         sb.append("\n\t\t_").append(formatted +"=null;");
                         sb.append("\n\t\t").append("} catch (Exception e1) {logger.error(e1);}");
                         sb.append("\n\t}");
-                    }else if (type.equalsIgnoreCase("string"))
+                    }else if (type.equalsIgnoreCase("string") || StringUtils.equalsIgnoreCase(type,"LONGVARCHAR"))
                     {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private String _").append(formatted);
