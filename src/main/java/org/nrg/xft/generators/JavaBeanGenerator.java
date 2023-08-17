@@ -269,7 +269,7 @@ public class JavaBeanGenerator {
                                     sb.append("\n\t").append("public void set").append(reformatted).append("(Integer v) {");
                                     sb.append("\n\t\t_").append(reformatted +"=v;");
                                     sb.append("\n\t}");
-                                }else if (type.equalsIgnoreCase("string"))
+                                }else if (type.equalsIgnoreCase("string") || StringUtils.equalsIgnoreCase(type, JavaFileGenerator.LONGVARCHAR))
                                 {
                                     String reformatted = formatted + "_" +formatFieldName(temp);
                                     sb.append("\n\n\t").append("//FIELD");
@@ -491,7 +491,7 @@ public class JavaBeanGenerator {
                         sb.append("\n\t").append("public void set").append(formatted).append("(String v)  {");
                         sb.append("\n\t\t_").append(formatted +"=formatDouble(v);");
                         sb.append("\n\t}");
-                    }else if (type.equalsIgnoreCase("string"))
+                    }else if (type.equalsIgnoreCase("string") || StringUtils.equalsIgnoreCase(type, JavaFileGenerator.LONGVARCHAR))
                     {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private String _").append(formatted);
@@ -2104,7 +2104,7 @@ public class JavaBeanGenerator {
                         sbI.append("\t/**\n\t * Sets the value for ").append(xmlPath).append(".\n\t * @param v Value to Set.\n\t */");
                         sbI.append("\n\t").append("public void set").append(formatted).append("(Double v);");
                         
-                    }else if (type.equalsIgnoreCase("string"))
+                    }else if (type.equalsIgnoreCase("string") || StringUtils.equalsIgnoreCase(type, JavaFileGenerator.LONGVARCHAR))
                     {
                         //STANDARD GET METHOD
                         sbI.append("\n\n");

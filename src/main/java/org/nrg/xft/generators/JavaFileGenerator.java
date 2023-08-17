@@ -46,7 +46,9 @@ import java.util.*;
  *
  */
 public class JavaFileGenerator {
-	private static final Logger logger = LoggerFactory.getLogger(JavaFileGenerator.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(JavaFileGenerator.class);
+    public static final String LONGVARCHAR = "LONGVARCHAR";
     private              String prefix ="Base";
     
     private static int item_counter = 0;
@@ -281,7 +283,7 @@ public class JavaFileGenerator {
                                     sb.append("\n\t}");
                                     
 
-                                }else if (type.equalsIgnoreCase("string"))
+                                }else if (type.equalsIgnoreCase("string") || StringUtils.equalsIgnoreCase(type, LONGVARCHAR))
                                 {
                                     String reformatted = formatted + "_" +formatFieldName(temp);
                                     sb.append("\n\n\t").append("//FIELD");
@@ -498,7 +500,7 @@ public class JavaFileGenerator {
                         sb.append("\n\t\t_").append(formatted +"=null;");
                         sb.append("\n\t\t").append("} catch (Exception e1) {logger.error(e1);}");
                         sb.append("\n\t}");
-                    }else if (type.equalsIgnoreCase("string") || StringUtils.equalsIgnoreCase(type,"LONGVARCHAR"))
+                    }else if (type.equalsIgnoreCase("string") || StringUtils.equalsIgnoreCase(type, LONGVARCHAR))
                     {
                         sb.append("\n\n\t").append("//FIELD");
                         sb.append("\n\n\t").append("private String _").append(formatted);
