@@ -2336,21 +2336,6 @@ public class GenericWrapperUtils {
                                         indexes.put(temp + counter, sb
                                                 .toString());
 
-                                        if (maxLengthExceeded) {
-                                            temp = temp.substring(0, 57);
-                                        }
-                                        temp += counter;
-
-                                        sb = new StringBuffer();
-                                        sb.append("CREATE INDEX ").append(
-                                                temp + "_hash");
-                                        sb.append(" ON ").append(
-                                                spec.getLocalTable()).append(
-                                                " USING HASH (");
-                                        sb.append(spec.getLocalCol()).append(
-                                                ");");
-                                        indexes.put(temp + "_hash", sb
-                                                .toString());
                                     }
                                 }
 
@@ -2430,20 +2415,6 @@ public class GenericWrapperUtils {
                                             spec.getLocalTable()).append("(");
                                     sb.append(spec.getLocalCol()).append(");");
                                     indexes.put(temp + counter, sb.toString());
-
-                                    if (maxLengthExceeded) {
-                                        temp = temp.substring(0, 57);
-                                    }
-                                    temp += counter;
-
-                                    sb = new StringBuffer();
-                                    sb.append("CREATE INDEX ").append(
-                                            temp + "_hash");
-                                    sb.append(" ON ").append(
-                                            spec.getLocalTable()).append(
-                                            " USING HASH (");
-                                    sb.append(spec.getLocalCol()).append(");");
-                                    indexes.put(temp + "_hash", sb.toString());
                                 }
                             }
 
@@ -2506,17 +2477,6 @@ public class GenericWrapperUtils {
                         sb.append(relation.getSQLName()).append(");");
                         indexes.put(temp + counter, sb.toString());
 
-                        if (maxLengthExceeded) {
-                            temp = temp.substring(0, 57);
-                        }
-                        temp += counter;
-
-                        sb = new StringBuffer();
-                        sb.append("CREATE INDEX ").append(temp + "_hash");
-                        sb.append(" ON ").append(input.getSQLName()).append(
-                                " USING HASH (");
-                        sb.append(relation.getSQLName()).append(");");
-                        indexes.put(temp, sb.toString());
                     }
                 }
             }
@@ -2545,18 +2505,6 @@ public class GenericWrapperUtils {
                                 .append("(");
                         sb.append(key.getSQLName()).append(");");
                         indexes.put(temp + counter, sb.toString());
-
-                        if (maxLengthExceeded) {
-                            temp = temp.substring(0, 57);
-                        }
-                        temp += counter;
-
-                        sb = new StringBuffer();
-                        sb.append("CREATE INDEX ").append(temp + "_hash");
-                        sb.append(" ON ").append(input.getSQLName()).append(
-                                " USING HASH (");
-                        sb.append(key.getSQLName()).append(");");
-                        indexes.put(temp, sb.toString());
                     }
                 }
             }
