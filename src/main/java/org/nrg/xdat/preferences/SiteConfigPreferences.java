@@ -602,6 +602,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
     }
 
     @NrgPreference(defaultValue = "false")
+    public boolean getRerunProjectAnonOnRename() {
+        return getBooleanValue("rerunProjectAnonOnRename");
+    }
+
+    public void setRerunProjectAnonOnRename(final boolean rerunProjectAnonOnRename) {
+        try {
+            setBooleanValue(rerunProjectAnonOnRename, "rerunProjectAnonOnRename");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'rerunProjectAnonOnRename': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "false")
     public boolean getEnableSitewideSeriesImportFilter() {
         return getBooleanValue("enableSitewideSeriesImportFilter");
     }
