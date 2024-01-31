@@ -601,7 +601,7 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
-    @NrgPreference(defaultValue = "false")
+    @NrgPreference(defaultValue = "true")
     public boolean getRerunProjectAnonOnRename() {
         return getBooleanValue("rerunProjectAnonOnRename");
     }
