@@ -147,7 +147,7 @@ public class XDATForgotLogin extends VelocitySecureAction {
                     data.setMessage("You have exceeded the allowed number of email requests. Please try again later.");
                     data.setScreenTemplate("Login.vm");
                 } else {
-                    final AliasToken token   = _aliasTokenService.issueTokenForUser(user, true, null);
+                    final AliasToken token   = _aliasTokenService.issueTokenForUser(user, false, null, TWO_HOURS_IN_SECONDS);
                     String body = XDAT.getNotificationsPreferences().getEmailMessageForgotPasswordReset();
                     body = XDAT.getNotificationsPreferences().replaceCommonAnchorTags(body, user);
 
@@ -226,6 +226,7 @@ public class XDATForgotLogin extends VelocitySecureAction {
     }
 
     private static final String[] TOKENS = {"SITE_URL", "SITE_NAME", "USER_USERNAME", "USER_FIRSTNAME", "USER_LASTNAME", "ADMIN_EMAIL", "HELP_EMAIL", "RESET_URL"};
+    private static final long TWO_HOURS_IN_SECONDS = 7200L;
 
     private final XdatUserAuthService      _userAuthService;
     private final SiteConfigPreferences    _siteConfig;

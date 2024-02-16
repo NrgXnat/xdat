@@ -258,6 +258,27 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "hard_link")
+    public String getFileOperationUsedForJobsWithSharedData() { return getValue("fileOperationUsedForJobsWithSharedData"); }
+
+    public void setFileOperationUsedForJobsWithSharedData( final String fileOperationUsedForJobsWithSharedData) {
+        try {
+            set(fileOperationUsedForJobsWithSharedData, "fileOperationUsedForJobsWithSharedData");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'fileOperationUsedForJobsWithSharedData': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "100000")
+    public int getMaxNumberOfSessionsForJobsWithSharedData() { return getIntegerValue("maxNumberOfSessionsForJobsWithSharedData"); }
+
+    public void setMaxNumberOfSessionsForJobsWithSharedData(final int maxNumberOfSessionsForJobsWithSharedData) {
+        try {
+            setIntegerValue(maxNumberOfSessionsForJobsWithSharedData, "maxNumberOfSessionsForJobsWithSharedData");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'maxNumberOfSessionsForJobsWithSharedData': something is very wrong here", e);
+        }
+    }
     @NrgPreference
     public String getTriagePath() {
         return StringUtils.defaultIfBlank(getValue("triagePath"),
@@ -1758,6 +1779,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "DICOM-zip")
+    public String getUiDefaultCompressedUploaderImporter() {
+        return getValue("uiDefaultCompressedUploaderImporter");
+    }
+
+    public void setUiDefaultCompressedUploaderImporter(final String uiDefaultCompressedUploaderImporter) {
+        try {
+            set(uiDefaultCompressedUploaderImporter, "uiDefaultCompressedUploaderImporter");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiDefaultCompressedUploaderImporter': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "true")
     public boolean getUiHideXnatUploadAssistantDownload() {
         return getBooleanValue("uiHideXnatUploadAssistantDownload");
@@ -2056,6 +2090,20 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
             log.error("Invalid preference name 'addCountFieldsToProjectListings': something is very wrong here.", e);
         }
     }
+
+    @NrgPreference(defaultValue = "false")
+    public boolean getRemoveScanAggregateFields() {
+        return getBooleanValue("removeScanAggregateFields");
+    }
+
+    public void settRemoveScanAggregateFields(final boolean removeScanAggregateFields) {
+        try {
+            setBooleanValue(removeScanAggregateFields, "removeScanAggregateFields");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'removeScanAggregateFields': something is very wrong here.", e);
+        }
+    }
+
 
     @NrgPreference(defaultValue = "false")
     public boolean getDefaultToPagedRestfulLists() {
