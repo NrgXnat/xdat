@@ -9,6 +9,7 @@
 
 package org.nrg.xdat.display;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.nrg.xdat.collections.DisplayFieldCollection.DisplayFieldNotFoundException;
@@ -29,11 +30,18 @@ public class DisplayFieldRef extends Sortable implements Identifier, DisplayFiel
 	static Logger logger = Logger.getLogger(DisplayFieldRef.class);
 	private String id = null;
 	private String header = null;
+
+    @JsonIgnore
 	private DisplayField df = null;
-	private String elementName = null;
+
+    private String elementName = null;
 
 	private Boolean visible = null;
+
+    @JsonIgnore
 	private DisplayVersion parentVersion = null;
+
+    @JsonIgnore
 	private SchemaElement parentElement = null;
     private String type = null;
 
@@ -350,6 +358,10 @@ public class DisplayFieldRef extends Sortable implements Identifier, DisplayFiel
         } else {
     		return visible;
     	}
+    }
+
+    public Boolean getVisible(){
+        return visible;
     }
 }
 

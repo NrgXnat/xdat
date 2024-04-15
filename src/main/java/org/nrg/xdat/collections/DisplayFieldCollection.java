@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.nrg.xdat.display.DisplayField;
 import org.nrg.xft.collections.XFTCollection;
 import org.nrg.xft.exception.DuplicateKeyException;
@@ -32,6 +33,7 @@ public class DisplayFieldCollection extends XFTCollection {
 		setAllowReplacement(false);
 	}
 
+	@JsonIgnore
 	public DisplayField getDisplayField(String id)
 	{
 			return (DisplayField)this.getStoredItem(id);
@@ -39,14 +41,15 @@ public class DisplayFieldCollection extends XFTCollection {
 
 	public void addDisplayField(DisplayField df)
 	{
-	    	df.setSortIndex(this.getItemHash().size());
-			this.addStoredItem(df);
+		df.setSortIndex(this.getItemHash().size());
+		this.addStoredItem(df);
 	}
 
 	public void removeDisplayField(String displayFieldId){
 		this.removeItemById(displayFieldId);
 	}
 
+	@JsonIgnore
 	public DisplayField getDisplayFieldWException(String id) throws DisplayFieldNotFoundException
 	{
 		try {
@@ -66,6 +69,7 @@ public class DisplayFieldCollection extends XFTCollection {
 		}
 	}
 
+	@JsonIgnore
 	public ArrayList<DisplayField> getSortedFields()
 	{
 	    ArrayList<DisplayField> al = new ArrayList<DisplayField>();
@@ -74,6 +78,7 @@ public class DisplayFieldCollection extends XFTCollection {
 	    return al;
 	}
 
+	@JsonIgnore
 	public Iterator getDisplayFieldIterator()
 	{
 		return this.getItemIterator();

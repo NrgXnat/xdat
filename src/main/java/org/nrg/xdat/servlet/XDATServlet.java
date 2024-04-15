@@ -87,21 +87,25 @@ public class XDATServlet extends HttpServlet {
 
         super.init(config);
 
-        try {
-            //stores some paths for convenient access later.
-            XDATServlet.WEBAPP_ROOT = getWebAppPath();
+        //stores some paths for convenient access later.
+        XDATServlet.WEBAPP_ROOT = getWebAppPath();
 
+        load();
+    }
+
+    public static void load(){
+        try {
             // Migration: Fix this to use NIO Paths.
-            XDAT.init(getWebAppPath("WEB-INF", "conf"), true);
+            XDAT.init(Paths.get(WEBAPP_ROOT,"WEB-INF", "conf").toString(), true);
 
             //store some  more convenience paths
-            XDAT.setScreenTemplatesFolder(getWebAppPath("templates", "screens"));
+            XDAT.setScreenTemplatesFolder(Paths.get(WEBAPP_ROOT,"templates", "screens").toString());
             for (final String path : CustomClasspathResourceLoader.TEMPLATE_PATHS) {
-                XDAT.addScreenTemplatesFolder(path, new File(getWebAppPath(path, "screens")));
+                XDAT.addScreenTemplatesFolder(path, new File(Paths.get(WEBAPP_ROOT,path, "screens").toString()));
             }
 
             //call the logic to check if the database is up to date.
-            if (updateDatabase(getWebAppPath("resources", "default-sql"))) {
+            if (updateDatabase(Paths.get(WEBAPP_ROOT,"resources", "default-sql").toString())) {
                 //reset loaded stuff, because database changed
                 ElementSecurity.refresh();
             }
@@ -124,7 +128,7 @@ public class XDATServlet extends HttpServlet {
      *
      * @throws Exception When an error occurs.
      */
-    private boolean updateDatabase(final String conf) throws Exception {
+    private static boolean updateDatabase(final String conf) throws Exception {
         final DatabaseHelper db        = new DatabaseHelper(XDAT.getDataSource());
         final Integer        userCount = !db.tablesExist("xdat_user") ? null : db.getJdbcTemplate().queryForObject("SELECT COUNT(*) FROM xdat_user", Integer.class);
 
@@ -284,7 +288,7 @@ public class XDATServlet extends HttpServlet {
      * necessary. The statements to create the tables are passed in via the addStatements method.
      */
     @SuppressWarnings("UnstableApiUsage")
-    public class DatabaseUpdater extends Thread {
+    public static class DatabaseUpdater extends Thread {
         /**
          * Creates a new instance of the updater class.
          *
@@ -455,7 +459,7 @@ public class XDATServlet extends HttpServlet {
         private final String[]     _generatedSqlLogHeaders;
     }
 
-    private List<String> getInitScripts(final Pattern filter, final Comparator<Resource> comparator) {
+    private static List<String> getInitScripts(final Pattern filter, final Comparator<Resource> comparator) {
         // Get the init prefs ordered properties from context and create a substitutor.
         final OrderedProperties properties  = XDAT.getContextService().getBeanSafely("initPrefs", OrderedProperties.class);
         final StringSubstitutor substitutor = new StringSubstitutor(new OrderedPropertiesLookup(properties), "${", "}", '\\');
@@ -500,7 +504,7 @@ public class XDATServlet extends HttpServlet {
      *
      * @return The list of resources after sorting and filtering.
      */
-    private List<Resource> filterAndSortInitSqlResources(final List<Resource> resources, final Pattern filter, final Comparator<Resource> comparator) {
+    private static List<Resource> filterAndSortInitSqlResources(final List<Resource> resources, final Pattern filter, final Comparator<Resource> comparator) {
         final List<Resource> filtered = new ArrayList<>();
         for (final Resource resource : resources) {
             try {
@@ -538,7 +542,7 @@ public class XDATServlet extends HttpServlet {
      *
      * @return The path to the log file for generated SQL if specified, null otherwise.
      */
-    private static Path getGeneratedSqlLogPath() {
+    public static Path getGeneratedSqlLogPath() {
         //noinspection unchecked
         final List<Path> configFiles = (List<Path>) XDAT.getContextService().getBean("configFiles");
         final Properties properties  = new Properties();

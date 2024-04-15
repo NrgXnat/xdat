@@ -11,6 +11,7 @@
 package org.nrg.xft.references;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.db.DBAction;
 import org.nrg.xft.exception.ElementNotFoundException;
@@ -241,6 +242,7 @@ public class XFTReferenceManager {
 	 */
 	public static XFTReferenceI FindReference(GenericWrapperField f) throws XFTInitException,ElementNotFoundException
 	{
+		//log.error("DEV: FindReference: " + f.getId() + " " + f.getParentElement());
 		GenericWrapperElement parent = f.getParentElement().getGenericXFTElement();
 		String s = f.getXMLPathString(parent.getFullXMLName()) + " " + f.getXMLType();
 		if (allXFTReferences.get(s)==null)
@@ -428,8 +430,21 @@ public class XFTReferenceManager {
 	 */
 	public static void init() throws XFTInitException,ElementNotFoundException
 	{
+		init(null);
+	}
+
+	/**
+	 * Initializes the XFTReferenceManager and XFTPseudonymManager by iterating through
+	 * the XFTSchema and identifying references.
+	 * @throws XFTInitException
+	 * @throws ElementNotFoundException
+	 */
+	public static void init(String prefix) throws XFTInitException,ElementNotFoundException
+	{
 		for (final XFTSchema s : XFTManager.GetSchemas()) {
-			GetInstance().assignReferences(s);
+			if(prefix==null || StringUtils.equals(prefix,s.getTargetNamespacePrefix())) {
+				GetInstance().assignReferences(s);
+			}
 		}
 	}
 	
