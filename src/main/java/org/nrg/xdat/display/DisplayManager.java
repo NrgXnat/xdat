@@ -17,25 +17,32 @@ import org.nrg.config.exceptions.ConfigServiceException;
 import org.nrg.xdat.XDAT;
 import org.nrg.xdat.collections.DisplayFieldCollection;
 import org.nrg.xdat.collections.DisplayFieldRefCollection;
+import org.nrg.xdat.display.transport.services.ArcDefService;
+import org.nrg.xdat.display.transport.services.DisplayStoredViewService;
+import org.nrg.xdat.display.transport.services.ElementDisplayStorageService;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xdat.search.DisplaySearch;
 import org.nrg.xdat.search.QueryOrganizer;
 import org.nrg.xft.db.PoolDBUtils;
 import org.nrg.xft.db.ViewManager;
 import org.nrg.xft.exception.ElementNotFoundException;
+import org.nrg.xft.exception.FieldNotFoundException;
 import org.nrg.xft.exception.XFTInitException;
-import org.nrg.xft.schema.XFTDataModel;
+import org.nrg.xft.generators.JavaFileGenerator;
+import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
+import org.nrg.xft.schema.XFTElement;
 import org.nrg.xft.schema.XFTManager;
+import org.nrg.xft.schema.XFTSchema;
+import org.nrg.xft.schema.db.entities.DBBackedSchema;
+import org.nrg.xft.schema.db.services.DBBackedSchemaService;
 import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.search.QueryOrganizer.CachedRootQuery;
 import org.nrg.xft.security.UserI;
-import org.nrg.xft.utils.FileUtils;
 import org.nrg.xft.utils.NodeUtils;
 import org.nrg.xft.utils.XMLUtils;
 import org.nrg.xft.utils.XftStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.w3c.dom.Document;
@@ -43,10 +50,13 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -61,6 +71,33 @@ public class DisplayManager {
     private final        List<Object[]>                    schemaLinks         = new ArrayList<>();
     private final        Map<String, ArcDefinition>        arcDefinitions      = new HashMap<>();
     private static final Map<String, SQLFunction>          SQL_FUNCTIONS       = new HashMap<>();
+    private static final Map<String, SQLView>          SQL_VIEWS       = new HashMap<>();
+
+    private ElementDisplayStorageService _elementDisplayService;
+    private static DisplayStoredViewService _displayStoredViewService;
+    private ArcDefService _arcDefService;
+
+    private ElementDisplayStorageService getElementDisplayService() {
+        if (_elementDisplayService == null) {
+            _elementDisplayService = XDAT.getContextService().getBean(ElementDisplayStorageService.class);
+        }
+        return _elementDisplayService;
+    }
+
+    private static DisplayStoredViewService getDisplayStoredViewervice() {
+        if (_displayStoredViewService == null) {
+            _displayStoredViewService = XDAT.getContextService().getBean(DisplayStoredViewService.class);
+        }
+        return _displayStoredViewService;
+    }
+
+    private ArcDefService getArcDefService() {
+        if (_arcDefService == null) {
+            _arcDefService = XDAT.getContextService().getBean(ArcDefService.class);
+        }
+        return _arcDefService;
+    }
+
 
     /**
      * Gets the elements set in the display manager.
@@ -99,6 +136,8 @@ public class DisplayManager {
      */
     public static DisplayManager GetInstance() {
         if (instance == null) {
+            XFTManager.waitForInit();
+
             instance = new DisplayManager();
             instance.init();
         }
@@ -111,8 +150,10 @@ public class DisplayManager {
      * @param location The location of the plugin schemas directory when getting an instance while building a plugin.
      * @return An instance of the display manager.
      */
-    public static DisplayManager GetInstance(String location) {
+    public static DisplayManager GetInstance(final String location) {
         if (instance == null) {
+            XFTManager.waitForInit();
+
             instance = new DisplayManager();
             instance.init(location);
         }
@@ -125,7 +166,7 @@ public class DisplayManager {
      * @param name The name of the display element to retrieve.
      * @return The display element.
      */
-    public static ElementDisplay GetElementDisplay(String name) {
+    public static ElementDisplay GetElementDisplay(final String name) {
         return (ElementDisplay) GetInstance().getElements().get(name);
     }
 
@@ -134,10 +175,32 @@ public class DisplayManager {
      *
      * @param doc The document to be parsed and processed.
      */
-    public void assignDisplays(Document doc){
-        this.assignDisplays(doc,false);
+    public ElementDisplay assignDisplays(final Document doc, final boolean postInitialization){
+       return this.assignDisplays(doc,false, postInitialization);
 
     }
+
+    /**
+     * Assigns displays based on the contents of the submitted xml.
+     *
+     */
+    public ElementDisplay assignDisplays(final StringBuilder buffer, final boolean postInitialization){
+        final InputStream in=new ByteArrayInputStream(buffer.toString().getBytes(StandardCharsets.UTF_8));
+        if (in != null) {
+            final Document doc = XMLUtils.GetDOM(in);
+            return assignDisplays(doc,postInitialization);
+        }
+        return null;
+    }
+
+    public ElementDisplay registerDisplay(final StringBuilder buffer){
+        final ElementDisplay ed = assignDisplays(buffer,true);
+        if(ed!=null){
+            getElementDisplayService().saveElementDisplay(ed);
+        }
+        return ed;
+    }
+
     /**
      * Assigns displays based on the contents of the submitted document.
      *
@@ -145,10 +208,10 @@ public class DisplayManager {
      * @param allowReplacement - Allow replacement of display fields that already exist
      */
     @SuppressWarnings({"unchecked"})
-    public void assignDisplays(Document doc, boolean allowReplacement) {
-        Element root = doc.getDocumentElement();
+    public ElementDisplay assignDisplays(Document doc, boolean allowReplacement, boolean postInitialization) {
+        final Element root = doc.getDocumentElement();
 
-        String name = NodeUtils.GetAttributeValue(root, "schema-element", "");
+        final String name = NodeUtils.GetAttributeValue(root, "schema-element", "");
 
         ElementDisplay ed = GetElementDisplay(name);
         if (ed == null) {
@@ -198,6 +261,7 @@ public class DisplayManager {
                 }
 
                 df.setId(NodeUtils.GetAttributeValue(child1, "id", ""));
+
                 df.setHeader(NodeUtils.GetAttributeValue(child1, "header", ""));
                 df.setImage(NodeUtils.GetAttributeValue(child1, "image", "false"));
                 df.setVisible(NodeUtils.GetAttributeValue(child1, "visible", "true"));
@@ -206,7 +270,6 @@ public class DisplayManager {
                 df.setSortBy(NodeUtils.GetAttributeValue(child1, "sort-by", ""));
                 df.setSortOrder(NodeUtils.GetAttributeValue(child1, "sort-order", ""));
                 df.setHtmlContent(NodeUtils.GetBooleanAttributeValue(child1, "html-content", false));
-
 
                 for (int k = 0; k < child1.getChildNodes().getLength(); k++) {
                     Node child2 = child1.getChildNodes().item(k);
@@ -296,8 +359,7 @@ public class DisplayManager {
                 try {
                     ed.addDisplayFieldWException(df);
                 } catch (DisplayFieldCollection.DuplicateDisplayFieldException e) {
-                    logger.error(df.getParentDisplay().getElementName() + "." + df.getId());
-                    logger.error("", e);
+                    logger.error("DisplayManager.init: DUPLICATE DisplayField {} {}.{} ",ed.getElementName(), df.getParentDisplay().getElementName(),df.getId());
                 }
             } else if (nodes.item(i).getNodeName().equalsIgnoreCase("DisplayVersion")) {
                 Node displayVersion = nodes.item(i);
@@ -346,12 +408,22 @@ public class DisplayManager {
                 sql.setName(NodeUtils.GetAttributeValue(nodes.item(i), "name", ""));
                 sql.setSql(NodeUtils.GetAttributeValue(nodes.item(i), "sql", ""));
                 sql.setSortOrder(views++);
-                ed.addView(sql);
+
+                if(postInitialization){
+                    getDisplayStoredViewervice().createView(sql.getName(),sql.getSql(), sql.getSortOrder(), false);
+                }
+
+                AddSqlView(sql);
             } else if (nodes.item(i).getNodeName().equalsIgnoreCase("SQLFunction")) {
                 SQLFunction sql = new SQLFunction();
                 sql.setName(NodeUtils.GetAttributeValue(nodes.item(i), "name", ""));
                 sql.setContent(NodeUtils.GetAttributeValue(nodes.item(i), "content", ""));
                 sql.setSortOrder(functions++);
+
+                if(postInitialization){
+                    getDisplayStoredViewervice().createView(sql.getName(),sql.getContent(), sql.getSortOrder(), true);
+                }
+
                 AddSqlFunction(sql);
             } else if (nodes.item(i).getNodeName().equalsIgnoreCase("Arc-Definition")) {
                 Node child = nodes.item(i);
@@ -446,6 +518,8 @@ public class DisplayManager {
             }
         }
         this.addElement(ed);
+
+        return ed;
     }
 
     public static void clean() {
@@ -478,15 +552,13 @@ public class DisplayManager {
         final PathMatchingResourcePatternResolver resolver  = new PathMatchingResourcePatternResolver();
         try {
             final Resource[] resources = resolver.getResources(pattern);
-            logger.info("Discovered " + resources.length + " display documents on classpath.");
             for (final Resource resource : resources) {
                 if(!loaded.contains(resource.getFilename())){
-                    logger.info("Importing display document: " + resource.getFilename());
                     try {
                         InputStream in=resource.getInputStream();
                         if (in != null) {
                             Document doc = XMLUtils.GetDOM(in);
-                            assignDisplays(doc, allowReplacement);
+                            ElementDisplay ed = assignDisplays(doc, allowReplacement);
                             loaded.add(resource.getFilename());
                         }
                     } catch (IOException | RuntimeException e) {
@@ -503,29 +575,6 @@ public class DisplayManager {
     public void init(String location) {
             List<String> loaded                 = Lists.newArrayList();
             final Map<String, Exception> errors = Maps.newHashMap();
-
-//        Enumeration enumer = XFTManager.GetDataModels().elements();
-//        List<String> processed = Lists.newArrayList();
-//        while (enumer.hasMoreElements()) {
-//            XFTDataModel dm = (XFTDataModel) enumer.nextElement();
-//            String location = FileUtils.AppendSlash(dm.getFileLocation());
-//
-//            if (!processed.contains(location)) {
-//                processed.add(location);
-//                File folder = new File(location + "display");
-//                if (folder.exists()) {
-//                    File[] files = folder.listFiles();
-//                    if (files != null) {
-//                        for (final File file : files) {
-//                            if (file.getName().endsWith("_display.xml")) {
-//                                Document doc = XMLUtils.GetDOM(file);
-//                                assignDisplays(doc);
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
 
             loadDisplayDocumentsFromLocation("classpath*:schemas/*/display/*_display.xml", errors, loaded, false);
 
@@ -546,17 +595,13 @@ public class DisplayManager {
                         logger.error("Unable to locate display xml files in build location.", e);
                     }
 
-                    //final Resource[] pathResourcesArray = (AbstractResource[]) pathResources.toArray((AbstractResource[]) Array.newInstance(AbstractResource.class, pathResources.size()));
-                    logger.info("Discovered " + buildPathDisplayXml.size() + " display documents on build path.");
                     for (final String displayXmlFilePath : buildPathDisplayXml) {
                         File displayXmlFile = new File(displayXmlFilePath);
                         if (!loaded.contains(displayXmlFile.getName())) {
-                            logger.info("Importing display document: " + displayXmlFile.getName());
                             try {
-                                    Document doc = XMLUtils.GetDOM(displayXmlFile);
-                                    assignDisplays(doc);
-
-                                    loaded.add(displayXmlFile.getName());
+                                Document doc = XMLUtils.GetDOM(displayXmlFile);
+                                ElementDisplay ed = assignDisplays(doc, false);
+                                loaded.add(displayXmlFile.getName());
                             } catch (RuntimeException e) {
                                 //noinspection ThrowableResultOfMethodCallIgnored
                                 errors.put(displayXmlFile.getPath(), e);
@@ -567,6 +612,54 @@ public class DisplayManager {
                 } catch (Throwable e1) {
                     logger.error("Unable to discover display.xml's from build path.",e1);
                 }
+            }
+
+            List<ElementDisplay> eds=this.getElementDisplayService().findAllActive();
+            for(ElementDisplay ed: eds){
+                ElementDisplay existing= DisplayManager.GetElementDisplay(ed.getElementName());
+                if(existing!=null){
+                    existing.merge(ed);
+                }else{
+                    addElement(ed);
+                }
+            }
+
+            //check for missing display docs
+            final DBBackedSchemaService dbService=XFTManager.getDBBackedSchemaService();
+
+            for (final DBBackedSchema schema: dbService.getAll()) {
+                for (final String xsiType : dbService.getElementNames(schema)) {
+                    if(!this.getElements().containsKey(xsiType)) {//isn't there already
+                        try {
+                            if (StringUtils.isBlank(GenericWrapperElement.GetElement(xsiType).getAddin())) {//not an addon
+                                if (GenericWrapperElement.GetFieldForXMLPath(xsiType + "/project") != null) {// is a securable element
+                                    logger.error("Generating DisplayDoc for data type: {}", xsiType);
+                                    GenericWrapperElement se = GenericWrapperElement.GetElement(xsiType);
+                                    final StringBuilder displayXML = (new JavaFileGenerator()).generateDisplayXml(se);
+                                    DisplayManager.GetInstance().registerDisplay(displayXML);
+                                }
+                            }
+                        } catch (XFTInitException e) {
+                            logger.error("", e);
+                        } catch (ElementNotFoundException e) {
+                            logger.error("", e);
+                        } catch (Throwable e) {
+                            //ignore
+                        }
+                    }
+                }
+            }
+
+            for(SQLObjectI sqlObj: this.getDisplayStoredViewervice().findAllSQLObjects()){
+                if(sqlObj instanceof SQLView){
+                    AddSqlView((SQLView) sqlObj);
+                }else{
+                    AddSqlFunction((SQLFunction) sqlObj);
+                }
+            }
+
+            for(ArcDefinition arcDef: this.getArcDefService().findAllArcDefs()){
+                addArcDefinition(arcDef);
             }
 
         if (errors.size() > 0) {
@@ -581,8 +674,9 @@ public class DisplayManager {
         try {
             initArcs();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("",e);
         }
+
     }
 
     @SuppressWarnings("rawtypes")
@@ -634,13 +728,14 @@ public class DisplayManager {
         }
 
         final List<String> createdAlias = new ArrayList<>();
+
+        for (final SQLView view : getSqlViews().values()) {
+            views.add("--DEFINED VIEW\nCREATE OR REPLACE VIEW " + view.getName() + " AS " + view.getSql() + ";\n\n");
+        }
+
+
         for (final Object aCol : col) {
             ElementDisplay ed = (ElementDisplay) aCol;
-            logger.debug("CREATE VIEWS FOR " + ed.getElementName());
-            for (final Object o : ed.getSortedViews()) {
-                SQLView view = (SQLView) o;
-                views.add("--DEFINED VIEW\nCREATE OR REPLACE VIEW " + view.getName() + " AS " + view.getSql() + ";\n\n");
-            }
 
             try {
                 SchemaElementI root = SchemaElement.GetElement(ed.getElementName());
@@ -648,10 +743,13 @@ public class DisplayManager {
                 try {
                     DisplaySearch ds = new DisplaySearch();
                     ds.setRootElement(ed.getElementName());
-                    for (final Object df : ed.getSortedFields()) {
-                        if (!(df instanceof SQLQueryField))
+                    for (final DisplayField df : ed.getSortedFields()) {
+                        if (!(df instanceof SQLQueryField)) {
                             ds.addDisplayField((DisplayField) df);
+                        }
                     }
+
+
 
                     String query = ds.getSQLQuery(null);
 
@@ -1110,6 +1208,24 @@ public class DisplayManager {
         functions.addAll(GetSqlFunctions().values());
         Collections.sort(functions, SQLFunction.SequenceComparator);
         return functions;
+    }
+
+    public static void AddSqlView(SQLView function) {
+        SQL_VIEWS.put(function.getName(), function);
+    }
+
+    /**
+     * @return Returns the sqlFunctions.
+     */
+    public static Map<String, SQLView> getSqlViews() {
+        return SQL_VIEWS;
+    }
+
+    public static List<SQLView> GetSortedViews() {
+        final List<SQLView> views = Lists.newArrayList();
+        views.addAll(getSqlViews().values());
+        Collections.sort(views, SQLView.SequenceComparator);
+        return views;
     }
 
     public String getSingularDisplayNameForElement(String elementName) {

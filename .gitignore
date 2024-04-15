@@ -11,3 +11,5 @@
 /ide-bin/
 /target
 dep*.txt
+
+.claude/settings.local.json
