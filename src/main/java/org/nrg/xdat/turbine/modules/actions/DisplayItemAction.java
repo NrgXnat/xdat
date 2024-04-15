@@ -46,7 +46,11 @@ public class DisplayItemAction extends SecureAction {
 
     public static String GetReportScreen(final SchemaElementI se) {
         final String templateName = "XDATScreen_report_" + se.getSQLName() + ".vm";
-        return Velocity.resourceExists("/screens/" + templateName) ? templateName : "DefaultReport.vm";
+        if(Velocity.resourceExists("/screens/" + templateName)){
+            return templateName;
+        }else{
+            return "DefaultReport.vm";
+        }
     }
 
     public static String GetReportScreen(final String elementName) throws XFTInitException, ElementNotFoundException {
