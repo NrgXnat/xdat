@@ -13,10 +13,6 @@ import static org.springframework.http.HttpHeaders.USER_AGENT;
 
 import com.noelios.restlet.ext.servlet.ServletCall;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.axis.AxisEngine;
-import org.apache.axis.MessageContext;
-import org.apache.axis.session.Session;
-import org.apache.axis.transport.http.HTTPConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.turbine.services.InstantiationException;
 import org.apache.turbine.services.session.TurbineSession;
@@ -27,6 +23,7 @@ import org.restlet.data.Request;
 import org.slf4j.helpers.MessageFormatter;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -105,9 +102,29 @@ public class AccessLogger {
         logAccess(user, request, service, message);
     }
 
-    public static void LogServiceAccess(final String user, final MessageContext context, final String service, final String message) {
-        LogServiceAccess(user, getAxisRequest(context), service, message);
+    public static void LogServiceAccess(final String user, final HttpServletRequest request, final String service, final String message) {
+        logAccess(user, request, service, message);
+
+        if (isTrackingSessions()) {
+            try {
+                final HttpSession session = request.getSession(false);
+                if (session != null) {
+                    final List<String> history;
+                    if (session.getAttribute(REQUEST_HISTORY) == null) {
+                        history = new ArrayList<>();
+                        session.setAttribute(REQUEST_HISTORY, history);
+                    } else {
+                        //noinspection unchecked
+                        history = (List<String>) session.getAttribute(REQUEST_HISTORY);
+                    }
+                    history.add(service + " " + message);
+                }
+            } catch (Throwable e) {
+                log.error("An error occurred trying to record request history for user \"{}\", attempted request was: {}", user, service + " " + message, e);
+            }
+        }
     }
+
 
     public static void LogAjaxServiceAccess(final String user, final HttpServletRequest request) {
         LogServiceAccess(user, request, getFullRequestUrl(request), null);
@@ -117,27 +134,6 @@ public class AccessLogger {
         LogServiceAccess(user, request, getFullRequestUrl(request), arguments.length == 0 ? message : MessageFormatter.arrayFormat(message, arguments).getMessage());
     }
 
-    public static void LogServiceAccess(final String user, final HttpServletRequest request, final String service, final String message) {
-        logAccess(user, request, service, message);
-
-        if (isTrackingSessions()) {
-            try {
-                final Session      session = AxisEngine.getCurrentMessageContext().getSession();
-                final List<String> history;
-                if (session.get(REQUEST_HISTORY) == null) {
-                    history = new ArrayList<>();
-                    session.set(REQUEST_HISTORY, history);
-                } else {
-                    //noinspection unchecked
-                    history = (List<String>) session.get(REQUEST_HISTORY);
-                }
-                history.add(service + " " + message);
-            } catch (Throwable e) {
-                log.error("An error occurred trying to record request history for user \"{}\", attempted request was: {}", user, service + " " + message, e);
-            }
-        }
-    }
-
     public static String getFullRequestUrl(final HttpServletRequest request) {
         final String querystring = request.getQueryString();
         if (StringUtils.isBlank(querystring)) {
@@ -145,6 +141,7 @@ public class AccessLogger {
         }
         return request.getRequestURL().append("?").append(querystring).toString();
     }
+
 
     public static boolean hasNodeId() {
         return StringUtils.isNotBlank(NODE_ID);
@@ -213,9 +210,6 @@ public class AccessLogger {
         return request == null ? "<null request>" : request.getHeader(USER_AGENT);
     }
 
-    private static HttpServletRequest getAxisRequest(final MessageContext context) {
-        return (HttpServletRequest) context.getProperty(HTTPConstants.MC_HTTP_SERVLETREQUEST);
-    }
 
     private static final String  NULL_ADDRESS      = "0.0.0.0";
     private static final String  REQUEST_HISTORY   = "request_history";
