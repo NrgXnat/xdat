@@ -10,29 +10,47 @@
 
 package org.nrg.xft.utils.zip;
 
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.nrg.xft.event.EventMetaI;
-import org.nrg.xnat.srb.XNATDirectory;
 
 import java.io.*;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.ZipOutputStream;
 
 /**
  * @author timo
  */
 @SuppressWarnings("unused")
 public interface ZipI extends Closeable {
+    /**
+     * Sets the output stream for writing the archive.
+     *
+     * @param outStream The output stream to which the archive should be written.
+     *
+     * @throws IOException When an error occurs setting the output stream.
+     */
     void setOutputStream(OutputStream outStream) throws IOException;
 
+    /**
+     *  Sets the output stream for writing the archive along with the compression method that should be used with the
+     * output stream.
+     *
+     * @param outStream         The output stream to which the archive should be written.
+     * @param compressionMethod The compression method to use when writing to the output stream.
+     *
+     * @throws IOException When an error occurs setting the output stream.
+     */
     void setOutputStream(OutputStream outStream, int compressionMethod) throws IOException;
 
-    void extract(File f, String dir, boolean deleteZip) throws IOException;
+     /**
+      * Extracts the contents of the archive file
+      *
+      * @param archive         The archive to extract from.
+      * @param destination     The destination folder into which the archive contents should be extracted.
+      * @param deleteOnExtract Whether the original archive file should be deleted once the archive has been
+      *                        successfully extracted.
+      *
+      * @throws IOException When an error occurs reading the archive or writing to the destination folder.
+      */
+    void extract(File archive, String destination, boolean deleteOnExtract) throws IOException;
 
     List<File> extract(InputStream is, String dir, boolean overwrite, EventMetaI ci) throws IOException;
 
@@ -48,14 +66,13 @@ public interface ZipI extends Closeable {
      * @throws IOException           When an error occurs with reading or writing data.
      */
     void write(String relativePath, String absolutePath) throws IOException;
-
-    /**
-     * @param dir Directory to write into.
+   /**
+     * @param relativePath Path name for zip file
+     * @param f            File name for zip file
      *
      * @throws IOException When an error occurs with reading or writing data.
      */
-    void write(XNATDirectory dir)
-            throws IOException;
+    void write(String relativePath, File f) throws IOException;
 
 
     /**
@@ -64,26 +81,14 @@ public interface ZipI extends Closeable {
      *
      * @throws IOException When an error occurs with reading or writing data.
      */
-    void write(String relativePath, File f)
-            throws IOException;
-
-
-    /**
-     * @param relativePath Path name for zip file
-     * @param f            File name for zip file
-     *
-     * @throws IOException When an error occurs with reading or writing data.
-     */
-    void write(String relativePath, InputStream f)
-            throws IOException;
+    void write(String relativePath, InputStream f) throws IOException;
 
     /**
      * @param dir Path for directory.
      *
      * @throws IOException When an error occurs with reading or writing data.
      */
-    void writeDirectory(File dir)
-            throws IOException;
+    void writeDirectory(File dir) throws IOException;
 
     /**
      * @throws IOException When an error occurs with reading or writing data.
@@ -92,22 +97,32 @@ public interface ZipI extends Closeable {
     void close() throws IOException;
 
     /**
-     * @return Returns the _compressionMethod.
+     * Indicates whether compressed files should be decompressed before being written to the archive.
+     *
+     * @return Whether compressed files should be decompressed before being written.
      */
     boolean getDecompressFilesBeforeZipping();
 
     /**
-     * @param method The _compressionMethod to set.
+     * Set whether compressed files should be decompressed before being written to the archive.
+     *
+     * @param method Whether compressed files should be decompressed before being written.
      */
     void setDecompressFilesBeforeZipping(boolean method);
 
     /**
-     * @return Returns the _compressionMethod.
+     * Returns the compression method to be used writing to the archive. Possible values are dependent on the
+     * implementation.
+     *
+     * @return Returns the compression method.
      */
     int getCompressionMethod();
 
     /**
-     * @param method The _compressionMethod to set.
+     * Sets the compression method to be used writing to the archive. Possible values are dependent on the
+     * implementation.
+     *
+     * @param method Returns the compression method.
      */
     void setCompressionMethod(int method);
 }
