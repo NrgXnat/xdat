@@ -11,7 +11,7 @@
 package org.nrg.xft.generators;
 
 import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.validation.constraints.NotNull;
 import org.nrg.xdat.display.DisplayField;
 import org.nrg.xdat.display.DisplayManager;
 import org.nrg.xdat.display.ElementDisplay;
@@ -1005,7 +1005,10 @@ public class JavaFileGenerator {
                 sb.append("\nimport org.nrg.xdat.om.base.*;");
                 sb.append("\nimport org.nrg.xft.security.UserI;");
                 sb.append("\n\nimport java.util.*;");
-              
+                sb.append("\nimport com.fasterxml.jackson.databind.annotation.JsonSerialize;");
+                sb.append("\nimport com.fasterxml.jackson.databind.annotation.JsonDeserialize;");
+                sb.append("\nimport org.nrg.xdat.BaseElementSerializer;");
+                sb.append("\nimport org.nrg.xdat.BaseElementDeserializer;");
                 //CLASS COMMENTS
                 sb.append("\n\n/**\n * @author XDAT\n *\n */");
                 
@@ -1020,6 +1023,8 @@ public class JavaFileGenerator {
                     sb.append("\npublic abstract class ").append(getSQLClassName(e)).append(" extends ").append(getBaseClassName(e)).append(" {");
                 }else{
                     //CLASS
+                    sb.append("\n@JsonSerialize(using = BaseElementSerializer.class)");
+                    sb.append("\n@JsonDeserialize(using = BaseElementDeserializer.class)");
                     sb.append("\npublic class ").append(getSQLClassName(e)).append(" extends ").append(getBaseClassName(e)).append(" {");
                 }
                 //ADD CONSTRUCTORS

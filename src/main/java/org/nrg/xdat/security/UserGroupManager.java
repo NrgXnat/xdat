@@ -135,7 +135,7 @@ public class UserGroupManager implements UserGroupServiceI {
 
     @Override
     public UserGroupI getGroupForUserAndTag(final String username, final String tag) throws UserNotFoundException {
-        return getCache().getGroupForUserAndTag(username, tag);
+        return getCache().getGroupForUserAndProject(username, tag);
     }
 
     @Override
@@ -395,7 +395,7 @@ public class UserGroupManager implements UserGroupServiceI {
     @SuppressWarnings("RedundantThrows")
     @Override
     public List<UserGroupI> getGroupsByTag(String tag) throws Exception {
-        return ImmutableList.copyOf(_cache.getGroupsForTag(tag));
+        return ImmutableList.copyOf(_cache.getGroupsForProject(tag));
     }
 
     @Override

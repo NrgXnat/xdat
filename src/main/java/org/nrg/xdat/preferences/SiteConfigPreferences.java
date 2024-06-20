@@ -13,7 +13,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.validation.constraints.NotNull;
 import org.nrg.framework.annotations.XnatMixIn;
 import org.nrg.framework.beans.ProxiedBeanMixIn;
 import org.nrg.framework.configuration.ConfigPaths;

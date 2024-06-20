@@ -10,8 +10,6 @@
 package org.nrg.xdat.entities;
 
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.nrg.framework.orm.hibernate.annotations.Auditable;
 import org.springframework.security.core.GrantedAuthority;
@@ -25,7 +23,7 @@ import static org.nrg.xdat.security.helpers.Users.AUTHORITY_USER;
 @Auditable
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"authUser", "authMethod", "authMethodId"}))
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
+@Cacheable
 public class XdatUserAuth extends AbstractHibernateEntity implements UserAuthI{
 	public XdatUserAuth() {
 	}

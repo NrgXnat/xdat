@@ -10,8 +10,6 @@
 package org.nrg.xdat.entities;
 
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.nrg.framework.orm.hibernate.annotations.Auditable;
 
@@ -20,7 +18,7 @@ import javax.persistence.*;
 @Auditable
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"username", "fieldToChange", "disabled"}))
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
+@Cacheable
 public class UserChangeRequest extends AbstractHibernateEntity{
 
     private String  _username;

@@ -18,6 +18,10 @@ public class SQLQueryField extends DisplayField {
     private Object                   value          = "";
     private List<QueryMappingColumn> mappingColumns = new ArrayList<>();
 
+    public SQLQueryField() {
+        super();
+    }
+
     /**
      * @param ed The element display to set for the SQL query field.
      */
@@ -81,9 +85,12 @@ public class SQLQueryField extends DisplayField {
     }
 
 
-    public class QueryMappingColumn {
+    public static class QueryMappingColumn {
         private String schemaField = "";
         private String queryField  = "";
+
+        public QueryMappingColumn() {
+        }
 
         public QueryMappingColumn(String s, String q) {
             schemaField = s;

@@ -9,22 +9,34 @@
 
 package org.nrg.xdat.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nrg.xdat.configuration.TestXdatUserAuthServiceConfig;
 import org.nrg.xdat.entities.UserAuthI;
 import org.nrg.xdat.entities.XdatUserAuth;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import javax.inject.Inject;
-
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = TestXdatUserAuthServiceConfig.class)
+@Slf4j
 public class TestXdatUserAuthService {
+    private XdatUserAuthService _service;
+
+    @Autowired
+    public void setService(final XdatUserAuthService service) {
+        _service = service;
+    }
+
     @Test
     public void testServiceInstance() {
         assertNotNull(_service);
@@ -70,7 +82,4 @@ public class TestXdatUserAuthService {
         userAuth2.setXdatUsername("mike");
         _service.create(userAuth2);
     }
-
-    @Inject
-    private XdatUserAuthService _service;
 }

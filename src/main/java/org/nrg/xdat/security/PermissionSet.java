@@ -35,8 +35,11 @@ import javax.annotation.Nullable;
 public class PermissionSet implements PermissionSetI{
 	private final List<PermissionCriteriaI> permCriteria = new ArrayList<>();
 	private final List<PermissionSetI> permSets = new ArrayList<>();
-	private final String method;
-	
+	private String method;
+
+	public PermissionSet() {
+	}
+
 	public PermissionSet(final String elementName, final List<Map<String, Object>> propertySets) {
 		// Method is the same across the property sets.
 		method = (String) propertySets.get(0).get("method");

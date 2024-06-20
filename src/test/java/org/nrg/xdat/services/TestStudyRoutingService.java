@@ -9,13 +9,14 @@
 
 package org.nrg.xdat.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nrg.xdat.configuration.TestStudyRoutingServiceConfig;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import javax.inject.Inject;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -25,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = TestStudyRoutingServiceConfig.class)
+@Slf4j
 public class TestStudyRoutingService {
     private static final String UID1 = "1.2.3.4.5.6.7";
     private static final String UID2 = "2.3.4.5.6.7.8";
@@ -36,6 +38,13 @@ public class TestStudyRoutingService {
     private static final String USR1 = "user1";
     private static final String USR2 = "user2";
     private static final String USR3 = "user3";
+
+    private StudyRoutingService _service;
+
+    @Autowired
+    public void setService(final StudyRoutingService service) {
+        _service = service;
+    }
 
     @Test
     public void testServiceInstance() {
@@ -85,7 +94,4 @@ public class TestStudyRoutingService {
         assignments = _service.findUserRoutings(USR1);
         assertEquals(2, assignments.size());
     }
-
-    @Inject
-    private StudyRoutingService _service;
 }

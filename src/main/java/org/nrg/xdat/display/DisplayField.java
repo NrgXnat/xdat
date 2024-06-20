@@ -9,6 +9,7 @@
 
 package org.nrg.xdat.display;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.xdat.collections.DisplayFieldCollection.DisplayFieldNotFoundException;
 import org.nrg.xdat.schema.SchemaElement;
@@ -54,6 +55,7 @@ public class DisplayField implements Identifier, SequentialObject {
     private HTMLCell htmlCell = new HTMLCell();
     private HTMLImage htmlImage = new HTMLImage();
 
+    @JsonIgnore
     private ElementDisplay parentDisplay = null;
 
     private int sortIndex = 0;
@@ -61,6 +63,9 @@ public class DisplayField implements Identifier, SequentialObject {
     private final List<String> possibleValues = new ArrayList<>();
 
     public String generatedFor = "";
+
+    public DisplayField() {
+    }
 
     public DisplayField(ElementDisplay ed) {
         parentDisplay = ed;
@@ -401,6 +406,7 @@ public class DisplayField implements Identifier, SequentialObject {
     /**
      * @return ArrayList of Object[String path, SchemaFieldI sf]
      */
+    @JsonIgnore
     public List<Object[]> getSchemaFields() {
         final List<Object[]> al = new ArrayList<>();
         for (final DisplayFieldElement dfe : getElements()) {
@@ -605,6 +611,7 @@ public class DisplayField implements Identifier, SequentialObject {
      * @param login The login to authorize.
      * @return A list of any enumeration values the user can see.
      */
+    @JsonIgnore
     public List<String> getEnumeration(String login) {
         if (this.elements.size() == 1) {
             DisplayFieldElement dfe = elements.get(0);
@@ -661,6 +668,7 @@ public class DisplayField implements Identifier, SequentialObject {
         this.description = description;
     }
 
+    @JsonIgnore
     public static DisplayField getDisplayFieldForUnknownPath(String s) throws Exception {
         if (s.contains(".")) {
             String keyElement = s.substring(0, s.indexOf("."));
@@ -674,6 +682,7 @@ public class DisplayField implements Identifier, SequentialObject {
         }
     }
 
+    @JsonIgnore
     public static DisplayField getDisplayFieldForDFIdOrXPath(String s) throws Exception {
         final String elementName1 = XftStringUtils.GetRootElementName(s);
         final String field = XftStringUtils.GetFieldText(s);

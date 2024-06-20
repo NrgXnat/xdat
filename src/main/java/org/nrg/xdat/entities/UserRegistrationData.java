@@ -18,20 +18,17 @@
  */
 package org.nrg.xdat.entities;
 
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.persistence.Cacheable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import java.io.Serializable;
 
 @Entity
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "nrg")
+@Cacheable
 public class UserRegistrationData extends AbstractHibernateEntity {
-
     private static final long serialVersionUID = 6837523294464366339L;
 
     /**
