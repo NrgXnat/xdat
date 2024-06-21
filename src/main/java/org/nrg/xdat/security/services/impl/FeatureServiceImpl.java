@@ -132,7 +132,7 @@ public class FeatureServiceImpl implements FeatureServiceI {
     @Override
     public Collection<String> getFeaturesForUserByTag(final UserI user, final String tag) {
         try {
-            final UserGroupI group = getCache().getGroupForUserAndTag(user.getUsername(), tag);
+            final UserGroupI group = getCache().getGroupForUserAndProject(user.getUsername(), tag);
             return getFeatureService().getFeaturesForGroup(group);
         } catch (UserNotFoundException ignored) {
             // We have the UserI so we know it exists already.

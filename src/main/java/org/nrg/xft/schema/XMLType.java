@@ -33,7 +33,10 @@ public class XMLType {
 	private String fullLocalType= null;
 	private String fullForeignType = null;
 	private String foreignURI = null;
-	
+
+	public XMLType() {
+	}
+
 	/**
 	 * if the xml string has a ':' then the characters before it will become the localPrefix, and 
 	 * the characters after it will become the local Field.  Otherwise, the xml string will become

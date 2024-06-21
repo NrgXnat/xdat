@@ -9,14 +9,15 @@
 
 package org.nrg.xdat.display;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.nrg.xdat.collections.DisplayFieldCollection.DisplayFieldNotFoundException;
+import org.nrg.xdat.collections.DisplayFieldRefCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-
-import org.nrg.xdat.collections.DisplayFieldRefCollection;
-import org.nrg.xdat.collections.DisplayFieldCollection.DisplayFieldNotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Tim
@@ -30,6 +31,7 @@ public class DisplayVersion extends DisplayFieldRefCollection {
     private String darkColor = "";
     private String lightColor = "";
     private boolean allowDiffs = true;
+    @JsonIgnore
     private ElementDisplay parentElementDisplay = null;
 
     private HTMLCell headerCell = new HTMLCell();
@@ -153,6 +155,7 @@ public class DisplayVersion extends DisplayFieldRefCollection {
      *
      * @return ArrayList of DisplayFields
      */
+    @JsonIgnore
     public ArrayList<DisplayFieldReferenceI> getVisibleFields() {
         ArrayList<DisplayFieldReferenceI> al = new ArrayList<>();
         Iterator iter = this.getDisplayFieldRefIterator();
@@ -181,6 +184,7 @@ public class DisplayVersion extends DisplayFieldRefCollection {
      *
      * @return ArrayList of DisplayFields
      */
+    @JsonIgnore
     public ArrayList<DisplayFieldReferenceI> getAllFields() {
         ArrayList al = new ArrayList();
         Iterator iter = this.getDisplayFieldRefIterator();
@@ -230,6 +234,7 @@ public class DisplayVersion extends DisplayFieldRefCollection {
     }
 
     @SuppressWarnings("unused")
+    @JsonIgnore
     public Collection getDisplayFields() {
         ArrayList al = new ArrayList();
 

@@ -41,6 +41,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
@@ -49,7 +50,8 @@ import java.util.stream.Collectors;
 public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Autowired
     public XDATUserMgmtServiceImpl(final NamedParameterJdbcTemplate template) {
-        _template = template;
+        _template   = template;
+        _userChecks = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -59,7 +61,13 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public boolean exists(final String username) {
-        return _template.queryForObject(QUERY_CHECK_USER_EXISTS, new MapSqlParameterSource("username", username), Boolean.class);
+        // If the user isn't in the check map OR the user is in the check map but is set as not existing...
+        return Boolean.TRUE.equals(_userChecks.computeIfAbsent(username, key -> {
+            // See if the user exists now. The non-existent user existing should be updated with the add user event,
+            // but we don't have a clearly defined handler for that yet.
+            final MapSqlParameterSource parameters = new MapSqlParameterSource(PARAM_USERNAME, key);
+            return _template.queryForObject(QUERY_CHECK_USER_EXISTS, parameters, Boolean.class);
+        }));
     }
 
     @Nonnull
@@ -94,11 +102,11 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
             if (user == null) {
                 throw new UserNotFoundException(Users.DEFAULT_GUEST_USERNAME);
             }
-            _guest = new XDATUser(user.getItem());
+            _guest   = new XDATUser(user.getItem());
             _guestId = _guest.getID();
-        } catch (UserInitException|UserNotFoundException e) {
-            _guest=null;
-            _guestId=null;
+        } catch (UserInitException | UserNotFoundException e) {
+            _guest   = null;
+            _guestId = null;
             throw e;
         }
     }
@@ -107,8 +115,8 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     public void invalidateGuest() {
         try {
             loadGuest();
-        } catch (UserNotFoundException|UserInitException e) {
-            log.error("Unable to reload guest object after invalidation",e);
+        } catch (UserNotFoundException | UserInitException e) {
+            log.error("Unable to reload guest object after invalidation", e);
         }
     }
 
@@ -347,10 +355,12 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private final NamedParameterJdbcTemplate _template;
+    private final Map<String, Boolean>       _userChecks;
 
     private XdatUserAuthService _userAuthService;
     private PasswordEncoder     _passwordEncoder;
     private PasswordValidator   _passwordValidator;
     private UserI               _guest;
     private Integer             _guestId;
+
 }

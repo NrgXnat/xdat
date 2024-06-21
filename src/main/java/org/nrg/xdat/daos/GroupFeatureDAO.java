@@ -9,78 +9,52 @@
 
 package org.nrg.xdat.daos;
 
-import java.util.List;
-
-import org.hibernate.Criteria;
-import org.hibernate.criterion.Restrictions;
+import lombok.extern.slf4j.Slf4j;
 import org.nrg.framework.orm.hibernate.AbstractHibernateDAO;
 import org.nrg.xdat.entities.GroupFeature;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collections;
+import java.util.List;
+
 @Repository
+@Slf4j
 public class GroupFeatureDAO extends AbstractHibernateDAO<GroupFeature> {
+    private static final String FEATURE       = "feature";
+    private static final String GROUP_ID      = "groupId";
+    private static final String TAG           = "tag";
+    public static final  String ON_BY_DEFAULT = "onByDefault";
+    public static final  String BANNED        = "banned";
 
-    private static final String FEATURE = "feature";
-
-	public List<GroupFeature> findByFeatures(List<String> roles) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.in(FEATURE, roles));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<GroupFeature>) criteria.list();
+    public List<GroupFeature> findByFeatures(List<String> roles) {
+        return findByProperty(FEATURE, roles);
     }
 
     public List<GroupFeature> findByFeature(String role) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq(FEATURE, role));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<GroupFeature>) criteria.list();
+        return findByFeatures(Collections.singletonList(role));
     }
 
     public List<GroupFeature> findByGroups(List<String> groupIds) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.in("groupId", groupIds));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<GroupFeature>) criteria.list();
+        return findByProperty(GROUP_ID, groupIds);
     }
 
     public List<GroupFeature> findByGroup(String groupId) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("groupId", groupId));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<GroupFeature>) criteria.list();
+        return findByGroups(Collections.singletonList(groupId));
     }
 
     public List<GroupFeature> findByTag(String tag) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("tag", tag));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<GroupFeature>) criteria.list();
+        return findByProperty(TAG, tag);
     }
 
     public List<GroupFeature> findEnabledByTag(String tag) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("tag", tag));
-        criteria.add(Restrictions.eq("onByDefault", Boolean.TRUE));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<GroupFeature>) criteria.list();
+        return findByProperties(parameters(TAG, tag, ON_BY_DEFAULT, Boolean.TRUE));
     }
 
     public List<GroupFeature> findBannedByTag(String tag) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("tag", tag));
-        criteria.add(Restrictions.eq("banned", Boolean.TRUE));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        return (List<GroupFeature>) criteria.list();
+        return findByProperties(parameters(TAG, tag, BANNED, Boolean.TRUE));
     }
 
     public GroupFeature findByGroupFeature(String groupId, String feature) {
-        Criteria criteria = getSession().createCriteria(getParameterizedType());
-        criteria.add(Restrictions.eq("groupId", groupId));
-        criteria.add(Restrictions.eq(FEATURE, feature));
-        criteria.add(Restrictions.eq("enabled", Boolean.TRUE));
-        if (criteria.list().size() == 0) {
-            return null;
-        }
-        return (GroupFeature)criteria.list().get(0);
+        return findByUniqueProperties(parameters(GROUP_ID, groupId, FEATURE, feature));
     }
 }

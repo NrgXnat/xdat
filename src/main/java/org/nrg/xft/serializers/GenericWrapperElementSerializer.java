@@ -1,7 +1,9 @@
 package org.nrg.xft.serializers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperField;
@@ -44,5 +46,12 @@ public class GenericWrapperElementSerializer extends StdSerializer<GenericWrappe
         }
         generator.writeEndObject();
         generator.writeEndObject();
+    }
+
+    @Override
+    public void serializeWithType(final GenericWrapperElement element, final JsonGenerator generator, final SerializerProvider provider, TypeSerializer typeSer) throws IOException {
+        typeSer.writeTypePrefix(generator, typeSer.typeId(element, JsonToken.VALUE_STRING));
+        serialize(element, generator, provider);
+        typeSer.writeTypeSuffix(generator, typeSer.typeId(element, JsonToken.VALUE_STRING));
     }
 }

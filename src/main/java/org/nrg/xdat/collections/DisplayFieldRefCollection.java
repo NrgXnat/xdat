@@ -12,7 +12,9 @@ package org.nrg.xdat.collections;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Hashtable;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.nrg.xdat.display.DisplayFieldRef;
 import org.nrg.xdat.sortable.Sortable;
 import org.nrg.xft.collections.XFTCollection;
@@ -28,7 +30,8 @@ public class DisplayFieldRefCollection extends XFTCollection {
 		super();
 		setAllowReplacement(false);
 	}
-	
+
+	@JsonIgnore
 	public DisplayFieldRef getDisplayField(String id) throws DisplayFieldRefNotFoundException
 	{
 			return (DisplayFieldRef)this.getStoredItem(id);
@@ -39,7 +42,8 @@ public class DisplayFieldRefCollection extends XFTCollection {
 			df.setSortOrder(fieldRefCounter++);
 			this.addStoredItem(df);
 	}
-	
+
+	@JsonIgnore
 	public DisplayFieldRef getDisplayFieldWException(String id) throws DisplayFieldRefNotFoundException
 	{
 		try {
@@ -57,7 +61,8 @@ public class DisplayFieldRefCollection extends XFTCollection {
 			throw new DuplicateDisplayFieldRefException(e);
 		}
 	}
-	
+
+	@JsonIgnore
 	public ArrayList getSortedDisplayFieldRefs()
 	{
 	    if (coll == null)
@@ -72,7 +77,8 @@ public class DisplayFieldRefCollection extends XFTCollection {
 		}
 	    return coll;
 	}
-	
+
+	@JsonIgnore
 	public java.util.Iterator getDisplayFieldRefIterator()
 	{
 		return getSortedDisplayFieldRefs().iterator();
@@ -80,7 +86,7 @@ public class DisplayFieldRefCollection extends XFTCollection {
 	
 	public java.util.Hashtable getDisplayFieldRefHash()
 	{
-		return this.getItemHash();
+		return new Hashtable(this.getItemHash());
 	}
 
     @SuppressWarnings("serial")

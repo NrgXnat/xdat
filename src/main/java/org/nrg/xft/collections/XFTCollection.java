@@ -10,72 +10,73 @@
 
 package org.nrg.xft.collections;
 
-import java.util.Hashtable;
-import java.util.Iterator;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.nrg.xft.exception.DuplicateKeyException;
 import org.nrg.xft.exception.ItemNotFoundException;
 import org.nrg.xft.identifier.Identifier;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
 /**
  * @author Tim
  */
-@SuppressWarnings("unchecked")
 public abstract class XFTCollection {
-    private Hashtable coll = new Hashtable();
-    private boolean allowReplacement = false;
+    private final Map<String, Identifier> identifiers      = new HashMap<>();
+    private       boolean                 allowReplacement = false;
     private boolean allowItemNotFoundError = true;
 
+    @JsonIgnore
     protected Object getStoredItem(String id) {
-        Object o = coll.get(id);
+        Object o = identifiers.get(id);
         if (o == null && allowItemNotFoundError) {
             return null;
         } else
-            return coll.get(id);
+            return identifiers.get(id);
     }
 
     protected void addStoredItem(Identifier o) {
         if (!allowReplacement) {
-            if (!coll.containsKey(o.getId())) {
-                coll.put(o.getId(), o);
+            if (!identifiers.containsKey(o.getId())) {
+                identifiers.put(o.getId(), o);
             }
         } else {
-            coll.put(o.getId(), o);
+            identifiers.put(o.getId(), o);
         }
     }
 
     protected void removeItemById(String id) {
-        if (coll.containsKey(id)) {
-            coll.remove(id);
-        }
+        identifiers.remove(id);
     }
 
     protected Object getStoredItemWException(String id) throws ItemNotFoundException {
-        Object o = coll.get(id);
+        Object o = identifiers.get(id);
         if (o == null && allowItemNotFoundError) {
             throw new ItemNotFoundException(id);
         } else
-            return coll.get(id);
+            return identifiers.get(id);
     }
 
     protected void addStoredItemWException(Identifier o) throws DuplicateKeyException {
         if (!allowReplacement) {
-            if (coll.containsKey(o.getId())) {
+            if (identifiers.containsKey(o.getId())) {
                 throw new DuplicateKeyException(o.getId());
             } else {
-                coll.put(o.getId(), o);
+                identifiers.put(o.getId(), o);
             }
         } else {
-            coll.put(o.getId(), o);
+            identifiers.put(o.getId(), o);
         }
     }
 
-    protected Iterator getItemIterator() {
-        return coll.values().iterator();
+    @JsonIgnore
+    protected Iterator<Identifier> getItemIterator() {
+        return identifiers.values().iterator();
     }
-
-    protected Hashtable getItemHash() {
-        return coll;
+    @JsonIgnore
+    protected Map<String, Identifier> getItemHash() {
+        return identifiers;
     }
 
     /**
@@ -125,7 +126,7 @@ public abstract class XFTCollection {
      * @return The number of items in the collection.
      */
     public int size() {
-        return coll.size();
+        return identifiers.size();
     }
 
     /**
@@ -135,8 +136,8 @@ public abstract class XFTCollection {
      */
     public String toString() {
         final StringBuilder buffer = new StringBuilder();
-        buffer.append(coll.size()).append(" Items");
-        Iterator iterator = this.getItemIterator();
+        buffer.append(identifiers.size()).append(" Items");
+        Iterator<Identifier> iterator = this.getItemIterator();
         while (iterator.hasNext()) {
             buffer.append("\n").append(iterator.next().toString());
         }

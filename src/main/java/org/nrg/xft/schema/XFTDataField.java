@@ -10,6 +10,8 @@
 
 package org.nrg.xft.schema;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWriter;
 import org.nrg.xft.schema.design.XFTNode;
 import org.nrg.xft.utils.NodeUtils;
@@ -20,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
-
+@JsonIdentityInfo(generator= ObjectIdGenerators.StringIdGenerator.class, property="@id")
 public class XFTDataField extends XFTField {
     private static Logger logger  = LoggerFactory.getLogger(XFTDataField.class);
     private        String  _name  = "";

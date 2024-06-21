@@ -10,8 +10,10 @@
 
 package org.nrg.xft.schema.design;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import org.nrg.xft.schema.XFTElement;
-
+@JsonIdentityInfo(generator= ObjectIdGenerators.StringIdGenerator.class, property="@id")
 public abstract class XFTNode {
 	private XFTNode parent= null;
 

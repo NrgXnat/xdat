@@ -9,6 +9,8 @@
 
 package org.nrg.xdat.security;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.google.common.base.Joiner;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.BooleanUtils;
@@ -29,6 +31,7 @@ import static org.nrg.xdat.security.SecurityManager.*;
  */
 @SuppressWarnings("serial") //$NON-NLS-1$
 @Slf4j
+@JsonIdentityInfo(generator= ObjectIdGenerators.StringIdGenerator.class, property="@id")
 public class PermissionCriteria implements PermissionCriteriaI {
     public static final String ALL              = "*";
     public static final String EQUALS           = "equals";
@@ -52,6 +55,9 @@ public class PermissionCriteria implements PermissionCriteriaI {
     private Boolean canActivate = null;
 
     private boolean authorized = true;
+
+    public PermissionCriteria() {
+    }
 
     public PermissionCriteria(String elementName) {
         this.elementName = elementName;
@@ -299,7 +305,7 @@ public class PermissionCriteria implements PermissionCriteriaI {
         return Joiner.on(" ").join(getField(), getFieldValue(), getComparisonType(), getCreate(), getRead(), getEdit(), getDelete(), getActivate());
     }
 
-    final String elementName;
+    String elementName;
 
     @Override
     public String getElementName() {

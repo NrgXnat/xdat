@@ -3,7 +3,7 @@ package org.nrg.xdat.security;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.springframework.security.authentication.encoding.ShaPasswordEncoder;
+import org.springframework.security.crypto.password.MessageDigestPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.regex.Matcher;
@@ -17,7 +17,7 @@ public class LegacySha256PasswordEncoder implements PasswordEncoder {
     private static final Pair<String, String> NO_PAIR                 = ImmutablePair.nullPair();
 
     @SuppressWarnings("deprecation")
-    private final ShaPasswordEncoder shaPasswordEncoder = new ShaPasswordEncoder(256);
+    private final MessageDigestPasswordEncoder shaPasswordEncoder =  new MessageDigestPasswordEncoder("SHA-256");
 
     @Override
     public String encode(final CharSequence rawPassword) {
@@ -27,7 +27,7 @@ public class LegacySha256PasswordEncoder implements PasswordEncoder {
     @Override
     public boolean matches(final CharSequence rawPassword, final String encodedPassword) {
         final Pair<String, String> split = extractCombinedPasswordAndSalt(encodedPassword);
-        return !split.equals(NO_PAIR) && shaPasswordEncoder.isPasswordValid(split.getLeft(), rawPassword.toString(), split.getRight());
+        return !split.equals(NO_PAIR) && shaPasswordEncoder.matches(rawPassword.toString(),"{"+split.getRight()+"}"+split.getLeft());
     }
 
     private Pair<String, String> extractCombinedPasswordAndSalt(final String encodedPassword) {
