@@ -9,9 +9,6 @@
 
 package org.nrg.xft.utils.zip;
 
-import edu.sdsc.grid.io.GeneralFile;
-import edu.sdsc.grid.io.srb.SRBFile;
-import edu.sdsc.grid.io.srb.SRBFileInputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.tools.tar.TarEntry;
@@ -20,10 +17,6 @@ import org.apache.tools.tar.TarOutputStream;
 import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.EventUtils;
 import org.nrg.xft.utils.FileUtils;
-import org.nrg.xnat.srb.XNATDirectory;
-import org.nrg.xnat.srb.XNATSrbFile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.file.Paths;
@@ -107,7 +100,6 @@ public class TarUtils implements ZipI {
 
         InputStream is = new FileInputStream(f);
         if (_compressionMethod == ZipOutputStream.DEFLATED) {
-            //f = unGzip(f,dir,deleteZip);
             is = new GZIPInputStream(is);
         }
 
@@ -216,61 +208,6 @@ public class TarUtils implements ZipI {
                     write(parentPath + dirName + child.getName(), child);
                 }
             }
-        }
-    }
-
-    public void write(String relativePath, SRBFile srb) throws IOException {
-        if (out == null) {
-            throw new IOException("Undefined OutputStream");
-        }
-        TarEntry tarAdd = new TarEntry(srb.getName());
-        tarAdd.setModTime(srb.lastModified());
-        tarAdd.setMode(TarEntry.LF_NORMAL);
-        tarAdd.setName(relativePath.replace('\\', '/'));
-        tarAdd.setSize(srb.length());
-        out.putNextEntry(tarAdd);
-        // Write file to archive
-        try (final SRBFileInputStream in = new SRBFileInputStream(srb)) {
-            IOUtils.copy(in, out);
-        }
-        out.closeEntry();
-    }
-
-    public void write(XNATDirectory dir) throws IOException {
-        //noinspection rawtypes
-        ArrayList files = dir.getFiles();
-        //noinspection rawtypes
-        ArrayList subDirectories = dir.getSubdirectories();
-
-        String path = dir.getPath();
-        for (Object file1 : files) {
-            long startTime = Calendar.getInstance().getTimeInMillis();
-            GeneralFile file = (GeneralFile) file1;
-            String relativePath = path + "/" + file.getName();
-            if (file instanceof XNATSrbFile) {
-                if (relativePath.contains(((XNATSrbFile) file).getSession())) {
-                    relativePath = relativePath.substring(relativePath.indexOf(((XNATSrbFile) file).getSession()));
-                }
-            }
-            TarEntry tarAdd = new TarEntry(file.getName());
-            tarAdd.setModTime(file.lastModified());
-            tarAdd.setMode(TarEntry.LF_NORMAL);
-            tarAdd.setName(relativePath.replace('\\', '/'));
-            tarAdd.setSize(file.length());
-            out.putNextEntry(tarAdd);
-            // Write file to archive
-            log.debug("{},{},{}", file.getName(), file.length(), Calendar.getInstance().getTimeInMillis() - startTime);
-            try (final SRBFileInputStream in = new SRBFileInputStream((SRBFile) file)) {
-                log.debug("," + (Calendar.getInstance().getTimeInMillis() - startTime));
-                IOUtils.copy(in, out);
-            }
-            out.closeEntry();
-            log.debug(",{}", Calendar.getInstance().getTimeInMillis() - startTime);
-        }
-
-        for (Object subDirectory : subDirectories) {
-            XNATDirectory sub = (XNATDirectory) subDirectory;
-            write(sub);
         }
     }
 
