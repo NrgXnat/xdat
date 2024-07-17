@@ -51,7 +51,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Autowired
     public XDATUserMgmtServiceImpl(final NamedParameterJdbcTemplate template) {
         _template   = template;
-        _userChecks = new ConcurrentHashMap<>();
+        _userChecks = ConcurrentHashMap.newKeySet();
     }
 
     @Override
@@ -61,13 +61,17 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public boolean exists(final String username) {
-        // If the user isn't in the check map OR the user is in the check map but is set as not existing...
-        return Boolean.TRUE.equals(_userChecks.computeIfAbsent(username, key -> {
-            // See if the user exists now. The non-existent user existing should be updated with the add user event,
-            // but we don't have a clearly defined handler for that yet.
-            final MapSqlParameterSource parameters = new MapSqlParameterSource(PARAM_USERNAME, key);
-            return _template.queryForObject(QUERY_CHECK_USER_EXISTS, parameters, Boolean.class);
-        }));
+        // If we've seen this user before and it's set as existing, return true.
+        if (_userChecks.contains(username)) {
+            return true;
+        }
+        // See if the user exists now. The non-existent user existing should be updated with the add user event,
+        // but we don't have a clearly defined handler for that yet.
+        final boolean exists = Boolean.TRUE.equals(_template.queryForObject(QUERY_CHECK_USER_EXISTS, new MapSqlParameterSource(PARAM_USERNAME, username), Boolean.class));
+        if (exists) {
+            _userChecks.add(username);
+        }
+        return exists;
     }
 
     @Nonnull
@@ -355,7 +359,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private final NamedParameterJdbcTemplate _template;
-    private final Map<String, Boolean>       _userChecks;
+    private final Set<String>                _userChecks;
 
     private XdatUserAuthService _userAuthService;
     private PasswordEncoder     _passwordEncoder;
