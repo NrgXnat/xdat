@@ -163,7 +163,7 @@ public class HibernateAliasTokenService extends AbstractHibernateEntityService<A
     @Transactional
     public String validateToken(final String alias, final String secret, final String address) {
         AliasToken token = getDao().findByAlias(alias);
-        if (token == null) {
+        if (token == null || token.isExpired() || !token.isEnabled()) {
             if (_log.isInfoEnabled()) {
                 _log.info("Token requested but not found for alias: " + alias);
             }

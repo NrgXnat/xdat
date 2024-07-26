@@ -17,6 +17,7 @@
 package org.nrg.xdat.daos;
 
 import org.nrg.framework.orm.hibernate.AbstractHibernateDAO;
+import org.nrg.framework.orm.hibernate.QueryBuilder;
 import org.nrg.xdat.entities.AliasToken;
 import org.springframework.stereotype.Repository;
 
@@ -56,6 +57,8 @@ public class AliasTokenDAO extends AbstractHibernateDAO<AliasToken> {
     }
 
     public List<AliasToken> findByExpired(String interval) {
-        return findByProperty("created", new Date(System.currentTimeMillis() - (1000L * convertPGIntervalToSeconds(interval))));
+        QueryBuilder<AliasToken> builder = newQueryBuilder();
+        builder.getQuery().select(builder.getRoot()).where(builder.lt("estimatedExpirationTime", new Date(System.currentTimeMillis())));
+        return builder.getResults();
     }
 }

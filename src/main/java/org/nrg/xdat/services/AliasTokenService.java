@@ -107,8 +107,9 @@ public interface AliasTokenService extends BaseHibernateService<AliasToken> {
     AliasToken locateToken(String alias);
 
     /**
-     * Checks whether a token exists with the indicated alias and secret and no IP address restrictions. If so, this
-     * method returns the {@link UserI#getLogin() corresponding XDAT user login ID}. Otherwise, this method returns
+     * Checks whether a token exists with the indicated alias and secret and no IP address restrictions. Check whether
+     * a token is not expired and is enabled as well.
+     * If so, this method returns the {@link UserI#getLogin() corresponding XDAT user login ID}. Otherwise, this method returns
      * <b>null</b>.
      *
      * @param alias     The alias to check.
@@ -118,9 +119,9 @@ public interface AliasTokenService extends BaseHibernateService<AliasToken> {
     String validateToken(String alias, String secret);
 
     /**
-     * Checks whether a token exists with the indicated alias and secret and an IP address matching one of the defined
-     * IP addresses (if there are no IP address restrictions in the token, any given IP address will match). If so, this
-     * method returns the {@link UserI#getLogin() corresponding XDAT user login ID}. Otherwise, this method returns
+     * Checks whether a token exists with the indicated alias and secret and no IP address restrictions. Check whether
+     * a token is not expired and is enabled as well.
+     * If so, this method returns the {@link UserI#getLogin() corresponding XDAT user login ID}. Otherwise, this method returns
      * <b>null</b>.
      *
      * @param alias     The alias to check.
