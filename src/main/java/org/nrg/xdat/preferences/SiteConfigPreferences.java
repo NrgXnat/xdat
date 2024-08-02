@@ -1479,6 +1479,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "true")
+    public boolean getUiShowAdminManageSiteFeatures() {
+        return getBooleanValue("uiShowAdminManageSiteFeatures");
+    }
+
+    public void setUiShowAdminManageSiteFeatures(final boolean uiShowAdminManageSiteFeatures) {
+        try {
+            setBooleanValue(uiShowAdminManageSiteFeatures, "uiShowAdminManageSiteFeatures");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiShowAdminManageSiteFeatures': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = FeatureServiceI.DEFAULT_FEATURE_SERVICE, aliases = "security.services.feature.default")
     public String getFeatureService() {
         return getValue("featureService");
