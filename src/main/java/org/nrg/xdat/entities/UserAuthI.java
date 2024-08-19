@@ -16,7 +16,16 @@ import javax.persistence.TemporalType;
 import javax.persistence.Transient;
 import java.util.Collection;
 import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 
+@JsonTypeInfo(
+		use = JsonTypeInfo.Id.NAME,
+		include = JsonTypeInfo.As.PROPERTY,
+		property = "type")
+@JsonSubTypes({
+		@Type(value = XdatUserAuth.class, name = "default")})
 public interface UserAuthI {
 	void resetFailedLogins();
 
