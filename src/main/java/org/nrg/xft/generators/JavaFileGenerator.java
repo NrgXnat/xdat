@@ -1820,7 +1820,7 @@ public class JavaFileGenerator {
                     buffer.append(header).append("\t\t</MappingColumns>");
                     buffer.append(header).append("\t</DisplayField>");
 
-                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"string\">");
+                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"date\">");
                     buffer.append(header).append("\t\t<DisplayFieldElement name=\"Field1\" schema-element=\"").append(e.getFullXMLName()).append(".meta.insert_date\"/>");
                     buffer.append(header).append("\t</DisplayField>");
 
@@ -1986,7 +1986,7 @@ public class JavaFileGenerator {
                     buffer.append(header).append("\t\t</MappingColumns>");
                     buffer.append(header).append("\t</DisplayField>");
 
-                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"string\">");
+                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"date\">");
                     buffer.append(header).append("\t\t<DisplayFieldElement name=\"Field1\" schema-element=\"").append(e.getFullXMLName()).append(".meta.insert_date\"/>");
                     buffer.append(header).append("\t</DisplayField>");
 
@@ -2137,7 +2137,7 @@ public class JavaFileGenerator {
                     buffer.append(header).append("\t\t</MappingColumns>");
                     buffer.append(header).append("\t</DisplayField>");
 
-                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"string\">");
+                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"date\">");
                     buffer.append(header).append("\t\t<DisplayFieldElement name=\"Field1\" schema-element=\"").append(e.getFullXMLName()).append(".meta.insert_date\"/>");
                     buffer.append(header).append("\t</DisplayField>");
 
@@ -2248,7 +2248,7 @@ public class JavaFileGenerator {
                         }
                     }
 
-                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"string\">");
+                    buffer.append(header).append("\t<DisplayField id=\"INSERT_DATE\" header=\"Inserted\" visible=\"true\" searchable=\"true\" data-type=\"date\">");
                     buffer.append(header).append("\t\t<DisplayFieldElement name=\"Field1\" schema-element=\"").append(e.getFullXMLName()).append(".meta.insert_date\"/>");
                     buffer.append(header).append("\t</DisplayField>");
 
