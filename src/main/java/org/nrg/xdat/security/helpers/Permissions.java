@@ -51,6 +51,16 @@ import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
+import static org.nrg.xdat.security.helpers.AccessLevel.Collaborator;
+import static org.nrg.xdat.security.helpers.AccessLevel.Delete;
+import static org.nrg.xdat.security.helpers.AccessLevel.Edit;
+import static org.nrg.xdat.security.helpers.AccessLevel.Member;
+import static org.nrg.xdat.security.helpers.AccessLevel.Owner;
+import static org.nrg.xdat.security.helpers.AccessLevel.Read;
+import static org.nrg.xdat.security.helpers.Groups.COLLABORATOR_GROUP;
+import static org.nrg.xdat.security.helpers.Groups.MEMBER_GROUP;
+import static org.nrg.xdat.security.helpers.Groups.OWNER_GROUP;
+
 @SuppressWarnings("RedundantThrows")
 @Slf4j
 public class Permissions {
@@ -1141,6 +1151,39 @@ public class Permissions {
             log.warn("Got a bad SQL grammar exception trying to find the access level for the project '{}', which usually indicates that the guest user has been added to groups. Checking for guest user access directly.\nGroups found for guest user: {}\nError code and message: [{}] {}\nSQL in error: {}", projectId, StringUtils.join(groupIds, ", "), e.getSQLException().getErrorCode(), e.getSQLException().getMessage(), e.getSql());
             return template.queryForObject(QUERY_IS_PROJECT_PUBLIC_OR_PROTECTED_GUEST_ONLY, new MapSqlParameterSource("projectId", projectId), Integer.class);
         }
+    }
+
+    public static List<AccessLevel> getAllUserProjectAccess(final UserI user, final String projectId) {
+        final List<AccessLevel> levels = new ArrayList<>();
+        if (canDeleteProject(user, projectId)) {
+            levels.add(Delete);
+        } else if (canEditProject(user, projectId)) {
+            levels.add(Edit);
+        } else if (canReadProject(user, projectId)) {
+            levels.add(Read);
+        }
+        // If no levels have been added, the user CAN'T be an owner, member, or collaborator, as there
+        // would be at least one level already added, so just return the list without checking that.
+        if (levels.isEmpty()) {
+            return levels;
+        }
+        final String access = getUserProjectAccess(user, projectId);
+        if (StringUtils.isNotBlank(access)) {
+            switch (access) {
+                case OWNER_GROUP:
+                    levels.add(Owner);
+                    break;
+                case MEMBER_GROUP:
+                    levels.add(Member);
+                    break;
+                case COLLABORATOR_GROUP:
+                    levels.add(Collaborator);
+                    break;
+                default:
+                    log.warn("Unknown access group for user {} and project {}: {}", user.getUsername(), projectId, access);
+            }
+        }
+        return levels;
     }
 
     /**

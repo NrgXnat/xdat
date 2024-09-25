@@ -34,6 +34,9 @@ public class SchemaField implements Identifier, SchemaFieldI{
     GenericWrapperField wrapped = null;
     Hashtable possibleValues = null;
 
+    public SchemaField() {
+    }
+
     public SchemaField(GenericWrapperField f)
     {
         wrapped = f;

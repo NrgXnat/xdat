@@ -9,9 +9,6 @@
 
 package org.nrg.xft.utils.zip;
 
-import edu.sdsc.grid.io.GeneralFile;
-import edu.sdsc.grid.io.srb.SRBFile;
-import edu.sdsc.grid.io.srb.SRBFileInputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.RegExUtils;
@@ -23,13 +20,10 @@ import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.EventUtils;
 import org.nrg.xft.utils.FileUtils;
 import org.nrg.xft.utils.fileExtraction.Format;
-import org.nrg.xnat.srb.XNATDirectory;
-import org.nrg.xnat.srb.XNATSrbFile;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -211,77 +205,6 @@ public class ZipUtils implements ZipI {
         }
     }
 
-    public void write(String relativePath, SRBFile srb) throws IOException {
-        byte[] tempBUF = new byte[FileUtils.LARGE_DOWNLOAD];
-        if (compression == ZipOutputStream.STORED) {
-            File temp = File.createTempFile("temp", "");
-            temp.setLastModified(srb.lastModified());
-            SRBFileInputStream is = new SRBFileInputStream(srb);
-
-            FileOutputStream fos = new FileOutputStream(temp);
-            int              len;
-            while ((len = is.read(tempBUF)) > 0) {
-                fos.write(tempBUF, 0, len);
-            }
-            fos.close();
-            is.close();
-
-            write(relativePath, temp);
-
-            FileUtils.DeleteFile(temp);
-        } else {
-            long     startTime = Calendar.getInstance().getTimeInMillis();
-            ZipEntry entry     = new ZipEntry(relativePath);
-            entry.setTime(srb.lastModified());
-            entry.setSize(srb.length());
-            out.putNextEntry(entry);
-
-            log.debug("{}, {}, {} ms", srb.getName(), srb.length(), Calendar.getInstance().getTimeInMillis() - startTime);
-
-            SRBFileInputStream is = new SRBFileInputStream(srb);
-            // Transfer bytes from the file to the ZIP file
-            int len;
-
-            log.debug("{}, {}, {} ms", srb.getName(), srb.length(), Calendar.getInstance().getTimeInMillis() - startTime);
-
-            while ((len = is.read(tempBUF)) > 0) {
-                log.debug("R: {} ms", Calendar.getInstance().getTimeInMillis() - startTime);
-                out.write(tempBUF, 0, len);
-                log.debug("W: {}", Calendar.getInstance().getTimeInMillis() - startTime);
-                out.flush();
-            }
-
-            // Complete the entry
-            out.closeEntry();
-
-            log.debug("{} ms", Calendar.getInstance().getTimeInMillis() - startTime);
-        }
-    }
-
-    @Override
-    public void write(XNATDirectory dir) throws IOException {
-        //noinspection rawtypes
-        ArrayList files = dir.getFiles();
-        //noinspection rawtypes
-        ArrayList subDirectories = dir.getSubdirectories();
-
-        String path = dir.getPath();
-        for (Object file1 : files) {
-            GeneralFile file     = (GeneralFile) file1;
-            String      relative = path + "/" + file.getName();
-            if (file instanceof XNATSrbFile) {
-                if (relative.contains(((XNATSrbFile) file).getSession())) {
-                    relative = relative.substring(relative.indexOf(((XNATSrbFile) file).getSession()));
-                }
-            }
-            write(relative, (SRBFile) file);
-        }
-
-        for (Object subDirectory : subDirectories) {
-            XNATDirectory sub = (XNATDirectory) subDirectory;
-            write(sub);
-        }
-    }
 
     /**
      * @throws IOException When an error occurs with reading or writing data.
@@ -295,7 +218,7 @@ public class ZipUtils implements ZipI {
     }
 
     @Override
-    public void extract(File f, String dir, boolean deleteZip) throws IOException {
+    public void extract(File archive, String destination, boolean deleteOnExtract) throws IOException {
         final class Expander extends Expand {
             public Expander() {
                 setProject(new Project());
@@ -306,12 +229,12 @@ public class ZipUtils implements ZipI {
             }
         }
         Expander expander = new Expander();
-        expander.setSrc(f);
-        expander.setDest(new File(dir));
+        expander.setSrc(archive);
+        expander.setDest(new File(destination));
         expander.execute();
 
-        if (deleteZip) {
-            f.deleteOnExit();
+        if (deleteOnExtract) {
+            archive.deleteOnExit();
         }
     }
 

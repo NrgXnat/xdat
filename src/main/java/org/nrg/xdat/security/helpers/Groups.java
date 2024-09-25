@@ -26,6 +26,8 @@ import org.nrg.xdat.services.cache.GroupsAndPermissionsCache;
 import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -52,6 +54,8 @@ public class Groups {
     public static final String       OPERATION_REMOVE_USERS = "removeUsers";
     public static final String       REMOVED                = "removedGroups";
     public static final Pattern      REGEX_PROJECT_GROUP    = Pattern.compile("(?<project>.*)_(?<access>owner|member|collaborator)");
+
+    private static final String QUERY_ALL_GROUPS = "SELECT id FROM xdat_usergroup";
 
     /**
      * Returns the currently configured permissions service. You can customize the implementation returned by adding a
@@ -123,7 +127,7 @@ public class Groups {
      * Uses the {@link #REGEX_PROJECT_GROUP} regular expression to determine if the submitted group ID is a project-related
      * group in the form <b><i>PROJECT_ID</i>_<i>access</i></b>, where <i>access</i> is one of <b>owner</b>, <b>member</b>,
      * or <b>collaborator</b>.
-     *
+     * <p>
      * You can get the project ID and access level for the group ID by calling {@link #getProjectIdAndAccessFromGroupId(String)}.
      *
      * @param groupId The group ID to evaluate.
@@ -188,6 +192,26 @@ public class Groups {
 
     public static boolean hasAllDataAdmin(final UserI user) {
         return isSiteAdmin(user) || isDataAdmin(user);
+    }
+
+    /**
+     * Gets a list with the IDs of all groups on the system.
+     *
+     * @return A list of all group IDs on the system.
+     */
+    public static List<String> getAllGroupIds() {
+        return getAllGroupIds(XDAT.getNamedParameterJdbcTemplate());
+    }
+
+    /**
+     * Gets a list with the IDs of all groups on the system.
+     *
+     * @param template A JDBC template with which to query the database
+     *
+     * @return A list of all group IDs on the system.
+     */
+    public static List<String> getAllGroupIds(final NamedParameterJdbcTemplate template) {
+        return template.queryForList(QUERY_ALL_GROUPS, EmptySqlParameterSource.INSTANCE, String.class);
     }
 
     /**
@@ -441,11 +465,10 @@ public class Groups {
      * Convenience method to create the standard owner, member, and collaborator groups for the specified project. Uses the project ID
      * to create the group IDs and sets the permissions and tags appropriately.
      *
-     * @param projectId       The project for which the group should be created.
-     * @param user            The user creating the project and groups.
+     * @param projectId The project for which the group should be created.
+     * @param user      The user creating the project and groups.
      *
      * @return The newly created groups.
-     *
      */
     @SuppressWarnings("unused")
     public static List<UserGroupI> createOrUpdateProjectGroups(final String projectId, final UserI user) {

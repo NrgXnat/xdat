@@ -421,14 +421,14 @@ public abstract class SecureScreen extends VelocitySecureScreen {
         }
         List<URL> uris = CustomClasspathResourceLoader.findVMsByClasspathDirectory("screens" + "/" + forwardSlashSubFolder);
         if (uris.size() > 0) {
-            final URL url      = uris.get(0);
-            String    fileName = FilenameUtils.getBaseName(url.toString()) + "." + FilenameUtils.getExtension(url.toString());
-            String    resolved = CustomClasspathResourceLoader.safeJoin("/", forwardSlashSubFolder, fileName);
-            try {
-                //addProps(cpTabFile, tabs, _defaultTabs, forwardSlashSubFolder + "/" + cpTabFile.getName());
-                addProps(fileName, CustomClasspathResourceLoader.getInputStream("screens/" + resolved), tabs, _defaultTabs, resolved);
-            } catch (IOException e) {
-                logger.error("", e);
+            for (URL url: uris) {
+                String    fileName = FilenameUtils.getBaseName(url.toString()) + "." + FilenameUtils.getExtension(url.toString());
+                String    resolved = CustomClasspathResourceLoader.safeJoin("/", forwardSlashSubFolder, fileName);
+                try {
+                    addProps(fileName, CustomClasspathResourceLoader.getInputStream("screens/" + resolved), tabs, _defaultTabs, resolved);
+                } catch (IOException e) {
+                    logger.error("", e);
+                }
             }
         } else {
             tabsFolder = XDAT.getScreenTemplatesSubfolder(subfolder);

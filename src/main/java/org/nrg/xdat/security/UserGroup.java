@@ -9,10 +9,16 @@
 
 package org.nrg.xdat.security;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
-import com.google.common.collect.*;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -35,7 +41,15 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @SuppressWarnings("unused")
 @Slf4j
@@ -317,6 +331,7 @@ public class UserGroup implements UserGroupI {
      *
      * @return The associated {@link XdatUsergroup}.
      */
+    @JsonIgnore
     public XdatUsergroup getUserGroupImpl() {
         return ObjectUtils.defaultIfNull(xdatGroup, getSavedUserGroupImpl(Users.getAdminUser()));
     }
@@ -470,7 +485,7 @@ public class UserGroup implements UserGroupI {
 
     /**
      * Adds the list of criteria to the group's permission sets.
-     *
+     * <p>
      * <b>Note:</b> The addition of the criteria here is completely transitive and is not persisted to the database. This can be used
      * to populate a new instance of the group or to update a cached instance to reflect changes in permissions elsewhere.
      *
@@ -484,7 +499,7 @@ public class UserGroup implements UserGroupI {
 
     /**
      * Adds the criterion entry to the group's permission sets.
-     *
+     * <p>
      * <b>Note:</b> The addition of the criterion entry here is completely transitive and is not persisted to the database. This can
      * be used to populate a new instance of the group or to update a cached instance to reflect changes in permissions elsewhere.
      *
@@ -654,13 +669,19 @@ public class UserGroup implements UserGroupI {
     private              Integer             pk          = null;
     private              String              tag         = null;
     private              String              displayName = null;
+    @JsonIgnore
     private              XdatUsergroup       xdatGroup   = null;
+    @JsonIgnore
     private              GroupFeatureService _groupFeatureService;
-
+    @JsonIgnore
     private final Map<String, ElementAccessManager>     _accessManagers                       = new HashMap<>();
+    @JsonIgnore
     private final Multimap<String, PermissionCriteriaI> _permissionCriteriaByDataType         = Multimaps.synchronizedListMultimap(ArrayListMultimap.<String, PermissionCriteriaI>create());
+    @JsonIgnore
     private final Multimap<String, PermissionCriteriaI> _permissionCriteriaByDataTypeAndField = Multimaps.synchronizedListMultimap(ArrayListMultimap.<String, PermissionCriteriaI>create());
+    @JsonIgnore
     private final Multimap<String, List<Object>>        _permissionItemsByLogin               = Multimaps.synchronizedListMultimap(ArrayListMultimap.<String, List<Object>>create());
+    @JsonIgnore
     private final Map<String, XdatStoredSearch>         _storedSearches                       = new HashMap<>();
     private final Set<String>                           _usernames                            = new HashSet<>();
     private final Set<String>                           _features                             = new HashSet<>();

@@ -9,6 +9,8 @@
 
 package org.nrg.xft.schema;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import org.nrg.xft.exception.ElementNotFoundException;
 import org.nrg.xft.exception.XFTInitException;
 import org.nrg.xft.meta.XFTMetaManager;
@@ -24,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.w3c.dom.*;
 
 import java.util.*;
+@JsonIdentityInfo(generator= ObjectIdGenerators.StringIdGenerator.class, property="@id")
 public class XFTSchema {
 	private static final Logger          logger             = LoggerFactory.getLogger(XFTSchema.class);
 	private              XFTWebAppSchema webAppSchema       = null;

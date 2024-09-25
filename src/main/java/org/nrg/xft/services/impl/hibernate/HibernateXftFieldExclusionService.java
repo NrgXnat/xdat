@@ -9,10 +9,7 @@
 
 package org.nrg.xft.services.impl.hibernate;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntityService;
@@ -23,9 +20,11 @@ import org.nrg.xft.services.XftFieldExclusionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Service
-public class HibernateXftFieldExclusionService extends AbstractHibernateEntityService<XftFieldExclusion, XftFieldExclusionDAO> implements XftFieldExclusionService {
+import java.util.List;
 
+@Service
+@Slf4j
+public class HibernateXftFieldExclusionService extends AbstractHibernateEntityService<XftFieldExclusion, XftFieldExclusionDAO> implements XftFieldExclusionService {
     private static final String[] EXCLUSION_PROPERTIES_SYSTEM_SCOPE = AbstractHibernateEntity.getExcludedProperties("targetId", "pattern");
     private static final String[] EXCLUSION_PROPERTIES_TARGET_SCOPE = AbstractHibernateEntity.getExcludedProperties("pattern");
 
@@ -34,7 +33,7 @@ public class HibernateXftFieldExclusionService extends AbstractHibernateEntitySe
     public List<XftFieldExclusion> getSystemExclusions() {
         XftFieldExclusion example = new XftFieldExclusion();
         example.setScope(XftFieldExclusionScope.System);
-        return _dao.findByExample(example, EXCLUSION_PROPERTIES_SYSTEM_SCOPE);
+        return getDao().findByExample(example, EXCLUSION_PROPERTIES_SYSTEM_SCOPE);
     }
 
     @Override
@@ -43,7 +42,7 @@ public class HibernateXftFieldExclusionService extends AbstractHibernateEntitySe
         XftFieldExclusion example = new XftFieldExclusion();
         example.setScope(scope);
         example.setTargetId(targetId);
-        return _dao.findByExample(example, EXCLUSION_PROPERTIES_TARGET_SCOPE);
+        return getDao().findByExample(example, EXCLUSION_PROPERTIES_TARGET_SCOPE);
     }
 
     @Override
@@ -70,7 +69,4 @@ public class HibernateXftFieldExclusionService extends AbstractHibernateEntitySe
         }
         return null;
     }
-
-    @Inject
-    private XftFieldExclusionDAO _dao;
 }

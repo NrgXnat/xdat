@@ -16,7 +16,7 @@ import java.util.*;
 import static org.nrg.xdat.security.SecurityManager.*;
 
 public interface GroupsAndPermissionsCache extends XnatCache {
-    String       CACHE_NAME                = "GroupsAndPermissionsCache";
+    String       CACHE_NAME                = "groupsAndPermissionsCache";
     List<String> ACTIONS                   = Arrays.asList(READ, EDIT, CREATE);
     String       QUERY_GET_GROUPS_FOR_USER = "SELECT " +
                                              "    g.groupid " +
@@ -97,6 +97,15 @@ public interface GroupsAndPermissionsCache extends XnatCache {
     Map<String, Long> getReadableCounts(final UserI user);
 
     /**
+     * Get the readable counts for the indicated user.
+     *
+     * @param username The name of the user to retrieve readable counts for.
+     *
+     * @return The readable counts for the indicated user.
+     */
+    Map<String, Long> getReadableCounts(final String username);
+
+    /**
      * Get the browseable element displays for the indicated user.
      *
      * @param user The user to retrieve browseable element displays for.
@@ -104,6 +113,15 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      * @return The browseable element displays for the indicated user.
      */
     Map<String, ElementDisplay> getBrowseableElementDisplays(final UserI user);
+
+    /**
+     * Get the browseable element displays for the indicated user.
+     *
+     * @param username The name of the user to retrieve browseable element displays for.
+     *
+     * @return The browseable element displays for the indicated user.
+     */
+    Map<String, ElementDisplay> getBrowseableElementDisplays(final String username);
 
     /**
      * Get the searchable element displays for the indicated user.
@@ -115,6 +133,15 @@ public interface GroupsAndPermissionsCache extends XnatCache {
     List<ElementDisplay> getSearchableElementDisplays(final UserI user) throws Exception;
 
     /**
+     * Get the searchable element displays for the indicated user.
+     *
+     * @param username The name of the user to retrieve searchable element displays for.
+     *
+     * @return The searchable element displays for the indicated user.
+     */
+    List<ElementDisplay> getSearchableElementDisplays(final String username) throws Exception;
+
+    /**
      * Get the action element displays for the indicated user.
      *
      * @param user   The user for which to retrieve action element displays.
@@ -124,6 +151,14 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      */
     List<ElementDisplay> getActionElementDisplays(final UserI user, final String action) throws Exception;
 
+    /**
+     * Get the action element displays for the indicated user.
+     *
+     * @param username The name of the user for which to retrieve action element displays.
+     * @param action   The action for which to retrieve action element displays.
+     *
+     * @return The action element displays for the indicated user.
+     */
     List<ElementDisplay> getActionElementDisplays(String username, String action);
 
     /**
@@ -174,7 +209,7 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      * @return The groups for the tag, empty list otherwise.
      */
     @Nonnull
-    List<UserGroupI> getGroupsForTag(final String tag);
+    List<UserGroupI> getGroupsForProject(final String tag);
 
     /**
      * Gets the groups for the user with the specified username. Returns an empty map if no groups are found for the
@@ -204,7 +239,7 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      *
      * @return The group with the associated tag and user.
      */
-    UserGroupI getGroupForUserAndTag(final String username, final String tag) throws UserNotFoundException;
+    UserGroupI getGroupForUserAndProject(final String username, final String tag) throws UserNotFoundException;
 
     /**
      * Gets a list of all of the user IDs associated with the specified group.
@@ -240,6 +275,13 @@ public interface GroupsAndPermissionsCache extends XnatCache {
      * @return The date and time of the latest update to any groups associated with the specified user.
      */
     Date getUserLastUpdateTime(final String username);
+
+    /**
+     * Clears all cache entries for the indicated user.
+     *
+     * @param user The user whose cache should be cleared.
+     */
+    void clearUserCache(final UserI user);
 
     /**
      * Clears all cache entries for the indicated user.

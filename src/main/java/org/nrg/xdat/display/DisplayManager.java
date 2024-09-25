@@ -592,15 +592,14 @@ public class DisplayManager {
         while (enumer.hasMoreElements()) {
             final String elementName = (String) enumer.nextElement();
             final ElementDisplay ed = elements.get(elementName);
-            final Enumeration arcs = ed.getArcs().keys();
-            while (arcs.hasMoreElements()) {
-                final String arcName = (String) arcs.nextElement();
+            ed.getArcs().forEach((arcName, value) -> {
                 final ArcDefinition arcDefine = getArcDefinition(arcName);
                 if (arcDefine == null) {
                     logger.warn("WARNING:  INVALID ARC:" + arcName);
-                } else
+                } else {
                     arcDefine.addMember(elementName);
-            }
+                }
+            });
         }
     }
 

@@ -13,7 +13,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.validation.constraints.NotNull;
 import org.nrg.framework.annotations.XnatMixIn;
 import org.nrg.framework.beans.ProxiedBeanMixIn;
 import org.nrg.framework.configuration.ConfigPaths;
@@ -1476,6 +1476,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
             setBooleanValue(uiAllowBlockedSubjectAssessorView, "uiAllowBlockedSubjectAssessorView");
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'uiAllowBlockedSubjectAssessorView': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "true")
+    public boolean getUiShowAdminManageSiteFeatures() {
+        return getBooleanValue("uiShowAdminManageSiteFeatures");
+    }
+
+    public void setUiShowAdminManageSiteFeatures(final boolean uiShowAdminManageSiteFeatures) {
+        try {
+            setBooleanValue(uiShowAdminManageSiteFeatures, "uiShowAdminManageSiteFeatures");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiShowAdminManageSiteFeatures': something is very wrong here.", e);
         }
     }
 

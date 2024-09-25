@@ -9,6 +9,7 @@
 
 package org.nrg.xdat.display;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xdat.schema.SchemaField;
 import org.nrg.xft.db.ViewManager;
@@ -30,6 +31,7 @@ import java.util.Map;
  * @author Tim
  */
 public class DisplayFieldElement {
+    @JsonIgnore
     private static final Logger logger = LoggerFactory.getLogger(DisplayFieldElement.class);
 	private String name = "";
 	private String schemaElementName = "";
@@ -112,6 +114,7 @@ public class DisplayFieldElement {
     boolean checked = false;
     private Map<String, String> elementMapping = new HashMap<>();
 
+    @JsonIgnore
     public String getSQLJoinedName(SchemaElementI e) {
 		try {
             if (!elementMapping.containsKey(e.getFullXMLName()) && !checked) {
@@ -135,6 +138,7 @@ public class DisplayFieldElement {
         }
 	}
 
+    @JsonIgnore
     String fieldType = null;
 
     public String getFieldType() {
@@ -155,6 +159,7 @@ public class DisplayFieldElement {
         return fieldType;
 	}
 
+    @JsonIgnore
     private String standardizedPath = null;
 
     public String getStandardizedPath() {
@@ -183,6 +188,7 @@ public class DisplayFieldElement {
         return standardizedPath;
     }
 
+    @JsonIgnore
     SchemaField sf = null;
 
     public SchemaField getSchemaField() throws Exception {

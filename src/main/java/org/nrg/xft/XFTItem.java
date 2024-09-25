@@ -10,6 +10,8 @@
 package org.nrg.xft;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.Predicate;
@@ -31,25 +33,48 @@ import org.nrg.xft.db.ViewManager;
 import org.nrg.xft.db.loaders.XFTItemDBLoader;
 import org.nrg.xft.db.loaders.XFTItemDBLoader.ItemCache;
 import org.nrg.xft.event.EventMetaI;
-import org.nrg.xft.exception.*;
+import org.nrg.xft.exception.DBPoolException;
+import org.nrg.xft.exception.ElementNotFoundException;
+import org.nrg.xft.exception.FieldNotFoundException;
+import org.nrg.xft.exception.InvalidItemException;
+import org.nrg.xft.exception.InvalidPermissionException;
+import org.nrg.xft.exception.InvalidValueException;
+import org.nrg.xft.exception.MetaDataException;
+import org.nrg.xft.exception.XFTInitException;
 import org.nrg.xft.meta.XFTMetaManager;
 import org.nrg.xft.presentation.FlattenedItemA;
 import org.nrg.xft.presentation.ItemHtmlBuilder;
 import org.nrg.xft.presentation.ItemMerger;
 import org.nrg.xft.presentation.ItemPropBuilder;
-import org.nrg.xft.references.*;
+import org.nrg.xft.references.XFTManyToManyReference;
+import org.nrg.xft.references.XFTMappingColumn;
+import org.nrg.xft.references.XFTPseudonymManager;
+import org.nrg.xft.references.XFTReferenceI;
+import org.nrg.xft.references.XFTReferenceManager;
+import org.nrg.xft.references.XFTRelationSpecification;
+import org.nrg.xft.references.XFTSuperiorReference;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperFactory;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperField;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperUtils;
-import org.nrg.xft.schema.Wrappers.XMLWrapper.*;
+import org.nrg.xft.schema.Wrappers.XMLWrapper.SAXWriter;
+import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWrapperElement;
+import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWrapperFactory;
+import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWrapperField;
+import org.nrg.xft.schema.Wrappers.XMLWrapper.XMLWriter;
 import org.nrg.xft.schema.XFTManager;
 import org.nrg.xft.schema.XMLType;
 import org.nrg.xft.schema.design.SchemaElementI;
 import org.nrg.xft.schema.design.XFTFieldWrapper;
-import org.nrg.xft.search.*;
+import org.nrg.xft.search.CriteriaCollection;
+import org.nrg.xft.search.ItemSearch;
 import org.nrg.xft.search.ItemSearch.IdentifierResults;
+import org.nrg.xft.search.QueryOrganizer;
+import org.nrg.xft.search.SearchCriteria;
+import org.nrg.xft.search.TableSearch;
 import org.nrg.xft.security.UserI;
+import org.nrg.xft.serializers.XFTItemDeserializer;
+import org.nrg.xft.serializers.XFTItemSerializer;
 import org.nrg.xft.utils.DateUtils;
 import org.nrg.xft.utils.SaveItemHelper;
 import org.nrg.xft.utils.ValidationUtils.ValidationResults;
@@ -62,14 +87,37 @@ import org.w3c.dom.Node;
 
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactoryConfigurationError;
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.io.Writer;
 import java.lang.reflect.Method;
 import java.text.ParseException;
-import java.util.*;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.GregorianCalendar;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 
 @SuppressWarnings({"unchecked","rawtypes"})
 @Slf4j
+@JsonSerialize(using = XFTItemSerializer.class)
+@JsonDeserialize(using = XFTItemDeserializer.class)
 public class XFTItem extends GenericItemObject implements ItemI,Cloneable, Serializable  {
+	private static final SimpleDateFormat simpleDataFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 	private static final long serialVersionUID = 2338626292552137495L;
     public static final String EQUALS                          = "=";
     public static final String XDAT_META_ELEMENT               = "xdat:meta_element";
@@ -6491,17 +6539,35 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable, Seria
         if (this.getMeta() != null)
 		{
 	        try {
-	            return (Date) this.getMeta().getProperty("row_last_modified");
+				Object rlm = this.getMeta().getProperty("row_last_modified");
+				if (rlm instanceof String) {
+					return  convertToDate((String) rlm);
+				}
+				return (Date) rlm;
 	        } catch (XFTInitException e) {
 	            log.error("",e);
 	        } catch (ElementNotFoundException e) {
 	            log.error("",e);
 	        } catch (FieldNotFoundException e) {
 	            log.error("",e);
-	        }
+	        } catch (ClassCastException e) {
+				log.error("",e);
+			}
 		}
         return null;
     }
+
+	private Date convertToDate(String date) {
+		if (date == null) {
+			return null;
+		}
+		try {
+			return simpleDataFormat.parse(date);
+		} catch (ParseException e) {
+			log.error("Parsing date string error ",e);
+		}
+		return null;
+	}
 
     public Long getXFTVersion()
     {
@@ -6532,7 +6598,11 @@ public class XFTItem extends GenericItemObject implements ItemI,Cloneable, Seria
         if (this.getMeta() != null)
 		{
 	        try {
-	            return (Date) this.getMeta().getProperty(INSERT_DATE);
+	            Object insertDate = this.getMeta().getProperty(INSERT_DATE);
+				if (insertDate instanceof String) {
+					return convertToDate((String) insertDate);
+				}
+				return (Date) insertDate;
 	        } catch (XFTInitException e) {
 	            log.error("",e);
 	        } catch (ElementNotFoundException e) {
