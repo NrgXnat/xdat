@@ -102,6 +102,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference
+    public String getDatabaseUpdateRequiredWarning() {
+        return getValue("databaseUpdateRequiredWarning");
+    }
+
+    public void setDatabaseUpdateRequiredWarning(final String databaseUpdateRequiredWarning) {
+        try {
+            set(databaseUpdateRequiredWarning, "databaseUpdateRequiredWarning");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name databaseUpdateRequiredWarning: something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "XNAT")
     public String getSiteId() {
         return getValue("siteId");
