@@ -261,7 +261,7 @@ public class SchemaElement implements SchemaElementI {
 		 	if (! f.isMultiple())
 		 	{
 		 		GenericWrapperElement foreign = (GenericWrapperElement)f.getReferenceElement();
-		 		GenericWrapperField pk = foreign.getAllPrimaryKeys().get(0);
+		 		GenericWrapperField pk = foreign.getAllPrimaryKeys().getFirst();
 		 		
 		 		DisplayField df = new DisplayField(this.getDisplay());
 				df.setId(XftStringUtils.cleanColumnName(s).toUpperCase());
@@ -324,7 +324,7 @@ public class SchemaElement implements SchemaElementI {
 		}
 		final String resolvedXmlPath;
 		if (f.isReference() && !f.isMultiple()) {
-			resolvedXmlPath = xmlPath + XFT.PATH_SEPARATOR + ((GenericWrapperElement) f.getReferenceElement()).getAllPrimaryKeys().get(0).getName();
+			resolvedXmlPath = xmlPath + XFT.PATH_SEPARATOR + ((GenericWrapperElement) f.getReferenceElement()).getAllPrimaryKeys().getFirst().getName();
 		} else {
 			resolvedXmlPath = xmlPath;
 		}
@@ -338,7 +338,7 @@ public class SchemaElement implements SchemaElementI {
 				break;
 			}else if (df.getElements().size() == 1 && df.getContent().size()==0)
 			{
-				DisplayFieldElement dfe = df.getElements().get(0);
+				DisplayFieldElement dfe = df.getElements().getFirst();
 				if (dfe.getSchemaElementName().equalsIgnoreCase(resolvedXmlPath)
 						|| dfe.getSchemaElementName().equals(localName))
 				{

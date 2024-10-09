@@ -190,7 +190,7 @@ public class XFTReferenceManager {
 	private boolean checkManyToOnes(String subordinateElementName,String subordinateFieldName,String superiorElementName,String superiorFieldName) throws XFTInitException,ElementNotFoundException
 	{
 		for (final List<?> manyToOne : getManyToOnes()) {
-			if (((String) manyToOne.get(0)).equalsIgnoreCase(subordinateElementName) && ((String) manyToOne.get(1)).equalsIgnoreCase(superiorElementName)) {
+			if (((String) manyToOne.getFirst()).equalsIgnoreCase(subordinateElementName) && ((String) manyToOne.get(1)).equalsIgnoreCase(superiorElementName)) {
 				XFTSuperiorReference ref = (XFTSuperiorReference) manyToOne.get(2);
 				if (subordinateFieldName != null) {
 					if (!subordinateFieldName.equalsIgnoreCase(ref.getSubordinateFieldSQLName())) {
@@ -223,7 +223,7 @@ public class XFTReferenceManager {
 	{
 		for (final List<?> manyToMany : getManyToManys()) {
 			if (manyToMany.get(1) != null) {
-				if (((GenericWrapperElement) manyToMany.get(0)).getFullXMLName().equalsIgnoreCase(elementName) && ((GenericWrapperField) manyToMany.get(1)).getSQLName().equalsIgnoreCase(fieldSQLName)) {
+				if (((GenericWrapperElement) manyToMany.getFirst()).getFullXMLName().equalsIgnoreCase(elementName) && ((GenericWrapperField) manyToMany.get(1)).getSQLName().equalsIgnoreCase(fieldSQLName)) {
 					return true;
 				}
 			}
@@ -249,7 +249,7 @@ public class XFTReferenceManager {
 			if (f.isMultiple())
 			{
 				for (final List<?> child : GetInstance().getManyToManys()) {
-					if (((GenericWrapperElement)child.get(0)).getFullXMLName().equalsIgnoreCase(parent.getFullXMLName()) && ((GenericWrapperField)child.get(1)).getSQLName().equalsIgnoreCase(f.getSQLName()))
+					if (((GenericWrapperElement)child.getFirst()).getFullXMLName().equalsIgnoreCase(parent.getFullXMLName()) && ((GenericWrapperField)child.get(1)).getSQLName().equalsIgnoreCase(f.getSQLName()))
 					{
 					    found = ((XFTManyToManyReference)child.get(2));
 					    break;
@@ -290,9 +290,9 @@ public class XFTReferenceManager {
 			}else
 			{
 				for (final List<?> child : GetInstance().getManyToOnes()) {
-					String rootElementName = (String)child.get(0);
+					String rootElementName = (String)child.getFirst();
 					String foreignElementName = f.getParentElement().getFullXMLName();
-					if (((String)child.get(0)).equalsIgnoreCase(foreignElementName))
+					if (((String)child.getFirst()).equalsIgnoreCase(foreignElementName))
 					{
 						XFTSuperiorReference ref = (XFTSuperiorReference)child.get(2);
 						if (ref.getSubordinateField() != null)
@@ -348,7 +348,7 @@ public class XFTReferenceManager {
 
 		for (final Object o : GetInstance().getManyToOnes()) {
 			ArrayList child = (ArrayList) o;
-			if (((String) child.get(0)).equalsIgnoreCase(e.getFullXMLName())) {
+			if (((String) child.getFirst()).equalsIgnoreCase(e.getFullXMLName())) {
 				XFTSuperiorReference ref = (XFTSuperiorReference) child.get(2);
 				if (ref.getSubordinateField() == null) {
 					al.add(ref);
@@ -371,7 +371,7 @@ public class XFTReferenceManager {
 	{
 		final ArrayList<XFTSuperiorReference> al = new ArrayList<>();
 		for (final List<?> child : GetInstance().getManyToOnes()) {
-			if (((String)child.get(0)).equalsIgnoreCase(e.getFullXMLName())) {
+			if (((String)child.getFirst()).equalsIgnoreCase(e.getFullXMLName())) {
 				XFTSuperiorReference ref = (XFTSuperiorReference)child.get(2);
 				al.add(ref);
 			}
@@ -411,7 +411,7 @@ public class XFTReferenceManager {
 	{
 		final ArrayList<XFTManyToManyReference> al = new ArrayList<>();
 		for (final List<?> child : GetInstance().getManyToManys()) {
-			if (((GenericWrapperElement)child.get(0)).getFullXMLName().equalsIgnoreCase(e.getFullXMLName()))
+			if (((GenericWrapperElement)child.getFirst()).getFullXMLName().equalsIgnoreCase(e.getFullXMLName()))
 			{
 				XFTManyToManyReference ref = (XFTManyToManyReference)child.get(2);
 				al.add(ref);
@@ -558,12 +558,12 @@ public class XFTReferenceManager {
 			
 			sb.append("\n\nMany-To-Many:");
 			for (final List<?> key : GetInstance ().getManyToManys()) {
-				sb.append("\n").append(((GenericWrapperElement)key.get(0)).getName()).append("->").append(((GenericWrapperField)key.get(1)).getName()).append(":").append(((XFTManyToManyReference)key.get(2)).getMappingTable());
+				sb.append("\n").append(((GenericWrapperElement)key.getFirst()).getName()).append("->").append(((GenericWrapperField)key.get(1)).getName()).append(":").append(((XFTManyToManyReference)key.get(2)).getMappingTable());
 			}
 			
 			sb.append("\n\nMany-To-One:");
 			for (final List<?> key : GetInstance().getManyToOnes()) {
-				sb.append("\n").append(key.get(0)).append("(FK)->").append(key.get(1));
+				sb.append("\n").append(key.getFirst()).append("(FK)->").append(key.get(1));
 			}
 			
 			FileUtils.OutputToFile(sb.toString(), XFTManager.GetInstance().getSourceDir() + "references.txt");

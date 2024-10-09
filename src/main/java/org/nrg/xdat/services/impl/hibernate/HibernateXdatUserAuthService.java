@@ -176,9 +176,9 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
         final List<UserI> users = loadUsersByUsernameAndMostRecentSuccessfulLogin(username);
         final String      auth;
         final String      id;
-        if (users.size() > 0 && users.get(0) != null) {
-            auth = users.get(0).getAuthorization().getAuthMethod();
-            id = users.get(0).getAuthorization().getAuthMethodId();
+        if (users.size() > 0 && users.getFirst() != null) {
+            auth = users.getFirst().getAuthorization().getAuthMethod();
+            id = users.getFirst().getAuthorization().getAuthMethodId();
         } else {
             auth = null;
             id = null;
@@ -225,7 +225,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
             example.setAuthMethodId(id);
         }
         final List<XdatUserAuth> auths = _dao.findByExample(example, exclusionProperties);
-        return auths != null && auths.size() != 0 ? auths.get(0) : null;
+        return auths != null && auths.size() != 0 ? auths.getFirst() : null;
     }
 
     private List<GrantedAuthority> loadUserAuthorities(String username) {
@@ -248,7 +248,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
             }
         }
 
-        if (new HashSet<>(loadUserAuthorities(users.get(0).getUsername())).isEmpty()) {
+        if (new HashSet<>(loadUserAuthorities(users.getFirst().getUsername())).isEmpty()) {
             log.debug("User '" + username + "' has no authorities and will be treated as 'not found'");
             throw new UsernameNotFoundException(SpringSecurityMessageSource.getAccessor().getMessage("JdbcDaoImpl.noAuthority", new Object[]{username}, "User {0} has no GrantedAuthority"));
         }

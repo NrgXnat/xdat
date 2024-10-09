@@ -38,7 +38,6 @@ import org.w3c.dom.Document;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -687,7 +686,7 @@ public class JavaFileGenerator {
         ArrayList keys = e.getAllPrimaryKeys();
         if (keys.size()>1){
         }else{
-            GenericWrapperField f = (GenericWrapperField)keys.get(0);
+            GenericWrapperField f = (GenericWrapperField)keys.getFirst();
             String xmlPath = f.getXMLPathString();
             String formatted = formatFieldName(xmlPath);
             final String xsiType = f.getXMLPathString(e.getXSIType());
@@ -1677,8 +1676,8 @@ public class JavaFileGenerator {
         if (resource instanceof FileSystemResource) {
             final File locationFile = new File(location);
             final Path displayFolderPath = locationFile.getName().equals("display")
-                                           ? Paths.get(location)
-                                           : Paths.get(location, "display");
+                                           ? Path.of(location)
+                                           : Path.of(location, "display");
 
             final File displayFolder = displayFolderPath.toFile();
             if (!displayFolder.exists()) {
@@ -2283,7 +2282,7 @@ public class JavaFileGenerator {
                     }
 
                     if (localFields.size() > 0) {
-                        buffer.append(header).append("\t<DisplayVersion versionName=\"listing\" default-order-by=\"").append(localFields.get(0)).append("\" default-sort-order=\"DESC\" brief-description=\"").append(e.getProperName()).append("\" dark-color=\"9999CC\" light-color=\"CCCCFF\">");
+                        buffer.append(header).append("\t<DisplayVersion versionName=\"listing\" default-order-by=\"").append(localFields.getFirst()).append("\" default-sort-order=\"DESC\" brief-description=\"").append(e.getProperName()).append("\" dark-color=\"9999CC\" light-color=\"CCCCFF\">");
 
                         Iterator iter = localFields.iterator();
                         while (iter.hasNext()) {
@@ -2293,7 +2292,7 @@ public class JavaFileGenerator {
 
                         buffer.append(header).append("\t</DisplayVersion>");
 
-                        buffer.append(header).append("\t<DisplayVersion versionName=\"full\" default-order-by=\"").append(localFields.get(0)).append("\" default-sort-order=\"DESC\" brief-description=\"").append(e.getProperName()).append("\" dark-color=\"9999CC\" light-color=\"CCCCFF\">");
+                        buffer.append(header).append("\t<DisplayVersion versionName=\"full\" default-order-by=\"").append(localFields.getFirst()).append("\" default-sort-order=\"DESC\" brief-description=\"").append(e.getProperName()).append("\" dark-color=\"9999CC\" light-color=\"CCCCFF\">");
 
                         iter = localFields.iterator();
                         while (iter.hasNext()) {
@@ -2841,11 +2840,11 @@ public class JavaFileGenerator {
                                             if (hidden.equals("visible"))
                                             {
                                                 GenericWrapperField sf = (GenericWrapperField)singleField.get(1);
-                                                String sfxml = (String)singleField.get(0);
+                                                String sfxml = (String)singleField.getFirst();
                                                 sb.append(header).append("\t\t\t\t\t\t<TD>").append(this.getLocalFieldEdit(f,sfxml)).append("</TD>");
                                             }else{
                                                 GenericWrapperField sf = (GenericWrapperField)singleField.get(1);
-                                                String sfxml = (String)singleField.get(0);
+                                                String sfxml = (String)singleField.getFirst();
                                                 sb.append(header).append("\t\t\t\t\t\t#xdatHiddenBox(\"").append(sfxml).append("\" $item \"\")");
                                             }
                                         }

@@ -49,7 +49,6 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Handler;
@@ -111,7 +110,7 @@ public class XDATServlet extends HttpServlet {
     }
 
     private String getWebAppPath(final String... paths) {
-        return Paths.get(getServletContext().getRealPath(""), paths).toString();
+        return Path.of(getServletContext().getRealPath(""), paths).toString();
     }
 
     /**
@@ -130,7 +129,7 @@ public class XDATServlet extends HttpServlet {
 
         //this should use the config service.. but I couldn't get it to work because of servlet init issues.
         final Properties prop = new Properties();
-        final File       file = Paths.get(conf, "properties", "database.properties").toFile();
+        final File       file = Path.of(conf, "properties", "database.properties").toFile();
         if (file.exists()) {
             try (final InputStream input = Files.newInputStream(file.toPath())) {
                 prop.load(input);
@@ -168,7 +167,7 @@ public class XDATServlet extends HttpServlet {
                             }
                             final NamedParameterJdbcTemplate        template          = db.getParameterizedTemplate();
                             final Map<String, Pair<String, String>> oidsFunctions     = template.queryForList(QUERY_DROP_OID_FUNCTIONS, EmptySqlParameterSource.INSTANCE, String.class).stream().map(OID_FUNCTIONS_PATTERN::matcher).filter(Matcher::matches).collect(Collectors.toMap(matcher -> matcher.group("function"), matcher -> Pair.of(matcher.group("param1"), matcher.group("param2"))));
-                            final List<String>                      dropOidsFunctions = oidsFunctions.entrySet().stream().map(entry -> String.format("DROP FUNCTION IF EXISTS %s(%s, %s));", entry.getKey(), entry.getValue().getLeft(), entry.getValue().getRight())).collect(Collectors.toList());
+                            final List<String>                      dropOidsFunctions = oidsFunctions.entrySet().stream().map(entry -> "DROP FUNCTION IF EXISTS %s(%s, %s));".formatted(entry.getKey(), entry.getValue().getLeft(), entry.getValue().getRight())).collect(Collectors.toList());
                             if (log.isDebugEnabled()) {
                                 log.debug("Running the following {} commands to drop deprecated OID functions:\n\n{}", dropOidsFunctions.size(), String.join("\n", dropOidsFunctions));
                             }
@@ -567,7 +566,7 @@ public class XDATServlet extends HttpServlet {
 
         final Path sqlLogFilePath;
         if (StringUtils.isNotBlank(sqlLogFile)) {
-            final Path path = Paths.get(sqlLogFile);
+            final Path path = Path.of(sqlLogFile);
             if (path.isAbsolute()) {
                 sqlLogFilePath = path;
             } else {
@@ -583,7 +582,7 @@ public class XDATServlet extends HttpServlet {
 
     private static Path getSqlLogFolder(final String configuredSqlLogFolder) {
         if (StringUtils.isNotBlank(configuredSqlLogFolder)) {
-            return Paths.get(configuredSqlLogFolder);
+            return Path.of(configuredSqlLogFolder);
         }
         return ((Path) XDAT.getContextService().getBean("xnatHome")).resolve("sql");
     }

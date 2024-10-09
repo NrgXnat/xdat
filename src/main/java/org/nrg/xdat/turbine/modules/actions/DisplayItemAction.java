@@ -32,7 +32,7 @@ public class DisplayItemAction extends SecureAction {
         final String defaultReportIdentifierClass = XDAT.getSiteConfigurationProperty("UI.defaultReportIdentifier", "org.nrg.xdat.navigation.DefaultReportIdentifier");
 
         try {
-            final Object object = Class.forName(defaultReportIdentifierClass).newInstance();
+            final Object object = Class.forName(defaultReportIdentifierClass).getDeclaredConstructor().newInstance();
             if (object instanceof DefaultReportIdentifierI) {
                 data.setScreenTemplate(((DefaultReportIdentifier) object).identifyReport(data, context));
             }

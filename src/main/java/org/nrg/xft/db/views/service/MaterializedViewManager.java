@@ -98,7 +98,7 @@ public class MaterializedViewManager {
                 log.debug("Updated {} rows for the current view {}", updated, _currentView);
             }
             for (final String tableName : _template.queryForList(QUERY_GET_RECENT_VIEWS, EmptySqlParameterSource.INSTANCE, String.class)) {
-                _template.getJdbcOperations().execute(String.format(QUERY_DROP_TABLE, tableName));
+                _template.getJdbcOperations().execute(QUERY_DROP_TABLE.formatted(tableName));
                 final int deleted = _template.update(QUERY_DELETE_MATERIALIZED_VIEW, new MapSqlParameterSource(PARAM_TABLE_NAME, tableName));
                 log.debug("Dropped table {} and deleted {} materialized view entries", tableName, deleted);
             }
@@ -107,7 +107,7 @@ public class MaterializedViewManager {
 
     public List<MaterializedViewI> getViewsByUser(final UserI user, final MaterializedViewServiceI service) throws Exception {
         final List<MaterializedViewI> views = new ArrayList<>();
-        final XFTTable                table = XFTTable.Execute(String.format(QUERY_GET_USER_VIEWS, user.getUsername()), PoolDBUtils.getDefaultDBName(), user.getUsername());
+        final XFTTable                table = XFTTable.Execute(QUERY_GET_USER_VIEWS.formatted(user.getUsername()), PoolDBUtils.getDefaultDBName(), user.getUsername());
         if (table.size() > 0) {
             while (table.hasMoreRows()) {
                 views.add(service.populateView(table.nextRowHash(), user));
@@ -118,12 +118,12 @@ public class MaterializedViewManager {
     }
 
     public MaterializedViewI getViewBySearchID(final String searchId, final UserI user, final MaterializedViewServiceI service) throws Exception {
-        final XFTTable table = XFTTable.Execute(String.format(QUERY_GET_USER_VIEWS_BY_ID, searchId, user.getUsername()), PoolDBUtils.getDefaultDBName(), user.getUsername());
+        final XFTTable table = XFTTable.Execute(QUERY_GET_USER_VIEWS_BY_ID.formatted(searchId, user.getUsername()), PoolDBUtils.getDefaultDBName(), user.getUsername());
         return table.size() > 0 ? service.populateView(table.nextRowHash(), user) : null;
     }
 
     public MaterializedViewI getViewByTablename(final String tablename, UserI user, MaterializedViewServiceI service) throws Exception {
-        final XFTTable table = XFTTable.Execute(String.format(QUERY_GET_MATERIALIZED_VIEW, tablename), PoolDBUtils.getDefaultDBName(), user.getUsername());
+        final XFTTable table = XFTTable.Execute(QUERY_GET_MATERIALIZED_VIEW.formatted(tablename), PoolDBUtils.getDefaultDBName(), user.getUsername());
         return table.size() > 0 ? service.populateView(table.nextRowHash(), user) : null;
     }
 
