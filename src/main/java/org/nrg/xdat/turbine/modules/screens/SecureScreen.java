@@ -152,7 +152,7 @@ public abstract class SecureScreen extends VelocitySecureScreen {
                 UserHelper.setGuestUserHelper(data);
             }
 
-            final ThemeConfig themeConfig = themeService.getTheme();
+          /*  final ThemeConfig themeConfig = themeService.getTheme();
             if (themeConfig != null) {
                 context.put("theme", themeConfig.getName());
                 final String themedStyle = themeService.getThemePage("theme", "style");
@@ -163,7 +163,7 @@ public abstract class SecureScreen extends VelocitySecureScreen {
                 if (StringUtils.isNotBlank(themedScript)) {
                     context.put("themedScript", themedScript);
                 }
-            }
+            } */
 
             context.put("XNAT_CSRF", data.getSession().getAttribute("XNAT_CSRF"));
             preserveVariables(data, context);

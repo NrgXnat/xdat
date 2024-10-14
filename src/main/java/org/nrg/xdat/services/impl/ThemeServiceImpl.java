@@ -138,10 +138,12 @@ public class ThemeServiceImpl implements ThemeService {
             useTypeSeparator = true;
         }
         for (String ext : extensions) {
-            File themePageFile = (useTypeSeparator ? Path.of(theme.getPath(), type + "s", pageName + "." + ext) : Path.of(theme.getPath(), pageName + "." + ext)).toFile();
-            if(themePageFile.exists()) {
-                pagePath = safeJoin("/" + WEB_RELATIVE_THEME_PATH, theme.getName(), type + "s", pageName + "." + ext);
-                break;
+            if (theme.getPath() != null) {
+                File themePageFile = (useTypeSeparator ? Path.of(theme.getPath(), type + "s", pageName + "." + ext) : Path.of(theme.getPath(), pageName + "." + ext)).toFile();
+                if(themePageFile.exists()) {
+                    pagePath = safeJoin("/" + WEB_RELATIVE_THEME_PATH, theme.getName(), type + "s", pageName + "." + ext);
+                    break;
+                }
             }
         }
         return pagePath;
