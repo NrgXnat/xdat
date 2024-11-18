@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.nrg.xdat.XDAT;
+import org.nrg.xdat.preferences.SiteConfigPreferences;
 import org.nrg.xft.TypeConverter.PGSQLMapping;
 import org.nrg.xft.TypeConverter.TypeConverter;
 import org.nrg.xft.XFT;
@@ -147,6 +149,15 @@ public class SQLUpdateGenerator {
         List<String> all = new ArrayList<>();
         all.addAll(creates);
         all.addAll(alters);
+
+        final SiteConfigPreferences preferences = XDAT.getSiteConfigPreferences();
+        if (optional.isEmpty()) {
+            if (StringUtils.isNotBlank(preferences.getDatabaseUpdateRequiredWarning())) {
+                preferences.setDatabaseUpdateRequiredWarning("");
+            }
+        } else {
+            preferences.setDatabaseUpdateRequiredWarning("Database update required. Please review and execute the optional SQL statements recorded in xdat.log on system start-up.");
+        }
 
         return new List[]{all,optional};
     }
@@ -336,41 +347,62 @@ public class SQLUpdateGenerator {
                                         }
                                         optional.add( "----Unable to resolve type mis-match for the following reason(s).\n");
                                         optional.add( "----Please review these factors before uncommenting this code.\n");
-                                        if (values.intValue() > 0)
-                                        	optional.add( "----" + values.intValue() + " row(s) contain values.\n");
-                                        if (constraints.intValue() > 0)
-                                        	optional.add( "----" + constraints.intValue() + " column constraint(s).\n");
-
-                                        	optional.add("----Fix " + elementSqlName + "_history table.\n");
-                                        	optional.add("--ALTER TABLE " + elementSqlName + "_history ADD COLUMN " + fieldSQLName + "_cp " + t + ";\n");
-                                        	optional.add("--UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "_cp=" + fieldSQLName + ";\n");
-                                        	optional.add("--ALTER TABLE " + elementSqlName + "_history DROP COLUMN " + fieldSQLName + ";\n");
-                                        	optional.add("--ALTER TABLE " + elementSqlName + "_history ADD COLUMN " + fieldSQLName + " " + exptType + ";\n");
-                                        if (t.equalsIgnoreCase("BYTEA")) {
-                                        	optional.add("--UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "=ENCODE(" + fieldSQLName + "_cp,'escape');\n");
-                                        } else {
-                                        	optional.add("--UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "=CAST(" + fieldSQLName + "_cp AS " + exptType + ");\n");
+                                        if (values.intValue() > 0) {
+                                            optional.add("----" + values.intValue() + " row(s) contain values.\n");
                                         }
-
-                                        optional.add("--CREATE OR REPLACE FUNCTION after_update_" + elementSqlName + "()" +
-                                                     "  RETURNS TRIGGER AS" +
-                                                     " '" +
-                                                     "    begin" +
-                                                     "        RETURN NULL;" +
-                                                     "     end;" +
-                                                     " '" +
-                                                     "   LANGUAGE 'plpgsql' VOLATILE;\n");
-
-                                        	optional.add("----Fix " + elementSqlName + " table.\n");
-                                        	optional.add("--ALTER TABLE " + elementSqlName + " ADD COLUMN " + fieldSQLName + "_cp " + t + ";\n");
-                                        	optional.add("--UPDATE " + elementSqlName + " SET " + fieldSQLName + "_cp=" + fieldSQLName + ";\n");
-                                        	optional.add("--ALTER TABLE " + elementSqlName + " DROP COLUMN " + fieldSQLName + ";\n");
-                                        	optional.add("--ALTER TABLE " + elementSqlName + " ADD COLUMN " + fieldSQLName + " " + exptType + ";\n");
-                                        if (t.equalsIgnoreCase("BYTEA")) {
-                                        	optional.add("--UPDATE " + elementSqlName + " SET " + fieldSQLName + "=ENCODE(" + fieldSQLName + "_cp,'escape');\n");
-                                        } else {
-                                        	optional.add("--UPDATE " + elementSqlName + " SET " + fieldSQLName + "=CAST(" + fieldSQLName + "_cp AS " + exptType + ");");
+                                        if (constraints.intValue() > 0) {
+                                            optional.add("----" + constraints.intValue() + " column constraint(s).\n");
                                         }
+                                        final boolean isBinary = t.equalsIgnoreCase("BYTEA");
+
+                                        optional.add("-- -- Start transaction");
+                                        optional.add("-- BEGIN TRANSACTION;");
+                                        optional.add("-- ");
+                                        optional.add("-- -- Remove dependencies so they don't block altering columns");
+                                        optional.add("-- SELECT dependencies_save_and_drop('" + elementSqlName + "');");
+                                        optional.add("-- ");
+                                        optional.add("-- -- Fix " + elementSqlName + "_history table.");
+                                        optional.add("-- ALTER TABLE " + elementSqlName + "_history ADD COLUMN " + fieldSQLName + "_cp TEXT;");
+                                        optional.add("-- ");
+                                        if (isBinary) {
+                                            optional.add("-- UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "_cp = ENCODE(" + fieldSQLName + ", 'escape');");
+                                        } else {
+                                            optional.add("-- UPDATE " + elementSqlName + "_history SET " + fieldSQLName + "_cp = CAST(" + fieldSQLName + " AS TEXT);");
+                                        }
+                                        optional.add("-- ");
+                                        optional.add("-- ALTER TABLE " + elementSqlName + "_history DROP COLUMN " + fieldSQLName + ";");
+                                        optional.add("-- ");
+                                        optional.add("-- ALTER TABLE " + elementSqlName + "_history RENAME COLUMN " + fieldSQLName + "_cp TO " + fieldSQLName + ";");
+                                        optional.add("-- ");
+                                        optional.add("-- CREATE OR REPLACE FUNCTION after_update_" + elementSqlName + "()");
+                                        optional.add("--     RETURNS TRIGGER");
+                                        optional.add("-- AS");
+                                        optional.add("-- $_$");
+                                        optional.add("-- BEGIN");
+                                        optional.add("--     RETURN NULL;");
+                                        optional.add("-- END;");
+                                        optional.add("-- $_$");
+                                        optional.add("--     LANGUAGE plpgsql VOLATILE;");
+                                        optional.add("-- ");
+                                        optional.add("-- -- Fix " + elementSqlName + " table.");
+                                        optional.add("-- ALTER TABLE " + elementSqlName + " ADD COLUMN " + fieldSQLName + "_cp TEXT;");
+                                        optional.add("-- ");
+                                        if (isBinary) {
+                                            optional.add("-- UPDATE " + elementSqlName + " SET " + fieldSQLName + "_cp = ENCODE(" + fieldSQLName + ", 'escape');");
+                                        } else {
+                                            optional.add("-- UPDATE " + elementSqlName + " SET " + fieldSQLName + "_cp = CAST(" + fieldSQLName + " AS TEXT);");
+                                        }
+                                        optional.add("-- ");
+                                        optional.add("-- ALTER TABLE " + elementSqlName + " DROP COLUMN " + fieldSQLName + ";");
+                                        optional.add("-- ");
+                                        optional.add("-- ALTER TABLE " + elementSqlName + " RENAME COLUMN " + fieldSQLName + "_cp TO " + fieldSQLName + ";");
+                                        optional.add("-- ");
+                                        optional.add("-- -- Restore dependencies");
+                                        optional.add("-- SELECT dependencies_restore('" + elementSqlName + "');");
+                                        optional.add("-- ");
+                                        optional.add("-- -- Commit transaction");
+                                        optional.add("-- COMMIT;");
+                                        optional.add("-- ");
                                     } else {
                                         if (XFT.VERBOSE)
                                             System.out.println("WARNING: Database column " + elementSqlName + "." + fieldSQLName + " type mis-match ('" + exptType + "'!='" + t + "'). Uncomment appropriate lines in update sql to resolve.");
