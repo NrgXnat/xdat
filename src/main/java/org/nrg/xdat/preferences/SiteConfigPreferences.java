@@ -9,9 +9,8 @@
 
 package org.nrg.xdat.preferences;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import javax.validation.constraints.NotNull;
 import org.nrg.framework.annotations.XnatMixIn;
@@ -39,6 +38,7 @@ import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -694,7 +694,7 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
-    @NrgPreference(defaultValue = "true")
+    @NrgPreference(defaultValue = "false")
     public boolean getChecksums() {
         return getBooleanValue("checksums");
     }
@@ -1037,10 +1037,7 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     public String getFormattedFailMergeOn() {
         final List<String> values = getListValue("failMergeOn");
-        if (values == null || values.size() == 0) {
-            return "[]";
-        }
-        return "['" + Joiner.on("', '").join(values) + "']";
+        return CollectionUtils.isEmpty(values) ? "[]" : "['" + String.join("', '", values) + "']";
     }
 
     public void setFailMergeOn(final List<String> failMergeOn) {
@@ -1282,6 +1279,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
             setBooleanValue(uiAllowScanAddition, "uiAllowScanAddition");
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'uiAllowScanAddition': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "true")
+    public boolean getSeparateSecondaryDicomOnArchive() {
+        return getBooleanValue("separateSecondaryDicomOnArchive");
+    }
+
+    public void setSeparateSecondaryDicomOnArchive(final boolean separateSecondaryDicomOnArchive) {
+        try {
+            setBooleanValue(separateSecondaryDicomOnArchive, "separateSecondaryDicomOnArchive");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'separateSecondaryDicomOnArchive': something is very wrong here.", e);
         }
     }
 
@@ -2159,7 +2169,7 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
     }
 
     public boolean isComplete() {
-        return getMissingInitSettings().size() == 0;
+        return getMissingInitSettings().isEmpty();
     }
 
     /**
@@ -2171,10 +2181,10 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
     protected void postProcessPreferences() {
         if (isInitFromConfig()) {
             final List<String> missing = getMissingInitSettings();
-            if (missing.size() == 0) {
+            if (missing.isEmpty()) {
                 setInitialized(true);
             } else {
-                log.warn("Your configuration was initialized from a configuration file, but the following settings were not initialized: {}. These must be set before the initialization configuration for the system can be fully initialized.", Joiner.on(", ").join(missing));
+                log.warn("Your configuration was initialized from a configuration file, but the following settings were not initialized: {}. These must be set before the initialization configuration for the system can be fully initialized.", String.join(", ", missing));
                 setInitialized(false);
             }
         }
@@ -2182,7 +2192,7 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
 
     @NotNull
     private List<String> getMissingInitSettings() {
-        final List<String> missing = Lists.newArrayList();
+        final List<String> missing = new ArrayList<>();
         if (StringUtils.isBlank(getSiteId())) {
             missing.add("siteId");
         }

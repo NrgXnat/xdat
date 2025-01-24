@@ -11,6 +11,7 @@ package org.nrg.xft.utils.ValidationUtils;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.nrg.xdat.XDAT;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.exception.ElementNotFoundException;
@@ -36,6 +37,7 @@ public class XFTValidator {
 	private static final String REQUIRED = "required";
 	private static final String MIN_LENGTH = "minLength";
 	private static final String MAX_LENGTH = "maxLength";
+	private static final String QUERY_IMAGE_SESSION_ID = "SELECT image_session_id FROM xnat_imagescandata WHERE xnat_imagescandata_id = :scanId";
 
 	/**
 	 * Validates the content of this item and its sub-items using the specifications in
@@ -63,6 +65,16 @@ public class XFTValidator {
 			checkReservedPropertyValue(results, element, item, "xnat:projectData/ID", UNASSIGNED);
 			checkReservedPropertyValue(results, element, item, "xnat:projectData/secondary_ID", UNASSIGNED);
 			checkReservedPropertyValue(results, element, item, "xnat:projectData/name", UNASSIGNED);
+		}
+
+		if (((XFTItem) item).instanceOf("xnat:imageScanData")) {
+			final Integer idValue = ((XFTItem) item).getIntegerProperty("xnat:imageScanData/xnat_imagescandata_id");
+			if (idValue != null) {
+				final String imageSessionId = XDAT.getNamedParameterJdbcTemplate().queryForObject(QUERY_IMAGE_SESSION_ID, Collections.singletonMap("scanId", idValue), String.class);
+				if (StringUtils.isNotBlank(imageSessionId) && !StringUtils.equalsIgnoreCase(imageSessionId, item.getStringProperty("xnat:imageScanData/image_session_id"))) {
+					results.addError(new ValidationError(element.getField("imageScanData"), "The image session ID for this scan does not match the image session ID in the database.", "xnat:imageScanData/xnat_imagescandata_id", "The image session ID for this scan does not match the image session ID in the database."));
+				}
+			}
 		}
 
         final String       prefix  = element.getWrapped().getSchema().getXMLNS();

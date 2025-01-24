@@ -10,6 +10,7 @@
 package org.nrg.xdat;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.BooleanUtils;
@@ -79,6 +80,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.CollectionUtils;
 
 import javax.jms.Destination;
 import javax.servlet.http.HttpServletRequest;
@@ -207,7 +209,7 @@ public class XDAT {
 	}
 
 	public static List<String> getWhitelistedIPs(UserI user) throws ConfigServiceException {
-		return Arrays.asList(getWhitelistConfiguration(user).split("[\\s]+"));
+		return Arrays.asList(getWhitelistConfiguration(user).split("\\s+"));
 	}
 
 	public static String getWhitelistConfiguration(UserI user) throws ConfigServiceException {
@@ -511,7 +513,7 @@ public class XDAT {
 	    buffer.append("COMMIT;");
 
 		writeToFile(buffer, file);
-		log.info("File Created: {}", file);
+		log.info("SQL update file created: {}", file);
 	}
 
 	public static void GenerateCreateSQL(String file) throws Exception
@@ -537,7 +539,7 @@ public class XDAT {
 
 		writeToFile(buffer, file);
 		ViewManager.OutputFieldNames();
-		log.info("File Created: {}", file);
+		log.info("SQL create file created: {}", file);
 	}
 
 	@SuppressWarnings("unused")
@@ -755,7 +757,7 @@ public class XDAT {
 		return _eventService;
 	}
 
-	public static Properties getSiteConfiguration() throws ConfigServiceException {
+	public static Properties getSiteConfiguration() {
 		final SiteConfigPreferences preferences = getSiteConfigPreferences();
 		if (preferences == null) {
 			throw new NrgServiceRuntimeException(NrgServiceError.Uninitialized, "The site configuration preferences aren't available for some reason.");
@@ -944,7 +946,7 @@ public class XDAT {
 
 		Definition definition;
 		List<Definition> definitions = getNotificationService().getDefinitionService().getDefinitionsForCategory(category);
-		if (definitions == null || definitions.size() == 0) {
+		if (CollectionUtils.isEmpty(definitions)) {
 			definition = getNotificationService().getDefinitionService().newEntity();
 			definition.setCategory(category);
 			getNotificationService().getDefinitionService().create(definition);
@@ -958,7 +960,7 @@ public class XDAT {
 		// so let's check that.
 		if (!created) {
 			List<Subscription> subscriptions = getNotificationService().getSubscriptionService().getSubscriptionsForDefinition(definition);
-			if (subscriptions != null && subscriptions.size() > 0) {
+			if (!CollectionUtils.isEmpty(subscriptions)) {
 				for(Subscription sub : subscriptions) {
 					getNotificationService().getSubscriptionService().delete(sub);
 				}
@@ -966,10 +968,10 @@ public class XDAT {
 		}
 
 		// If we made it this far, there are no subscribers to the indicated site-wide event, so create the requested subscribers
-		final List<String> newSubscriberEmailList = StringUtils.isBlank(newSubscriberEmails) ? new ArrayList<>() : Arrays.asList(newSubscriberEmails.split("[\\s]*,[\\s]*"));
+		final List<String> newSubscriberEmailList = StringUtils.isBlank(newSubscriberEmails) ? new ArrayList<>() : Arrays.asList(newSubscriberEmails.split("\\s*,\\s*"));
 		for(String newSubscriberEmailString : newSubscriberEmailList){
 			List<? extends UserI> users = Users.getUsersByEmail(newSubscriberEmailString);
-			if(users!=null && users.size()>0){
+			if(!CollectionUtils.isEmpty(users)){
 				for(UserI user : users){
 					Subscriber subscriber = getNotificationService().getSubscriberService().getSubscriberByName(user.getUsername());
 					if (subscriber == null) {
@@ -1045,10 +1047,13 @@ public class XDAT {
 	}
 
     public static void sendJmsRequest(final JmsTemplate jmsTemplate, final Object request) {
-        final String      taskId      = StringUtils.uncapitalize(ClassUtils.getUserClass(request).getSimpleName());
-        final Destination destination = XDAT.getContextService().getBeanSafely(taskId, Destination.class, () -> XDAT.getContextService().getBeanSafely(DEFAULT_REQUEST_QUEUE, Destination.class));
+		sendJmsRequest(jmsTemplate, StringUtils.uncapitalize(ClassUtils.getUserClass(request).getSimpleName()), request);
+	}
+
+    public static void sendJmsRequest(final JmsTemplate jmsTemplate, final String queueName, final Object request) {
+        final Destination destination = XDAT.getContextService().getBeanSafely(queueName, Destination.class, () -> XDAT.getContextService().getBeanSafely(DEFAULT_REQUEST_QUEUE, Destination.class));
         jmsTemplate.convertAndSend(destination, request, processor -> {
-            processor.setStringProperty("taskId", taskId.endsWith("Request") ? taskId : "defaultRequest");
+            processor.setStringProperty("taskId", StringUtils.equals(((ActiveMQQueue) destination).getQueueName(), DEFAULT_REQUEST_QUEUE) ? "defaultRequest" : queueName);
             return processor;
         });
     }
