@@ -25,7 +25,6 @@ public interface RoleServiceI {
      * @return Returns true if the user has the specified role, false otherwise.
      */
     boolean checkRole(final UserI user, final String role);
-
     /**
      * Adds the specified role to the user.
      *

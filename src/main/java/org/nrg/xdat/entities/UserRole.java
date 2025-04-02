@@ -26,6 +26,8 @@ import java.util.Objects;
 public class UserRole extends AbstractHibernateEntity {
     public static String ROLE_NON_EXPIRING  = "non_expiring";
     public static String ROLE_ADMINISTRATOR = "Administrator";
+    public static String ROLE_PRIVILEGED = "Privileged";
+
 
     @SuppressWarnings("unused")
     public UserRole() {
