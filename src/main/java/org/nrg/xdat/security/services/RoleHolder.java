@@ -100,7 +100,7 @@ public class RoleHolder {
     /**
      * Checks whether the specified user is assigned the Privileged role.
      *
-     * @param user The user you want to check for the privielegd role.
+     * @param user The user you want to check for the privileged role.
      *
      * @return Returns true if the user has the privileged role, false otherwise.
      */
