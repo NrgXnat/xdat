@@ -653,6 +653,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "false")
+    public boolean getUiNewUserRequireCaptcha() {
+        return getBooleanValue("uiNewUserRequireCaptcha");
+    }
+
+    public void setUiNewUserRequireCaptcha(final boolean uiNewUserRequireCaptcha) {
+        try {
+            setBooleanValue(uiNewUserRequireCaptcha, "uiNewUserRequireCaptcha");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiNewUserRequireCaptcha': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "blacklist")
     public String getSitewideSeriesImportFilterMode() {
         return getValue("sitewideSeriesImportFilterMode");
