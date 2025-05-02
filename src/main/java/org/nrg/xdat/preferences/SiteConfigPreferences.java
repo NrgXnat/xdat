@@ -640,14 +640,14 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
-    @NrgPreference(defaultValue = "false")
-    public boolean getEnableProjectsSeriesImportFilter() {
-        return getBooleanValue("enableProjectsSeriesImportFilter");
+    @NrgPreference(defaultValue = "")
+    public String getEnableProjectsSeriesImportFilter() {
+        return getValue("enableProjectsSeriesImportFilter");
     }
 
-    public void setEnableProjectsSeriesImportFilter(final boolean enableProjectsSeriesImportFilter) {
+    public void setEnableProjectsSeriesImportFilter(final String enableProjectsSeriesImportFilter) {
         try {
-            setBooleanValue(enableProjectsSeriesImportFilter, "enableProjectsSeriesImportFilter");
+            set(enableProjectsSeriesImportFilter, "enableProjectsSeriesImportFilter");
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'enableProjectsSeriesImportFilter': something is very wrong here.", e);
         }
