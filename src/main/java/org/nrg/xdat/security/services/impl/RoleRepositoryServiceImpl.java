@@ -26,7 +26,7 @@ public class RoleRepositoryServiceImpl implements RoleRepositoryServiceI {
 	private static final String DESC="description";
 	private static final String KEY="key";
 	private static final String WARNING="warning";
-	private static final String[] PROP_OBJECT_FIELDS = new String[]{NAME,DESC,KEY,WARNING};
+	private static final String[] PROP_OBJECT_FIELDS = new String[]{NAME, DESC, KEY, WARNING};
 	private static final String PROP_OBJECT_IDENTIFIER = "org.nrg.Role";
 	
 	public static Collection<RoleDefinitionI> allRoles=null;
@@ -45,6 +45,7 @@ public class RoleRepositoryServiceImpl implements RoleRepositoryServiceI {
 			//org.nrg.Role.Role1.key=Role1
 			//org.nrg.Role.Role1.name=Role One
 			//org.nrg.Role.Role1.description=A sample Role that does something.
+
 			
 			allRoles=new TreeSet<>(new Comparator<RoleDefinitionI>(){
                 @Override
@@ -67,7 +68,6 @@ public class RoleRepositoryServiceImpl implements RoleRepositoryServiceI {
 						def.setName(role.get(NAME).toString());
 						def.setDescription(role.get(DESC).toString());
 						def.setWarning(role.get(WARNING).toString());
-						
 						allRoles.add(def);
 					}
 				}
@@ -81,12 +81,12 @@ public class RoleRepositoryServiceImpl implements RoleRepositoryServiceI {
 		return allRoles;
 	}
 	
-	public static class POJORole implements RoleDefinitionI{
+	public static class POJORole implements RoleDefinitionI {
 		private String name;
 		private String description;
 		private String key;
 		private String warning;
-		
+
 		public String getWarning() {
 			return warning;
 		}
