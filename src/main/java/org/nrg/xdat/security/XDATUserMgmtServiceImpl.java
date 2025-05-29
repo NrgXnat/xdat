@@ -49,6 +49,13 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
+
+    public static final String XFT_INITIALIZATION_DELAY = "User access attempt failed due to XFT initialization delay";
+    public static final String WAITING_FOR_XFT_INITIALIZATION = "User access attempt waiting for XFT initialization";
+    public static final String PROCEEDING_AFTER_XFT_INITIALIZATION = "User access attempt proceeding after XFT initialization";
+    private static final int waitIterations = 120;
+    private static final int waitPeriod = 10000;
+
     @Autowired
     public XDATUserMgmtServiceImpl(final NamedParameterJdbcTemplate template) {
         _template   = template;
@@ -63,7 +70,6 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public boolean exists(final String username) {
-        waitForInit();
         // If we've seen this user before and it's set as existing, return true.
         if (_userChecks.contains(username)) {
             return true;
@@ -99,6 +105,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Override
     @Nonnull
     public UserI getGuestUser() throws UserNotFoundException, UserInitException {
+        waitForInit();
         if (_guest == null) {
             loadGuest();
         }
@@ -123,6 +130,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public void invalidateGuest() {
+        waitForInit();
         try {
             loadGuest();
         } catch (UserNotFoundException | UserInitException e) {
@@ -331,7 +339,6 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private XdatUserAuthService getXdatUserAuthService() {
-        waitForInit();
         if (_userAuthService == null) {
             _userAuthService = XDAT.getXdatUserAuthService();
         }
@@ -373,28 +380,41 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
             return;
         }
 
-        while(true){
+        int i = 0;
+
+        while(i < waitIterations){
             if(XFTManager.isComplete()){
+                System.out.println(PROCEEDING_AFTER_XFT_INITIALIZATION);
                 break;
             }
 
             //wait 10s
             try {
-                Thread.sleep(10000);
+                //this intentionally goes to System.out as that is what is monitored during server startup
+                System.out.println(WAITING_FOR_XFT_INITIALIZATION);
+                Thread.sleep(waitPeriod);
             } catch (InterruptedException e) {
                 break;
                 //ignore
             }
+            i++;
+        }
+
+        if(i == waitIterations){
+            RuntimeException exception = new RuntimeException(XFT_INITIALIZATION_DELAY);
+            log.error(XFT_INITIALIZATION_DELAY,exception);
+            throw exception;
         }
     }
 
+
     private final NamedParameterJdbcTemplate _template;
     private final Set<String>                _userChecks;
+
 
     private XdatUserAuthService _userAuthService;
     private PasswordEncoder     _passwordEncoder;
     private PasswordValidator   _passwordValidator;
     private UserI               _guest;
     private Integer             _guestId;
-
 }
