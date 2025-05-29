@@ -30,6 +30,7 @@ import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.persist.PersistentWorkflowI;
 import org.nrg.xft.event.persist.PersistentWorkflowUtils;
 import org.nrg.xft.exception.InvalidPermissionException;
+import org.nrg.xft.schema.XFTManager;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.SaveItemHelper;
 import org.nrg.xft.utils.ValidationUtils.ValidationResultsI;
@@ -56,11 +57,13 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public UserI createUser() {
+        waitForInit();
         return new XDATUser();
     }
 
     @Override
     public boolean exists(final String username) {
+        waitForInit();
         // If we've seen this user before and it's set as existing, return true.
         if (_userChecks.contains(username)) {
             return true;
@@ -77,6 +80,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Nonnull
     @Override
     public UserI getUser(final String username) throws UserNotFoundException, UserInitException {
+        waitForInit();
         if (Users.isGuest(username)) {
             return getGuestUser();
         }
@@ -85,6 +89,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public UserI getUser(final Integer userId) throws UserNotFoundException, UserInitException {
+        waitForInit();
         if (Objects.equals(getGuestUserId(), userId)) {
             return _guest;
         }
@@ -101,6 +106,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private synchronized void loadGuest() throws UserNotFoundException, UserInitException {
+        waitForInit();
         try {
             final XdatUser user = XdatUser.getXdatUsersByLogin(Users.DEFAULT_GUEST_USERNAME, null, false);
             if (user == null) {
@@ -126,12 +132,14 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public List<UserI> getUsers() {
+        waitForInit();
         return convertXdatUsers(XdatUser.getAllXdatUsers(null, false));
     }
 
     @Override
     @Nonnull
     public List<UserI> getUsersByEmail(String email) {
+        waitForInit();
         return convertXdatUsers(XdatUser.getXdatUsersByField("xdat:user.email", email, null, true));
     }
 
@@ -142,6 +150,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public UserI createUser(final Map<String, ?> properties) throws UserFieldMappingException {
+        waitForInit();
         try {
             return new XDATUser(new PopulateItem(properties, null, org.nrg.xft.XFT.PREFIX + ":user", true).getItem());
         } catch (Exception e) {
@@ -322,6 +331,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private XdatUserAuthService getXdatUserAuthService() {
+        waitForInit();
         if (_userAuthService == null) {
             _userAuthService = XDAT.getXdatUserAuthService();
         }
@@ -355,6 +365,26 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
             return user == null ? Optional.empty() : Optional.of(new XDATUser(user.getItem()));
         } catch (UserInitException e) {
             return Optional.empty();
+        }
+    }
+
+    private static void waitForInit() {
+        if(XFTManager.isComplete()) {
+            return;
+        }
+
+        while(true){
+            if(XFTManager.isComplete()){
+                break;
+            }
+
+            //wait 10s
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                break;
+                //ignore
+            }
         }
     }
 
