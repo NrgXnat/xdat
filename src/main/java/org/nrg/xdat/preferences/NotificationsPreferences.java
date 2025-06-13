@@ -822,6 +822,20 @@ public class NotificationsPreferences extends EventTriggeringAbstractPreferenceB
         }
     }
 
+    @NrgPreference(defaultValue = "false")
+    public boolean getSuppressJMSFailureNotifications() {
+        return getBooleanValue("suppressJMSFailureNotifications");
+    }
+
+    public void setSuppressJMSFailureNotifications(final boolean suppressJMSFailureNotifications) {
+        try {
+            setBooleanValue(suppressJMSFailureNotifications, "suppressJMSFailureNotifications");
+        } catch (InvalidPreferenceName invalidPreferenceName) {
+            _log.error("Invalid preference name 'suppressJMSFailureNotifications': something is very wrong here.", invalidPreferenceName);
+        }
+    }
+
+
     @NrgPreference(defaultValue = "true")
     public boolean getCopyAdminOnNotifications() {
         return getBooleanValue("copyAdminOnNotifications");

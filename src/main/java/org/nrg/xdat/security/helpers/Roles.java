@@ -56,6 +56,11 @@ public class Roles {
         return getRoleService().isSiteAdmin(user);
     }
 
+    public static boolean isPrivilegedUser(UserI user) {
+        return getRoleService().isPrivilegedUser(user);
+    }
+
+
     public static boolean isSiteAdmin(final String username) {
         return getRoleService().isSiteAdmin(username);
     }

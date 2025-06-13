@@ -12,7 +12,6 @@ package org.nrg.xdat.preferences;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import javax.validation.constraints.NotNull;
 import org.nrg.framework.annotations.XnatMixIn;
 import org.nrg.framework.beans.ProxiedBeanMixIn;
 import org.nrg.framework.configuration.ConfigPaths;
@@ -37,6 +36,7 @@ import org.nrg.xdat.services.XdatUserAuthService;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.validation.constraints.NotNull;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -637,6 +637,32 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
             setBooleanValue(enableSitewideSeriesImportFilter, "enableSitewideSeriesImportFilter");
         } catch (InvalidPreferenceName e) {
             log.error("Invalid preference name 'enableSitewideSeriesImportFilter': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "")
+    public String getEnableProjectsSeriesImportFilter() {
+        return getValue("enableProjectsSeriesImportFilter");
+    }
+
+    public void setEnableProjectsSeriesImportFilter(final String enableProjectsSeriesImportFilter) {
+        try {
+            set(enableProjectsSeriesImportFilter, "enableProjectsSeriesImportFilter");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'enableProjectsSeriesImportFilter': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "false")
+    public boolean getUiNewUserRequireCaptcha() {
+        return getBooleanValue("uiNewUserRequireCaptcha");
+    }
+
+    public void setUiNewUserRequireCaptcha(final boolean uiNewUserRequireCaptcha) {
+        try {
+            setBooleanValue(uiNewUserRequireCaptcha, "uiNewUserRequireCaptcha");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiNewUserRequireCaptcha': something is very wrong here.", e);
         }
     }
 

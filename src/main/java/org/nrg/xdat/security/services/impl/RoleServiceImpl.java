@@ -41,6 +41,7 @@ public class RoleServiceImpl implements RoleServiceI {
         return hasUsernameAndRole(user.getUsername(), role);
     }
 
+
     /**
      * {@inheritDoc}
      */
@@ -85,9 +86,27 @@ public class RoleServiceImpl implements RoleServiceI {
      * {@inheritDoc}
      */
     @Override
+    public boolean isPrivilegedUser(final UserI user) {
+        return isPrivilegedUser(user.getUsername());
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public boolean isSiteAdmin(final String username) {
         return hasUsernameAndRole(username, UserRole.ROLE_ADMINISTRATOR);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isPrivilegedUser(final String username) {
+        return hasUsernameAndRole(username, UserRole.ROLE_PRIVILEGED);
+    }
+
 
     /**
      * {@inheritDoc}
@@ -109,6 +128,7 @@ public class RoleServiceImpl implements RoleServiceI {
         return _service.exists("username", username, "role", role) || _template.queryForObject(QUERY_USER_HAS_ROLE, new MapSqlParameterSource("username", username).addValue("role", role), Boolean.class);
     }
 
+
     private static final String QUERY_ROLES_FOR_USER = "SELECT " +
                                                        "  xrt.role_name " +
                                                        "FROM xdat_user u " +
@@ -117,6 +137,8 @@ public class RoleServiceImpl implements RoleServiceI {
                                                        "WHERE " +
                                                        "  xrt.role_name IS NOT NULL AND " +
                                                        "  u.login = :username";
+
+
     private static final String QUERY_USERS_FOR_ROLE = "SELECT " +
                                                        "    u.login " +
                                                        "FROM " +

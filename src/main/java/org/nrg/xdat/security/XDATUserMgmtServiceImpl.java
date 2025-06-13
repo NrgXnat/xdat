@@ -30,6 +30,7 @@ import org.nrg.xft.event.EventMetaI;
 import org.nrg.xft.event.persist.PersistentWorkflowI;
 import org.nrg.xft.event.persist.PersistentWorkflowUtils;
 import org.nrg.xft.exception.InvalidPermissionException;
+import org.nrg.xft.schema.XFTManager;
 import org.nrg.xft.security.UserI;
 import org.nrg.xft.utils.SaveItemHelper;
 import org.nrg.xft.utils.ValidationUtils.ValidationResultsI;
@@ -48,6 +49,13 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
+
+    public static final String XFT_INITIALIZATION_DELAY = "User access attempt failed due to XFT initialization delay";
+    public static final String WAITING_FOR_XFT_INITIALIZATION = "User access attempt waiting for XFT initialization";
+    public static final String PROCEEDING_AFTER_XFT_INITIALIZATION = "User access attempt proceeding after XFT initialization";
+    private static final int waitIterations = 120;
+    private static final int waitPeriod = 10000;
+
     @Autowired
     public XDATUserMgmtServiceImpl(final NamedParameterJdbcTemplate template) {
         _template   = template;
@@ -56,6 +64,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public UserI createUser() {
+        waitForInit();
         return new XDATUser();
     }
 
@@ -77,6 +86,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Nonnull
     @Override
     public UserI getUser(final String username) throws UserNotFoundException, UserInitException {
+        waitForInit();
         if (Users.isGuest(username)) {
             return getGuestUser();
         }
@@ -85,6 +95,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public UserI getUser(final Integer userId) throws UserNotFoundException, UserInitException {
+        waitForInit();
         if (Objects.equals(getGuestUserId(), userId)) {
             return _guest;
         }
@@ -94,6 +105,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     @Override
     @Nonnull
     public UserI getGuestUser() throws UserNotFoundException, UserInitException {
+        waitForInit();
         if (_guest == null) {
             loadGuest();
         }
@@ -101,6 +113,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private synchronized void loadGuest() throws UserNotFoundException, UserInitException {
+        waitForInit();
         try {
             final XdatUser user = XdatUser.getXdatUsersByLogin(Users.DEFAULT_GUEST_USERNAME, null, false);
             if (user == null) {
@@ -117,6 +130,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public void invalidateGuest() {
+        waitForInit();
         try {
             loadGuest();
         } catch (UserNotFoundException | UserInitException e) {
@@ -126,12 +140,14 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public List<UserI> getUsers() {
+        waitForInit();
         return convertXdatUsers(XdatUser.getAllXdatUsers(null, false));
     }
 
     @Override
     @Nonnull
     public List<UserI> getUsersByEmail(String email) {
+        waitForInit();
         return convertXdatUsers(XdatUser.getXdatUsersByField("xdat:user.email", email, null, true));
     }
 
@@ -142,6 +158,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public UserI createUser(final Map<String, ?> properties) throws UserFieldMappingException {
+        waitForInit();
         try {
             return new XDATUser(new PopulateItem(properties, null, org.nrg.xft.XFT.PREFIX + ":user", true).getItem());
         } catch (Exception e) {
@@ -358,13 +375,46 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
         }
     }
 
+    private static void waitForInit() {
+        if(XFTManager.isComplete()) {
+            return;
+        }
+
+        int i = 0;
+
+        while(i < waitIterations){
+            if(XFTManager.isComplete()){
+                System.out.println(PROCEEDING_AFTER_XFT_INITIALIZATION);
+                break;
+            }
+
+            //wait 10s
+            try {
+                //this intentionally goes to System.out as that is what is monitored during server startup
+                System.out.println(WAITING_FOR_XFT_INITIALIZATION);
+                Thread.sleep(waitPeriod);
+            } catch (InterruptedException e) {
+                break;
+                //ignore
+            }
+            i++;
+        }
+
+        if(i == waitIterations){
+            RuntimeException exception = new RuntimeException(XFT_INITIALIZATION_DELAY);
+            log.error(XFT_INITIALIZATION_DELAY,exception);
+            throw exception;
+        }
+    }
+
+
     private final NamedParameterJdbcTemplate _template;
     private final Set<String>                _userChecks;
+
 
     private XdatUserAuthService _userAuthService;
     private PasswordEncoder     _passwordEncoder;
     private PasswordValidator   _passwordValidator;
     private UserI               _guest;
     private Integer             _guestId;
-
 }
