@@ -2195,6 +2195,58 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "10")
+    public int getDefaultJmsListenerMinConcurrency() {
+        return getIntegerValue("defaultJmsListenerMinConcurrency");
+    }
+
+    public void setDefaultJmsListenerMinConcurrency(final int defaultJmsListenerMinConcurrency) {
+        try {
+            setIntegerValue(defaultJmsListenerMinConcurrency, "defaultJmsListenerMinConcurrency");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'defaultJmsListenerMinConcurrency': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "40")
+    public int getDefaultJmsListenerMaxConcurrency() {
+        return getIntegerValue("defaultJmsListenerMaxConcurrency");
+    }
+
+    public void setDefaultJmsListenerMaxConcurrency(final int defaultJmsListenerMaxConcurrency) {
+        try {
+            setIntegerValue(defaultJmsListenerMaxConcurrency, "defaultJmsListenerMaxConcurrency");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'defaultJmsListenerMaxConcurrency': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "10")
+    public int getPrearchiveOperationJmsListenerMinConcurrency() {
+        return getIntegerValue("prearchiveOperationJmsListenerMinConcurrency");
+    }
+
+    public void setPrearchiveOperationJmsListenerMinConcurrency(final int prearchiveOperationJmsListenerMinConcurrency) {
+        try {
+            setIntegerValue(prearchiveOperationJmsListenerMinConcurrency, "prearchiveOperationJmsListenerMinConcurrency");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'prearchiveOperationJmsListenerMinConcurrency': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "40")
+    public int getPrearchiveOperationJmsListenerMaxConcurrency() {
+        return getIntegerValue("prearchiveOperationJmsListenerMaxConcurrency");
+    }
+
+    public void setPrearchiveOperationJmsListenerMaxConcurrency(final int prearchiveOperationJmsListenerMaxConcurrency) {
+        try {
+            setIntegerValue(prearchiveOperationJmsListenerMaxConcurrency, "prearchiveOperationJmsListenerMaxConcurrency");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'prearchiveOperationJmsListenerMaxConcurrency': something is very wrong here.", e);
+        }
+    }
+
     public boolean isComplete() {
         return getMissingInitSettings().isEmpty();
     }
