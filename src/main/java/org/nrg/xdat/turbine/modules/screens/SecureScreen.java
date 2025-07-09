@@ -152,7 +152,7 @@ public abstract class SecureScreen extends VelocitySecureScreen {
                 UserHelper.setGuestUserHelper(data);
             }
 
-            final ThemeConfig themeConfig = themeService.getTheme();
+          /*  final ThemeConfig themeConfig = themeService.getTheme();
             if (themeConfig != null) {
                 context.put("theme", themeConfig.getName());
                 final String themedStyle = themeService.getThemePage("theme", "style");
@@ -163,7 +163,7 @@ public abstract class SecureScreen extends VelocitySecureScreen {
                 if (StringUtils.isNotBlank(themedScript)) {
                     context.put("themedScript", themedScript);
                 }
-            }
+            } */
 
             context.put("XNAT_CSRF", data.getSession().getAttribute("XNAT_CSRF"));
             preserveVariables(data, context);
@@ -557,8 +557,7 @@ public abstract class SecureScreen extends VelocitySecureScreen {
     }
 
     private void attemptToPreventBrowserCachingOfHTML(ServletResponse resp) {
-        if (resp != null && resp instanceof HttpServletResponse) {
-            HttpServletResponse response = (HttpServletResponse) resp;
+        if (resp != null && resp instanceof HttpServletResponse response) {
             response.setHeader("Expires", "Tue, 03 Jul 2001 06:00:00 GMT");
             response.setHeader("Last-Modified", new Date().toString());
             response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0");

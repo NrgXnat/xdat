@@ -808,14 +808,16 @@ public class PoolDBUtils {
 					}
                     CUSTOM_SEARCH_LOG_EXISTS=true;
                 }else{
-                    query = "CREATE TABLE xs_custom_searches"+
-                    "\n("+
-                    "\n  id serial,"+
-                    "\n  create_date timestamp DEFAULT now(),"+
-                    "\n  username VARCHAR(255),"+
-                    "\n  search_xml text,"+
-					"\n  random_id_string VARCHAR(255)"+
-                    "\n);";
+                    query = """
+                    CREATE TABLE xs_custom_searches
+                    (
+                      id serial,
+                      create_date timestamp DEFAULT now(),
+                      username VARCHAR(255),
+                      search_xml text,
+                      random_id_string VARCHAR(255)
+                    );\
+                    """;
 
                     PoolDBUtils.ExecuteNonSelectQuery(query, dbName, login);
 
@@ -1155,14 +1157,16 @@ public class PoolDBUtils {
 	private static final Pattern CANNOT_DROP_MESSAGE        = Pattern.compile("^.*cannot\\s+drop\\s+(table|column)(?s).*because other objects depend on it.*$");
 	private static final String  QUERY_ITEM_CACHE_EXISTS    = "SELECT EXISTS(SELECT relname FROM pg_catalog.pg_class WHERE relname = LOWER('xs_item_cache')) AS cache_exists";
 	private static final String  QUERY_ITEM_CACHE_HAS_ID    = "SELECT EXISTS(SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'xs_item_cache' AND column_name = 'id') AS cache_has_id";
-	private static final String  QUERY_CREATE_ITEM_CACHE    = "CREATE TABLE xs_item_cache" +
-															  "\n(" +
-															  "\n  id BIGSERIAL PRIMARY KEY," +
-															  "\n  elementName VARCHAR(255) NOT NULL," +
-															  "\n  ids VARCHAR(255) NOT NULL," +
-															  "\n  create_date timestamp DEFAULT now()," +
-															  "\n  contents TEXT" +
-															  "\n);";
+	private static final String  QUERY_CREATE_ITEM_CACHE    = """
+                                                              CREATE TABLE xs_item_cache
+                                                              (
+                                                                id BIGSERIAL PRIMARY KEY,
+                                                                elementName VARCHAR(255) NOT NULL,
+                                                                ids VARCHAR(255) NOT NULL,
+                                                                create_date timestamp DEFAULT now(),
+                                                                contents TEXT
+                                                              );\
+                                                              """;
 
 	private static Float VERSION = null;
 

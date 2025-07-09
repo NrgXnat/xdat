@@ -1032,8 +1032,7 @@ public class ElementSecurity extends ItemWrapper {
                         while (values.hasNext()) {
                             Object o = values.next();
 
-                            if (o instanceof XFTItem) {
-                                XFTItem sub = (XFTItem) o;
+                            if (o instanceof XFTItem sub) {
                                 if (sub.hasProperties()) {
                                     o = sub.getPK();
 
@@ -1204,7 +1203,7 @@ public class ElementSecurity extends ItemWrapper {
             return "";
         }
         if (primarySecurityFields.size() == 1) {
-            return primarySecurityFields.get(0);
+            return primarySecurityFields.getFirst();
         }
         return StringUtils.join(primarySecurityFields, " ");
     }

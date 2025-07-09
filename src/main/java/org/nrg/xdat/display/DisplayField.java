@@ -394,7 +394,7 @@ public class DisplayField implements Identifier, SequentialObject {
      * @return The primary schema field associated with ths display field.
      */
     public String getPrimarySchemaField() {
-        DisplayFieldElement dfe = this.getElements().get(0);
+        DisplayFieldElement dfe = this.getElements().getFirst();
 
         if (dfe.getSchemaElementName().equalsIgnoreCase("")) {
             return "VIEW_" + this.getParentDisplay().getElementName() + "." + dfe.getViewName() + "." + dfe.getViewColumn();
@@ -614,7 +614,7 @@ public class DisplayField implements Identifier, SequentialObject {
     @JsonIgnore
     public List<String> getEnumeration(String login) {
         if (this.elements.size() == 1) {
-            DisplayFieldElement dfe = elements.get(0);
+            DisplayFieldElement dfe = elements.getFirst();
             try {
                 SchemaField sf = dfe.getSchemaField();
                 //noinspection unchecked
@@ -704,7 +704,7 @@ public class DisplayField implements Identifier, SequentialObject {
 
     private String deriveType() {
         if (this.elements.size() == 1) {
-            DisplayFieldElement dfe = elements.get(0);
+            DisplayFieldElement dfe = elements.getFirst();
             try {
                 return dfe.getFieldType();
             } catch (Exception ignored) {

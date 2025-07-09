@@ -23,7 +23,7 @@ public class XMLValidator {
         final ValidationHandler handler = XDAT.getSerializerService().validateSchema(documentUrl, XFT.GetAllSchemaLocations(null));
         if (!handler.assertValid()) {
             log.error("{} errors occurred while processing the XML document loaded from URI {}", handler.getErrors().size(), documentUrl);
-            throw handler.getErrors().get(0);
+            throw handler.getErrors().getFirst();
         }
     }
 
@@ -40,7 +40,7 @@ public class XMLValidator {
         final ValidationHandler handler = XDAT.getSerializerService().validateString(xml, XFT.GetAllSchemaLocations(null));
         if (!handler.assertValid()) {
             log.error("{} errors occurred while processing the XML document:\n{}", handler.getErrors().size(), xml);
-            throw handler.getErrors().get(0);
+            throw handler.getErrors().getFirst();
         }
     }
 }

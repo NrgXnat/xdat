@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import javax.servlet.ServletContext;
 import java.io.*;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -36,7 +35,7 @@ public class ThemeServiceImpl implements ThemeService {
     @Autowired
     public ThemeServiceImpl(final SerializerService serializer, final ServletContext context) {
         _serializer = serializer;
-        _themesPath = Paths.get(context.getRealPath("/"), WEB_RELATIVE_THEME_PATH);
+        _themesPath = Path.of(context.getRealPath("/"), WEB_RELATIVE_THEME_PATH);
         _themeFile = _themesPath.resolve("theme.json").toFile();
 
         final File checkThemesPath = _themesPath.toFile();
@@ -139,10 +138,12 @@ public class ThemeServiceImpl implements ThemeService {
             useTypeSeparator = true;
         }
         for (String ext : extensions) {
-            File themePageFile = (useTypeSeparator ? Paths.get(theme.getPath(), type + "s", pageName + "." + ext) : Paths.get(theme.getPath(), pageName + "." + ext)).toFile();
-            if(themePageFile.exists()) {
-                pagePath = safeJoin("/" + WEB_RELATIVE_THEME_PATH, theme.getName(), type + "s", pageName + "." + ext);
-                break;
+            if (theme.getPath() != null) {
+                File themePageFile = (useTypeSeparator ? Path.of(theme.getPath(), type + "s", pageName + "." + ext) : Path.of(theme.getPath(), pageName + "." + ext)).toFile();
+                if(themePageFile.exists()) {
+                    pagePath = safeJoin("/" + WEB_RELATIVE_THEME_PATH, theme.getName(), type + "s", pageName + "." + ext);
+                    break;
+                }
             }
         }
         return pagePath;

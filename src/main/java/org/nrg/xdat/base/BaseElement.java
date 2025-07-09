@@ -76,9 +76,9 @@ public abstract class BaseElement extends ItemWrapper implements ItemI, Serializ
         {
             setItem(i);
         }else{
-            if (i instanceof ItemWrapper)
+            if (i instanceof ItemWrapper wrapper)
             {
-                setItem(((ItemWrapper)i).getItem());
+                setItem(wrapper.getItem());
             }
         }
 	}
