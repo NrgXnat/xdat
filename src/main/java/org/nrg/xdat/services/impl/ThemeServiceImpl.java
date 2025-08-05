@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import javax.servlet.ServletContext;
 import java.io.*;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -138,12 +139,12 @@ public class ThemeServiceImpl implements ThemeService {
             useTypeSeparator = true;
         }
         for (String ext : extensions) {
-            if (theme.getPath() != null) {
-                File themePageFile = (useTypeSeparator ? Path.of(theme.getPath(), type + "s", pageName + "." + ext) : Path.of(theme.getPath(), pageName + "." + ext)).toFile();
-                if(themePageFile.exists()) {
-                    pagePath = safeJoin("/" + WEB_RELATIVE_THEME_PATH, theme.getName(), type + "s", pageName + "." + ext);
-                    break;
-                }
+            String themePath = theme.getPath() == null ?  "null": theme.getPath();
+            String themeName = theme.getName() == null ?  "null": theme.getName();
+            File themePageFile = (useTypeSeparator ? Paths.get(themePath, type + "s", pageName + "." + ext) : Paths.get(themePath, pageName + "." + ext)).toFile();
+            if(themePageFile.exists()) {
+                pagePath = safeJoin("/" + WEB_RELATIVE_THEME_PATH, themeName, type + "s", pageName + "." + ext);
+                break;
             }
         }
         return pagePath;
