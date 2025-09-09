@@ -22,6 +22,9 @@ public class XdatUserAuthDAO extends AbstractHibernateDAO<XdatUserAuth> {
     }
 
     public boolean hasUserByNameAndAuth(final String user, final String authMethod, final String authMethodId) {
+        if (StringUtils.isBlank(user)) {
+            throw new IllegalArgumentException("A username must be provided.");
+        }
         final Query<Boolean> query = createQuery(StringUtils.isBlank(authMethodId) ? QUERY_HAS_USER_AND_AUTH : QUERY_HAS_USER_AND_AUTH_AND_ID, Boolean.class)
                 .setParameter("authUser", user)
                 .setParameter("authMethod", authMethod);
@@ -32,6 +35,9 @@ public class XdatUserAuthDAO extends AbstractHibernateDAO<XdatUserAuth> {
     }
 
     public String getUsernameByNameAndAuth(final String user, final String authMethod, final String authMethodId) {
+        if (StringUtils.isBlank(user)) {
+            throw new IllegalArgumentException("A username must be provided.");
+        }
         return createQuery(QUERY_GET_USERNAME_BY_USER_AND_AUTH_AND_ID, String.class).setParameter("authUser", user)
                                                                                     .setParameter("authMethod", authMethod)
                                                                                     .setParameter("authMethodId", authMethodId)
