@@ -2245,6 +2245,32 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "false")
+    public boolean getAllowExternalDicomQueries() {
+        return getBooleanValue("allowExternalDicomQueries");
+    }
+
+    public void setAllowExternalDicomQueries(final boolean allowExternalDicomQueries) {
+        try {
+            setBooleanValue(allowExternalDicomQueries, "allowExternalDicomQueries");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'allowExternalDicomQueries': something is very wrong here.", e);
+        }
+    }
+
+    @NrgPreference(defaultValue = "false")
+    public boolean getEnableSitewideDicomQueries() {
+        return getBooleanValue("enableSitewideDicomQueries");
+    }
+
+    public void setEnableSitewideDicomQueries(final boolean enableSitewideDicomQueries) {
+        try {
+            setBooleanValue(enableSitewideDicomQueries, "enableSitewideDicomQueries");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'enableSitewideDicomQueries': something is very wrong here.", e);
+        }
+    }
+
     public boolean isComplete() {
         return getMissingInitSettings().isEmpty();
     }
