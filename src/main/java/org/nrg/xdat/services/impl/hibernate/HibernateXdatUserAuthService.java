@@ -10,6 +10,7 @@
 package org.nrg.xdat.services.impl.hibernate;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import javax.annotation.Nullable;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
@@ -42,11 +43,6 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
     @Autowired
     public void setSiteConfigPreferences(final SiteConfigPreferences preferences) {
         _preferences = preferences;
-    }
-
-    @Autowired
-    public void setXdatUserAuthDAO(final XdatUserAuthDAO dao) {
-        _dao = dao;
     }
 
     @Autowired
@@ -94,7 +90,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
     public List<XdatUserAuth> getUsersByName(String user) {
         final XdatUserAuth example = new XdatUserAuth();
         example.setAuthUser(user);
-        return _dao.findByExample(example, EXCLUSION_PROPERTIES_USERNAME);
+        return getDao().findByExample(example, EXCLUSION_PROPERTIES_USERNAME);
     }
 
     @Override
@@ -102,7 +98,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
     public List<XdatUserAuth> getUsersByXdatUsername(String xdatUser) {
         final XdatUserAuth example = new XdatUserAuth();
         example.setXdatUsername(xdatUser);
-        return _dao.findByExample(example, EXCLUSION_PROPERTIES_XDAT_USER);
+        return getDao().findByExample(example, EXCLUSION_PROPERTIES_XDAT_USER);
     }
 
     @Override
@@ -166,8 +162,14 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
     @Override
     @Transactional
     public UserI getUserDetailsByNameAndAuth(String username, String auth, String id, String email, String lastName, String firstName) {
-        List<UserI> users = loadUsersByUsernameAndAuth(username, auth, id);
-        return getUserDetailsForUserList(users, username, auth, id, email, lastName, firstName);
+        if (StringUtils.isBlank(username)) {
+            throw new IllegalArgumentException("A username must be provided.");
+        }
+        final UserI user = getUserDetailsForUserList(loadUsersByUsernameAndAuth(username, auth, id), username, auth, id, email, lastName, firstName);
+        if (user == null || !StringUtils.equals(username, user.getUsername())) {
+            throw new UsernameNotFoundException("No matching user found for username '" + username + "' with auth method " + auth + " provider " + id);
+        }
+        return user;
     }
 
     @Override
@@ -176,7 +178,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
         final List<UserI> users = loadUsersByUsernameAndMostRecentSuccessfulLogin(username);
         final String      auth;
         final String      id;
-        if (users.size() > 0 && users.get(0) != null) {
+        if (!CollectionUtils.isEmpty(users) && users.get(0) != null) {
             auth = users.get(0).getAuthorization().getAuthMethod();
             id = users.get(0).getAuthorization().getAuthMethodId();
         } else {
@@ -184,11 +186,6 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
             id = null;
         }
         return getUserDetailsForUserList(users, username, auth, id, null, null, null);
-    }
-
-    @Override
-    protected XdatUserAuthDAO getDao() {
-        return _dao;
     }
 
     protected UserI getUserDetails(final String username, final String authMethod, final String authMethodId) {
@@ -201,7 +198,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
             userDetails.setAuthorization(userAuth);
             return userDetails;
         } catch (Exception exception) {
-            log.error("An error occurred trying to retrieve the user auth entry for user " + username + " via auth method " + authMethod + " " + authMethodId, exception);
+            log.error("An error occurred trying to retrieve the user auth entry for user {} via auth method {} {}", username, authMethod, authMethodId, exception);
             return null;
         }
     }
@@ -220,12 +217,15 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
 
     @Nullable
     private XdatUserAuth getXdatUserAuthByExample(final String auth, final String id, final XdatUserAuth example, final String[] exclusionProperties) {
+        if (StringUtils.isBlank(example.getAuthUser())) {
+            throw new IllegalArgumentException("A username must be provided.");
+        }
         example.setAuthMethod(auth);
         if (!StringUtils.isBlank(id)) {
             example.setAuthMethodId(id);
         }
-        final List<XdatUserAuth> auths = _dao.findByExample(example, exclusionProperties);
-        return auths != null && auths.size() != 0 ? auths.get(0) : null;
+        final List<XdatUserAuth> auths = getDao().findByExample(example, exclusionProperties);
+        return !CollectionUtils.isEmpty(auths) ? auths.get(0) : null;
     }
 
     private List<GrantedAuthority> loadUserAuthorities(String username) {
@@ -238,7 +238,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
     }
 
     private UserI getUserDetailsForUserList(final List<UserI> users, final String username, final String authMethod, final String authMethodId, final String email, final String lastName, final String firstName) {
-        if (users.size() == 0) {
+        if (CollectionUtils.isEmpty(users)) {
             if (StringUtils.equals(XdatUserAuthService.LOCALDB, authMethod)) {
                 log.debug("Query returned no results for user '{}'", username);
                 throw new UsernameNotFoundException(SpringSecurityMessageSource.getAccessor().getMessage("JdbcDaoImpl.notFound", new Object[]{username}, "Username {0} not found"));
@@ -249,7 +249,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
         }
 
         if (new HashSet<>(loadUserAuthorities(users.get(0).getUsername())).isEmpty()) {
-            log.debug("User '" + username + "' has no authorities and will be treated as 'not found'");
+            log.debug("User '{}' has no authorities and will be treated as 'not found'", username);
             throw new UsernameNotFoundException(SpringSecurityMessageSource.getAccessor().getMessage("JdbcDaoImpl.noAuthority", new Object[]{username}, "User {0} has no GrantedAuthority"));
         }
 
@@ -258,14 +258,14 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
 
     private List<UserI> loadUsersByUsernameAndAuth(String username, String auth, String id) {
         final XdatUserAuth example = new XdatUserAuth(username, auth, StringUtils.defaultIfBlank(id, null));
-        return getUsersFromUserAuths(_dao.findByExample(example, EXCLUSION_PROPERTIES_USERNAME_AUTH_METHOD));
+        return getUsersFromUserAuths(getDao().findByExample(example, EXCLUSION_PROPERTIES_USERNAME_AUTH_METHOD));
     }
 
     private List<UserI> loadUsersByUsernameAndMostRecentSuccessfulLogin(String username) {
         final XdatUserAuth example = new XdatUserAuth();
         example.setXdatUsername(username);
         example.setLockoutTime(null);
-        return getUsersFromUserAuths(_dao.findByExample(example, EXCLUSION_PROPERTIES_XDAT_USER_LOCK));
+        return getUsersFromUserAuths(getDao().findByExample(example, EXCLUSION_PROPERTIES_XDAT_USER_LOCK));
     }
 
     private List<UserI> getUsersFromUserAuths(final List<XdatUserAuth> userAuths) {
@@ -292,6 +292,5 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
     private static final String[] EXCLUSION_PROPERTIES_XDAT_USER_LOCK       = AbstractHibernateEntity.getExcludedProperties("authUser", "verified", "authMethodId", "failedLoginAttempts", "authMethod", "lastSuccessfulLogin", "passwordUpdated");
 
     private SiteConfigPreferences _preferences;
-    private XdatUserAuthDAO       _dao;
     private JdbcTemplate          _jdbcTemplate;
 }
