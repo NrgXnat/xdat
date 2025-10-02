@@ -28,6 +28,7 @@ import org.nrg.xdat.services.impl.hibernate.HibernateXdatUserAuthService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import reactor.bus.EventBus;
 
 import java.io.IOException;
@@ -36,8 +37,8 @@ import java.io.IOException;
 @Import({OrmTestConfiguration.class, XdatTestConfig.class, NrgPrefsConfiguration.class, FrameworkConfig.class, MockUserConfig.class})
 public class TestXdatUserAuthServiceConfig {
     @Bean
-    public XdatUserAuthService xdatUserAuthService() {
-        return new HibernateXdatUserAuthService();
+    public XdatUserAuthService xdatUserAuthService(final SiteConfigPreferences preferences, final NamedParameterJdbcTemplate template) {
+        return new HibernateXdatUserAuthService(preferences, template);
     }
 
     @Bean
