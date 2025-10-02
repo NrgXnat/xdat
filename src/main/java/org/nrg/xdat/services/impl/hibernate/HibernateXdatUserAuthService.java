@@ -94,7 +94,7 @@ public class HibernateXdatUserAuthService extends AbstractHibernateEntityService
         final Date now = new Date();
         userAuth.setLastLoginAttempt(now);
         userAuth.setFailedLoginAttempts(userAuth.getFailedLoginAttempts() + 1);
-        final boolean lockedOut = userAuth.getFailedLoginAttempts() == _preferences.getMaxFailedLogins();
+        final boolean lockedOut = userAuth.getFailedLoginAttempts() >= _preferences.getMaxFailedLogins();
         if (lockedOut) {
             userAuth.setLockoutTime(now);
             log.info("Incremented the failed login count for the user {} through auth record {}, now set at {}, user is locked out until {}", userAuth.getXdatUsername(), userAuth.getAuthUser(), userAuth.getFailedLoginAttempts(), now);
