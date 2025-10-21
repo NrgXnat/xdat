@@ -57,6 +57,7 @@ public class QueryOrganizer implements QueryOrganizerI{
     protected String level;
     protected ArrayList<String> fields = new ArrayList<>();
 	  protected Map<String,String> tables = new Hashtable();
+    protected Map<String,String> subqueryAliases = new HashMap<>();
 
     protected StringBuffer joins = new StringBuffer();
     protected Map<String,CachedRootQuery> _rootQueries;

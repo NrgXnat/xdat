@@ -960,6 +960,13 @@ public class TurbineUtils {
         return default_date_format;
     }
 
+    public static String resetDateFormat() {
+        default_date_format = null;
+        synchronized (getDateFormatter()) {
+            return getDateFormatter().format(new Date());
+        }
+    }
+
     @SuppressWarnings("unused")
     public String formatDateTime(Date d) {
         synchronized (getDateTimeFormatter()) {
@@ -978,6 +985,15 @@ public class TurbineUtils {
             }
         }
         return default_date_time_format;
+    }
+
+    public static String resetDateTimeFormat() {
+        default_date_time_format = null;
+        default_local_date_time_formatter = null;
+        synchronized (getDateTimeFormatter()) {
+            getLocalDateTimeFormatter();
+            return getDateTimeFormatter().format(new Date());
+        }
     }
 
     public String formatLocalDateTime(LocalDateTime dateTime) {
@@ -1019,6 +1035,13 @@ public class TurbineUtils {
         return default_date_time_seconds_format;
     }
 
+    public static String resetDateTimeSecondsFormat() {
+        default_date_time_seconds_format = null;
+        synchronized (getDateTimeSecondsFormatter()) {
+            return getDateTimeSecondsFormatter().format(new Date());
+        }
+    }
+
     @SuppressWarnings("unused")
     public String formatTime(Date d) {
         synchronized (getTimeFormatter()) {
@@ -1037,6 +1060,13 @@ public class TurbineUtils {
             }
         }
         return default_time_format;
+    }
+
+    public static String resetTimeFormat() {
+        default_time_format = null;
+        synchronized (getTimeFormatter()) {
+            return getTimeFormatter().format(new Date());
+        }
     }
 
     public boolean resourceExists(String screen) {

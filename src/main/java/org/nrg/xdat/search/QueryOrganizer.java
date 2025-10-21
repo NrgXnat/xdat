@@ -196,7 +196,6 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                     String alias = FIELDID + "_" + XftStringUtils.cleanColumnName(VALUE);
                     VALUE = StringUtils.replace(StringUtils.replace(VALUE, "_com_", ","), "_col_", ":");
 
-
                     final StringBuilder sb = new StringBuilder();
 
                     SQLQueryField df = (SQLQueryField) ed.getDisplayField(FIELDID);
@@ -211,22 +210,31 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                         }
                     }
 
-                    sb.append(" LEFT JOIN (").append(subquery).append(") AS ");
-                    sb.append(alias);
+                    if(subqueryAliases.get(subquery)==null){
+                        final String aliasKey= "sq" + subqueryAliases.size() + Math.abs(subquery.hashCode());
 
-                    sb.append(" ON ");
-                    int counter = 0;
-                    for (SQLQueryField.QueryMappingColumn mc : df.getMappingColumns()) {
-                        if (counter++ != 0) {
-                            sb.append(" AND ");
+                        tables.put(alias, aliasKey);
+                        subqueryAliases.put(subquery,aliasKey);
+
+                        sb.append(" LEFT JOIN (").append(subquery).append(") AS ");
+                        sb.append(aliasKey);
+
+                        sb.append(" ON ");
+                        int counter = 0;
+                        for (SQLQueryField.QueryMappingColumn mc : df.getMappingColumns()) {
+                            if (counter++ != 0) {
+                                sb.append(" AND ");
+                            }
+                            addFieldToJoin(mc.getSchemaField());
+                            sb.append(this.getTableAndFieldSQL(mc.getSchemaField()));
+                            sb.append("=");
+                            sb.append(aliasKey).append(".").append(mc.getQueryField());
                         }
-                        addFieldToJoin(mc.getSchemaField());
-                        sb.append(this.getTableAndFieldSQL(mc.getSchemaField()));
-                        sb.append("=");
-                        sb.append(alias).append(".").append(mc.getQueryField());
-                    }
 
-                    joins.append(sb);
+                        joins.append(sb);
+                    }else{
+                        tables.put(alias, subqueryAliases.get(subquery));
+                    }
                 } else {
                     throw new Exception("No Such Subquery Found. " + viewName);
                 }
@@ -1341,31 +1349,34 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
         for (final Object object : getAllSubqueries()) {
             String xmlPath = (String) object;
             String elementName = XftStringUtils.GetRootElementName(xmlPath);
-            String s = xmlPath.substring(xmlPath.indexOf(".")+1);
+            String fieldPath = xmlPath.substring(xmlPath.indexOf(".")+1);
 
-            if (!selected.contains(s.toLowerCase()))
+            if (!selected.contains(fieldPath.toLowerCase()))
             {
-                selected.add(s.toLowerCase());
-                if (s.startsWith("SUBQUERYFIELD_"))
+                selected.add(fieldPath.toLowerCase());
+                if (fieldPath.startsWith("SUBQUERYFIELD_"))
                 {
-                    s = s.substring(14);
+                    fieldPath = fieldPath.substring(14);
                 }
 
-                String temp = XftStringUtils.cleanColumnName(StringUtils.replace(s, ".", "_"));
+                String temp = XftStringUtils.cleanColumnName(StringUtils.replace(fieldPath, ".", "_"));
                 if (! selected.contains(temp.toLowerCase()))
                 {
                     selected.add(temp.toLowerCase());
                     String alias = temp;
+                    if(tables.containsKey(temp)){
+                        alias = tables.get(temp);
+                    }
                     SchemaElement se = SchemaElement.GetElement(elementName);
-                    SQLQueryField df = (SQLQueryField) se.getDisplayField(s.substring(0, s.indexOf(".")));
-                    s=temp + "." + df.getSQLContent(this);
+                    SQLQueryField df = (SQLQueryField) se.getDisplayField(fieldPath.substring(0, fieldPath.indexOf(".")));
+                    fieldPath=alias + "." + df.getSQLContent(this);
                     if (se.getFullXMLName().equalsIgnoreCase(rootElementFullXMLName) || containsOptimizedJoin(SchemaElement.GetElement(rootElement.getFullXMLName()),se))
                     {
                         if (counter++==0)
                         {
-                            sb.append(s).append(" AS ").append(temp);
+                            sb.append(fieldPath).append(" AS ").append(temp);
                         }else{
-                            sb.append(", ").append(s).append(" AS ").append(temp);
+                            sb.append(", ").append(fieldPath).append(" AS ").append(temp);
                         }
                     }else{
                         alias = XftStringUtils.RegCharsAbbr(se.getSQLName()) + "_" + temp;
@@ -1377,9 +1388,9 @@ public class QueryOrganizer extends org.nrg.xft.search.QueryOrganizer implements
                         }
                     }
 
-                    fieldAliases.put(xmlPath.toLowerCase(),alias);
+                    fieldAliases.put(xmlPath.toLowerCase(),temp);
                 }else{
-                    fieldAliases.put(s.toLowerCase(),temp);
+                    fieldAliases.put(fieldPath.toLowerCase(),temp);
                 }
             }
         }

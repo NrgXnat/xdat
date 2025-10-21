@@ -9,21 +9,31 @@
 
 package org.nrg.xft.utils;
 
+import org.junit.Test;
+
 import java.text.ParseException;
 import java.util.Date;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
-
 
 public class DateUtilsTest {
 
 	@Test
+	public void testGetMsTimestamp() throws InterruptedException {
+        final String timestamp1 = DateUtils.getMsTimestamp();
+        Thread.sleep(10);
+        final String timestamp2 = DateUtils.getMsTimestamp();
+        assertThat(timestamp1).matches("^\\d{13}$").isNotEqualTo(timestamp2);
+        assertThat(timestamp2).matches("^\\d{13}$").isNotEqualTo(timestamp1);
+    }
+
+	@Test
 	public void testGreaterThan() throws ParseException {
-		
+
 		Date d1 = DateUtils.parseDateTime("2011-12-22 16:07:09.327");
 		Date d2 = DateUtils.parseDateTime("2011-12-22 16:07:10.327");
-		
+
 		if(!DateUtils.isOnOrAfter(d2,d1)){
 			fail(d1.toString() +"<"+ d2.toString());
 		}

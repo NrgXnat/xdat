@@ -193,7 +193,7 @@ public class DateUtils {
     }
 
     public static String getMsTimestamp() {
-        return Long.toString(CALENDAR.getTimeInMillis());
+        return Long.toString(System.currentTimeMillis());
     }
 
     public static Date getDateForTimestamp(final Timestamp timestamp) {
