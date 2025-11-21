@@ -16,6 +16,8 @@ import org.nrg.xft.XFTTable;
 import org.nrg.xft.db.MaterializedViewI;
 import org.nrg.xft.db.PoolDBUtils;
 import org.nrg.xft.security.UserI;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -98,7 +100,12 @@ public class MaterializedViewManager {
                 log.debug("Updated {} rows for the current view {}", updated, _currentView);
             }
             for (final String tableName : _template.queryForList(QUERY_GET_RECENT_VIEWS, EmptySqlParameterSource.INSTANCE, String.class)) {
-                _template.getJdbcOperations().execute(String.format(QUERY_DROP_TABLE, tableName));
+                try {
+                    //noinspection SqlSourceToSinkFlow
+                    _template.getJdbcOperations().execute(String.format(QUERY_DROP_TABLE, tableName));
+                } catch (BadSqlGrammarException e) {
+                    log.warn("Could not drop table {}, assuming it was previously dropped", tableName);
+                }
                 final int deleted = _template.update(QUERY_DELETE_MATERIALIZED_VIEW, new MapSqlParameterSource(PARAM_TABLE_NAME, tableName));
                 log.debug("Dropped table {} and deleted {} materialized view entries", tableName, deleted);
             }

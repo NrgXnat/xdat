@@ -8,7 +8,9 @@ import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.experimental.SuperBuilder;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -20,6 +22,7 @@ public abstract class FormFieldPojo {
 	 private String key;
 	 private String fieldName;
 	 private String type;
+	 private Map<String, Object> typeCustomizations = new HashMap();
 	 private UUID formUUID;
 	 @Singular
 	 private List<String> jsonPaths;
