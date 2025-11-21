@@ -402,18 +402,21 @@ public class XFTManager {
             logger.error("Unable to discover XSD's from classpath.", e);
         }
 
-        for(final DBBackedSchema schema: this.getDBBackedSchemaService().getAll()){
-            String name = schema.getName();
-            logger.info("DEV: Found db schema " + name);
-            if (!schemaLoaded.contains(name) && !IGNORED_SCHEMA_NAMES.contains(name)) {
-                schemaLoaded.add(name);
-                try {
-                    logger.info("DEV: Parsing db schema " + name);
-                    final List<String> dependencies = getDependentSchema(IOUtils.toInputStream(schema.getContent(), Charset.defaultCharset()));
-                    logger.info("DEV: Found dependencies " + dependencies.size());
-                    toLoad.add(new SchemaWrapper("db", schema.getPath(), name, new ByteArrayResource(IOUtils.toByteArray(IOUtils.toInputStream(schema.getContent(),Charset.defaultCharset()))), dependencies));
-                } catch (Exception e) {
-                    logger.error("An error occurred while loading db resource " + name, e);
+        final DBBackedSchemaService dbSchemaService = this.getDBBackedSchemaService();
+        if(dbSchemaService!=null) {
+            for (final DBBackedSchema schema : this.getDBBackedSchemaService().getAll()) {
+                String name = schema.getName();
+                logger.info("DEV: Found db schema " + name);
+                if (!schemaLoaded.contains(name) && !IGNORED_SCHEMA_NAMES.contains(name)) {
+                    schemaLoaded.add(name);
+                    try {
+                        logger.info("DEV: Parsing db schema " + name);
+                        final List<String> dependencies = getDependentSchema(IOUtils.toInputStream(schema.getContent(), Charset.defaultCharset()));
+                        logger.info("DEV: Found dependencies " + dependencies.size());
+                        toLoad.add(new SchemaWrapper("db", schema.getPath(), name, new ByteArrayResource(IOUtils.toByteArray(IOUtils.toInputStream(schema.getContent(), Charset.defaultCharset()))), dependencies));
+                    } catch (Exception e) {
+                        logger.error("An error occurred while loading db resource " + name, e);
+                    }
                 }
             }
         }
