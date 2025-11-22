@@ -2594,9 +2594,11 @@ public class GenericWrapperUtils {
                             	fTables.get(foreignSQLName).add(row);
                             }
                         } catch (ElementNotFoundException e1) {
-                            logger.error("", e1);
+                            if(!e1.getMessage().contains("xdat:xdat_meta_element")){
+                                //this one can be ignored.  it only shows up on initial initialization
+                                logger.error("", e1);
+                            }
                         }
-
                     }
                 }
             }
