@@ -10,7 +10,7 @@
 package org.nrg.xdat.security.services;
 
 import lombok.extern.slf4j.Slf4j;
-import org.nrg.xft.schema.XFTManager;
+import org.nrg.xdat.servlet.XDATServlet;
 import org.nrg.xft.security.UserI;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
@@ -154,7 +154,7 @@ public class RoleHolder {
      * @return A map of roles and usernames.
      */
     public Map<String, Collection<String>> getRolesAndUsers() {
-        XFTManager.waitForInit();
+        XDATServlet.waitForInit();
         return _template.queryForList(QUERY_ALL_ROLES, EmptySqlParameterSource.INSTANCE, String.class).stream().collect(Collectors.toMap(Function.identity(), this::getUsers));
     }
 

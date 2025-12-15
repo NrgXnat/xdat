@@ -91,6 +91,45 @@ public class XDATServlet extends HttpServlet {
         XDATServlet.WEBAPP_ROOT = getWebAppPath();
 
         load();
+        initd = true;
+    }
+
+    private static boolean initd=false;
+    public static final String XDAT_INITIALIZATION_DELAY = "XDAT access attempt failed due to XDAT initialization delay";
+    public static final String WAITING_FOR_XDAT_INITIALIZATION = "XDAT access attempt waiting for XDAT initialization";
+    public static final String PROCEEDING_AFTER_XDAT_INITIALIZATION = "XDAT access attempt proceeding after XDAT initialization";
+    private static final int waitIterations = 120;
+    private static final int waitPeriod = 10000;
+
+    public static void waitForInit() {
+        if(initd) {
+            return;
+        }
+
+        int i = 0;
+
+        while(i < waitIterations){
+            if(initd){
+                System.out.println(PROCEEDING_AFTER_XDAT_INITIALIZATION);
+                break;
+            }
+
+            //wait 10s
+            try {
+                //this intentionally goes to System.out as that is what is monitored during server startup
+                System.out.println(WAITING_FOR_XDAT_INITIALIZATION);
+                Thread.sleep(waitPeriod);
+            } catch (InterruptedException e) {
+                break;
+                //ignore
+            }
+            i++;
+        }
+
+        if(i == waitIterations){
+            RuntimeException exception = new RuntimeException(XDAT_INITIALIZATION_DELAY);
+            throw exception;
+        }
     }
 
     public static void load(){
