@@ -24,6 +24,7 @@ import org.nrg.xdat.security.user.exceptions.UserInitException;
 import org.nrg.xdat.security.user.exceptions.UserNotFoundException;
 import org.nrg.xdat.security.validators.PasswordValidator;
 import org.nrg.xdat.services.XdatUserAuthService;
+import org.nrg.xdat.servlet.XDATServlet;
 import org.nrg.xdat.turbine.utils.PopulateItem;
 import org.nrg.xft.event.EventDetails;
 import org.nrg.xft.event.EventMetaI;
@@ -369,7 +370,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private static void waitForInit() {
-        XFTManager.waitForInit();
+        XDATServlet.waitForInit();
     }
 
 
