@@ -466,6 +466,11 @@ public class HibernateElementDisplayService extends AbstractHibernateEntityServi
             }
 
             storedDisplay.addArc(storedArc);
+
+            ArcDefinition arcDefinition = DisplayManager.GetInstance().getArcDefinition(arc.getName());
+            if(arcDefinition!=null){
+                arcDefinition.addMember(ed.getElementName());
+            }
         }
 
         this.getDao().create(storedDisplay);
