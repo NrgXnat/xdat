@@ -117,7 +117,10 @@ public class XDATServlet extends HttpServlet {
             //wait 10s
             try {
                 //this intentionally goes to System.out as that is what is monitored during server startup
-                System.out.println(WAITING_FOR_XDAT_INITIALIZATION);
+                System.out.println("("+i+") " +WAITING_FOR_XDAT_INITIALIZATION);
+                if(i==20){
+                    log.error(WAITING_FOR_XDAT_INITIALIZATION, new Exception());
+                }
                 Thread.sleep(waitPeriod);
             } catch (InterruptedException e) {
                 break;
