@@ -370,7 +370,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     }
 
     private static void waitForInit() {
-        XDATServlet.waitForInit();
+        XFTManager.waitForInit();
     }
 
 
