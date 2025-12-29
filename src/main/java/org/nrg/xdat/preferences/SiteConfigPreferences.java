@@ -2129,6 +2129,20 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "false")
+    public boolean getUiShowRecentExptListTracerName() {
+        return getBooleanValue("uiShowRecentExptListTracerName");
+    }
+
+    public void setUiShowRecentExptListTracerName(final boolean uiShowRecentExptListTracerName) {
+        try {
+            setBooleanValue(uiShowRecentExptListTracerName, "uiShowRecentExptListTracerName");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'uiShowRecentExptListTracerName': something is very wrong here.", e);
+        }
+    }
+
+
     @NrgPreference(defaultValue = "USERNAME")
     public DisplayedUserIdentifierType getDisplayedUserIdentifierType() {
         return getEnumValue(DisplayedUserIdentifierType.class, "displayedUserIdentifierType");
