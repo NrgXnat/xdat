@@ -331,6 +331,7 @@ public abstract class BaseElement extends ItemWrapper implements ItemI, Serializ
     static{
         ALLOWED_EXTENSION_DEFAULTS.put("xnat:subjectAssessorData","XnatSubjectassessordata");
         ALLOWED_EXTENSION_DEFAULTS.put("xnat:imageAssessorData","XnatImageassessordata");
+        ALLOWED_EXTENSION_DEFAULTS.put("xnat:abstractProjectAsset","XnatAbstractprojectasset");
     };
 
 	public static ItemI GetGeneratedItem(ItemI item)
