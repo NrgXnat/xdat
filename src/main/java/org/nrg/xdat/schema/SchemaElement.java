@@ -15,6 +15,7 @@ import com.google.common.collect.Lists;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.nrg.xdat.base.BaseElement;
 import org.nrg.xdat.collections.DisplayFieldCollection;
 import org.nrg.xdat.display.*;
 import org.nrg.xdat.security.ElementSecurity;
@@ -627,6 +628,20 @@ public class SchemaElement implements SchemaElementI {
 	
 	public boolean instanceOf(String s){
 		return this.getGenericXFTElement().getExtendedXSITypes().contains(s);
+	}
+
+	Boolean isDDD = null;
+
+	public boolean isDynamicDatatype(){
+		if(isDDD==null){
+			try {
+				getCorrespondingJavaClass();
+				isDDD=false;
+			} catch (ClassNotFoundException e) {
+				isDDD=true;
+			}
+		}
+		return isDDD;
 	}
 }
 
