@@ -676,6 +676,20 @@ public class ElementDisplay extends DisplayFieldCollection {
         return null;
     }
 
+    /**
+     * Checks if this ElementDisplay represents a project asset data type.
+     * @return true if the schema element extends xnat:abstractProjectAsset, false otherwise
+     */
+    public boolean isProjectAsset() {
+        try {
+            SchemaElement se = getSchemaElement();
+            return se != null && se.instanceOf("xnat:abstractProjectAsset");
+        } catch (Exception e) {
+            logger.debug("Error checking if element is project asset: " + elementName, e);
+            return false;
+        }
+    }
+
     public void merge(ElementDisplay ed){
         if (StringUtils.isNotBlank(ed.getValueField())) {
             this.setValueField(ed.getValueField());
