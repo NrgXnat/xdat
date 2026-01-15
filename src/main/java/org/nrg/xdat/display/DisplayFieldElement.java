@@ -172,7 +172,7 @@ public class DisplayFieldElement {
                     SchemaFieldI f = SchemaElement.GetSchemaField(standardizedPath);
                     if (f.isReference()) {
                         SchemaElementI foreign = f.getReferenceElement();
-                        SchemaFieldI sf = (SchemaFieldI) foreign.getAllPrimaryKeys().get(0);
+                        SchemaFieldI sf = (SchemaFieldI) foreign.getAllPrimaryKeys().getFirst();
                         standardizedPath = standardizedPath + sf.getXMLPathString("");
                     }
                 } catch (FieldNotFoundException e) {

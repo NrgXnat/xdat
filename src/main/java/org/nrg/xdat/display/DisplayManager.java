@@ -46,7 +46,7 @@ import org.w3c.dom.NodeList;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -274,13 +274,12 @@ public class DisplayManager {
                         df.getHtmlImage().setWidth(NodeUtils.GetAttributeValue(child2, "width", ""));
                         df.getHtmlImage().setHeight(NodeUtils.GetAttributeValue(child2, "height", ""));
                     } else if (child2.getNodeName().equalsIgnoreCase("SubQuery")) {
-                        if (df instanceof SQLQueryField) {
+                        if (df instanceof SQLQueryField field) {
                             String value = child2.getFirstChild().getNodeValue();
-                            ((SQLQueryField) df).setSubQuery(value);
+                            field.setSubQuery(value);
                         }
                     } else if (child2.getNodeName().equalsIgnoreCase("MappingColumns")) {
-                        if (df instanceof SQLQueryField) {
-                            SQLQueryField sqf = (SQLQueryField) df;
+                        if (df instanceof SQLQueryField sqf) {
                             for (int l = 0; l < child2.getChildNodes().getLength(); l++) {
                                 Node child3 = child2.getChildNodes().item(l);
                                 if (child3.getNodeName().equalsIgnoreCase("MappingColumn")) {
@@ -541,7 +540,7 @@ public class DisplayManager {
                         scanner.scan();
                         String[] displayFilePaths = scanner.getIncludedFiles();
                         for (String displayFilePath : displayFilePaths) {
-                            buildPathDisplayXml.add(String.valueOf(Paths.get(location, displayFilePath)));
+                            buildPathDisplayXml.add(String.valueOf(Path.of(location, displayFilePath)));
                         }
                     } catch (Throwable e) {
                         logger.error("Unable to locate display xml files in build location.", e);
@@ -671,116 +670,126 @@ public class DisplayManager {
             }
         }
 
-        views.add("CREATE OR REPLACE FUNCTION xdat_search_create(\"varchar\",\"varchar\")" +
-                "\n  RETURNS \"varchar\" AS" +
-                "\n'" +
-                "\n    declare" +
-                "\n        search_query_name alias for $1;" +
-                "\n        search_query alias for $2;" +
-                "\n	entry xdat_searches%ROWTYPE;" +
-                "\n    begin" +
-                "\n	SELECT * INTO entry FROM xdat_searches WHERE search_name = search_query_name;" +
-                "\n" +
-                "\n	    IF FOUND THEN" +
-                "\n		RAISE NOTICE ''Search Table % exists.''," +
-                "\n		  search_query_name;" +
-                "\n		UPDATE xdat_searches SET last_access=NOW() WHERE search_name = search_query_name;" +
-                "\n	    ELSE" +
-                "\n		RAISE NOTICE ''Creating Search Table %.''," +
-                "\n		  search_query_name;" +
-                "\n		EXECUTE ''CREATE TABLE '' || search_query_name || '' AS '' || search_query;" +
-                "\n		INSERT INTO xdat_searches (search_name) VALUES (search_query_name);" +
-                "\n     EXECUTE ''GRANT ALL ON TABLE '' || search_query_name || '' TO public'';" +
-                "\n	    END IF;" +
-                "\n" +
-                "\n	PERFORM xdat_search_drop_unused();" +
-                "\n" +
-                "\n	RETURN ''DONE'';" +
-                "\n    end;" +
-                "\n'" +
-                "\n  LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION xdat_search_create("varchar","varchar")
+                  RETURNS "varchar" AS
+                '
+                    declare
+                        search_query_name alias for $1;
+                        search_query alias for $2;
+                	entry xdat_searches%ROWTYPE;
+                    begin
+                	SELECT * INTO entry FROM xdat_searches WHERE search_name = search_query_name;
+                
+                	    IF FOUND THEN
+                		RAISE NOTICE ''Search Table % exists.'',
+                		  search_query_name;
+                		UPDATE xdat_searches SET last_access=NOW() WHERE search_name = search_query_name;
+                	    ELSE
+                		RAISE NOTICE ''Creating Search Table %.'',
+                		  search_query_name;
+                		EXECUTE ''CREATE TABLE '' || search_query_name || '' AS '' || search_query;
+                		INSERT INTO xdat_searches (search_name) VALUES (search_query_name);
+                     EXECUTE ''GRANT ALL ON TABLE '' || search_query_name || '' TO public'';
+                	    END IF;
+                
+                	PERFORM xdat_search_drop_unused();
+                
+                	RETURN ''DONE'';
+                    end;
+                '
+                  LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION xdat_search_create(\"varchar\", \"varchar\", \"varchar\")" +
-                "\n  RETURNS \"varchar\" AS" +
-                "\n'" +
-                "\n    declare" +
-                "\n        search_query_name alias for $1;" +
-                "\n        search_query alias for $2;" +
-                "\n        search_owner alias for $3;" +
-                "\n	entry xdat_searches%ROWTYPE;" +
-                "\n    begin" +
-                "\n	SELECT * INTO entry FROM xdat_searches WHERE search_name = search_query_name;" +
-                "\n" +
-                "\n	    IF FOUND THEN" +
-                "\n		RAISE NOTICE ''Search Table % exists.''," +
-                "\n		  search_query_name;" +
-                "\n		UPDATE xdat_searches SET last_access=NOW() WHERE search_name = search_query_name;" +
-                "\n	    ELSE" +
-                "\n		RAISE NOTICE ''Creating Search Table %.''," +
-                "\n		  search_query_name;" +
-                "\n		EXECUTE ''CREATE TABLE '' || search_query_name || '' AS '' || search_query;" +
-                "\n		INSERT INTO xdat_searches (search_name,owner) VALUES (search_query_name,search_owner);" +
-                "\n	    END IF;" +
-                "\n" +
-                "\n	PERFORM xdat_search_drop_unused(search_owner);" +
-                "\n" +
-                "\n	RETURN ''DONE'';" +
-                "\n    end;" +
-                "\n'" +
-                "\n  LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION xdat_search_create("varchar", "varchar", "varchar")
+                  RETURNS "varchar" AS
+                '
+                    declare
+                        search_query_name alias for $1;
+                        search_query alias for $2;
+                        search_owner alias for $3;
+                	entry xdat_searches%ROWTYPE;
+                    begin
+                	SELECT * INTO entry FROM xdat_searches WHERE search_name = search_query_name;
+                
+                	    IF FOUND THEN
+                		RAISE NOTICE ''Search Table % exists.'',
+                		  search_query_name;
+                		UPDATE xdat_searches SET last_access=NOW() WHERE search_name = search_query_name;
+                	    ELSE
+                		RAISE NOTICE ''Creating Search Table %.'',
+                		  search_query_name;
+                		EXECUTE ''CREATE TABLE '' || search_query_name || '' AS '' || search_query;
+                		INSERT INTO xdat_searches (search_name,owner) VALUES (search_query_name,search_owner);
+                	    END IF;
+                
+                	PERFORM xdat_search_drop_unused(search_owner);
+                
+                	RETURN ''DONE'';
+                    end;
+                '
+                  LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION xdat_search_drop(\"varchar\")" +
-                "\n  RETURNS \"varchar\" AS" +
-                "\n'" +
-                "\n    declare" +
-                "\n        search_query_name alias for $1;" +
-                "\n    begin" +
-                "\n	EXECUTE ''DROP TABLE '' || search_query_name;" +
-                "\n	DELETE FROM xdat_searches WHERE search_name = search_query_name;" +
-                "\n	" +
-                "\n	RETURN ''DONE'';" +
-                "\n    end;" +
-                "\n'" +
-                "\n  LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION xdat_search_drop("varchar")
+                  RETURNS "varchar" AS
+                '
+                    declare
+                        search_query_name alias for $1;
+                    begin
+                	EXECUTE ''DROP TABLE '' || search_query_name;
+                	DELETE FROM xdat_searches WHERE search_name = search_query_name;
+                	
+                	RETURN ''DONE'';
+                    end;
+                '
+                  LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION xdat_search_drop_unused()" +
-                "\n  RETURNS \"varchar\" AS" +
-                "\n'" +
-                "\n    declare" +
-                "\n	entry xdat_searches%ROWTYPE;" +
-                "\n    begin" +
-                "\n	FOR entry IN SELECT * FROM xdat_searches WHERE last_access + INTERVAL ''1 hour'' / int ''2'' < NOW()" +
-                "\n	LOOP" +
-                "\n		PERFORM xdat_search_drop(entry.search_name);" +
-                "\n" +
-                "\n		RAISE NOTICE ''Dropped Expired Search Table %. (Last Access: %)''," +
-                "\n		  entry.search_name,entry.last_access;" +
-                "\n	END LOOP;" +
-                "\n" +
-                "\n	RETURN ''DONE'';" +
-                "\n    end;" +
-                "\n'" +
-                "\n  LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION xdat_search_drop_unused()
+                  RETURNS "varchar" AS
+                '
+                    declare
+                	entry xdat_searches%ROWTYPE;
+                    begin
+                	FOR entry IN SELECT * FROM xdat_searches WHERE last_access + INTERVAL ''1 hour'' / int ''2'' < NOW()
+                	LOOP
+                		PERFORM xdat_search_drop(entry.search_name);
+                
+                		RAISE NOTICE ''Dropped Expired Search Table %. (Last Access: %)'',
+                		  entry.search_name,entry.last_access;
+                	END LOOP;
+                
+                	RETURN ''DONE'';
+                    end;
+                '
+                  LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION xdat_search_drop_unused(\"varchar\")" +
-                "\n  RETURNS \"varchar\" AS" +
-                "\n'" +
-                "\n    declare" +
-                "\n	entry xdat_searches%ROWTYPE;" +
-                "\n        search_owner alias for $1;" +
-                "\n    begin" +
-                "\n	FOR entry IN SELECT * FROM xdat_searches WHERE owner=search_owner AND last_access + INTERVAL ''1 hour'' / int ''2'' < NOW()" +
-                "\n	LOOP" +
-                "\n		PERFORM xdat_search_drop(entry.search_name);" +
-                "\n" +
-                "\n		RAISE NOTICE ''Dropped Expired Search Table %. (Last Access: %)''," +
-                "\n		  entry.search_name,entry.last_access;" +
-                "\n	END LOOP;" +
-                "\n" +
-                "\n	RETURN ''DONE'';" +
-                "\n    end;" +
-                "\n'" +
-                "\n  LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION xdat_search_drop_unused("varchar")
+                  RETURNS "varchar" AS
+                '
+                    declare
+                	entry xdat_searches%ROWTYPE;
+                        search_owner alias for $1;
+                    begin
+                	FOR entry IN SELECT * FROM xdat_searches WHERE owner=search_owner AND last_access + INTERVAL ''1 hour'' / int ''2'' < NOW()
+                	LOOP
+                		PERFORM xdat_search_drop(entry.search_name);
+                
+                		RAISE NOTICE ''Dropped Expired Search Table %. (Last Access: %)'',
+                		  entry.search_name,entry.last_access;
+                	END LOOP;
+                
+                	RETURN ''DONE'';
+                    end;
+                '
+                  LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
 //		try {
 //			if(!PoolDBUtils.checkIfTypeExists("sortedstrings")){
@@ -790,46 +799,56 @@ public class DisplayManager {
 //			logger.error("",e);
 //		}
 
-        views.add("CREATE OR REPLACE FUNCTION getnextview()   RETURNS name AS " +
-                "\n' DECLARE   my_record RECORD;  viewName name; " +
-                "\nBEGIN  FOR my_record IN SELECT c.relname FROM pg_catalog.pg_class AS c LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace" +
-                "\nWHERE     c.relkind IN (''v'') AND n.nspname NOT IN (''pg_catalog'', ''pg_toast'') AND pg_catalog.pg_table_is_visible(c.oid) LIMIT 1" +
-                "\nLOOP   viewName := my_record.relname;  END LOOP;  RETURN (viewName); END; '  LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION getnextview()   RETURNS name AS\s
+                ' DECLARE   my_record RECORD;  viewName name;\s
+                BEGIN  FOR my_record IN SELECT c.relname FROM pg_catalog.pg_class AS c LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+                WHERE     c.relkind IN (''v'') AND n.nspname NOT IN (''pg_catalog'', ''pg_toast'') AND pg_catalog.pg_table_is_visible(c.oid) LIMIT 1
+                LOOP   viewName := my_record.relname;  END LOOP;  RETURN (viewName); END; '  LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION viewcount()   RETURNS int8 AS ' DECLARE   my_record RECORD;  counter int8;" +
-                "\nBEGIN  FOR my_record IN SELECT * FROM (SELECT COUNT (c.relname) AS view_count FROM pg_catalog.pg_class AS c " +
-                "\nLEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace WHERE     c.relkind IN (''v'') AND n.nspname " +
-                "\nNOT IN (''pg_catalog'', ''pg_toast'') AND pg_catalog.pg_table_is_visible(c.oid) LIMIT 1) AS COUNT_TABLE  LOOP   counter := my_record.view_count;  " +
-                "\nEND LOOP;  RETURN (counter); END; '  LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION viewcount()   RETURNS int8 AS ' DECLARE   my_record RECORD;  counter int8;
+                BEGIN  FOR my_record IN SELECT * FROM (SELECT COUNT (c.relname) AS view_count FROM pg_catalog.pg_class AS c\s
+                LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace WHERE     c.relkind IN (''v'') AND n.nspname\s
+                NOT IN (''pg_catalog'', ''pg_toast'') AND pg_catalog.pg_table_is_visible(c.oid) LIMIT 1) AS COUNT_TABLE  LOOP   counter := my_record.view_count; \s
+                END LOOP;  RETURN (counter); END; '  LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION getsortedstring(\"varchar\", int4)   RETURNS sortedstrings AS 'DECLARE  sorted_strings sortedStrings%ROWTYPE; " +
-                "\nBEGIN  sorted_strings.strings:=$1;  sorted_strings.sort_order:=$2;  return sorted_strings; END;'   LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION getsortedstring("varchar", int4)   RETURNS sortedstrings AS 'DECLARE  sorted_strings sortedStrings%ROWTYPE;\s
+                BEGIN  sorted_strings.strings:=$1;  sorted_strings.sort_order:=$2;  return sorted_strings; END;'   LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION removeviews()   RETURNS varchar AS ' DECLARE  viewName name;  viewCounter int8; " +
-                "\nBEGIN  SELECT INTO viewName getnextview();  SELECT INTO viewCounter viewCount();  WHILE (viewCounter > 0)   LOOP" +
-                "\nEXECUTE ''DROP VIEW ''|| viewName || '' CASCADE'';   RAISE NOTICE ''DROPPED %. % more.'',viewName,viewCounter;   SELECT INTO viewName getnextview();" +
-                "\nSELECT INTO viewCounter viewCount();  END LOOP;   RETURN (''DONE''); END; '   LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION removeviews()   RETURNS varchar AS ' DECLARE  viewName name;  viewCounter int8;\s
+                BEGIN  SELECT INTO viewName getnextview();  SELECT INTO viewCounter viewCount();  WHILE (viewCounter > 0)   LOOP
+                EXECUTE ''DROP VIEW ''|| viewName || '' CASCADE'';   RAISE NOTICE ''DROPPED %. % more.'',viewName,viewCounter;   SELECT INTO viewName getnextview();
+                SELECT INTO viewCounter viewCount();  END LOOP;   RETURN (''DONE''); END; '   LANGUAGE 'plpgsql' VOLATILE;\
+                """);
 
-        views.add("CREATE OR REPLACE FUNCTION stringstosortedtable(varchar[])" +
-                "\nRETURNS SETOF sortedstrings AS" +
-                "\n'DECLARE  " +
-                "\nss sortedstrings%ROWTYPE; " +
-                "\ni int4;  " +
-                "\nBEGIN  " +
-                "\ni :=1 ;" +
-                "\nWHILE ($1[i] IS NOT NULL) " +
-                "\nLOOP   " +
-                "\n		FOR ss IN " +
-                "\n			SELECT * FROM getSortedString($1[i],i) " +
-                "\n		LOOP" +
-                "\n			RAISE NOTICE ''SORTED STRING: %,%'',ss.strings,ss.sort_order;" +
-                "\n			RETURN NEXT ss;" +
-                "\n		END LOOP;" +
-                "\n		i:=i+1; " +
-                "\n	END LOOP; " +
-                "\n	RETURN; " +
-                "\nEND;'" +
-                "\n   LANGUAGE 'plpgsql' VOLATILE;");
+        views.add("""
+                CREATE OR REPLACE FUNCTION stringstosortedtable(varchar[])
+                RETURNS SETOF sortedstrings AS
+                'DECLARE \s
+                ss sortedstrings%ROWTYPE;\s
+                i int4; \s
+                BEGIN \s
+                i :=1 ;
+                WHILE ($1[i] IS NOT NULL)\s
+                LOOP  \s
+                		FOR ss IN\s
+                			SELECT * FROM getSortedString($1[i],i)\s
+                		LOOP
+                			RAISE NOTICE ''SORTED STRING: %,%'',ss.strings,ss.sort_order;
+                			RETURN NEXT ss;
+                		END LOOP;
+                		i:=i+1;\s
+                	END LOOP;\s
+                	RETURN;\s
+                END;'
+                   LANGUAGE 'plpgsql' VOLATILE;\
+                """);
         return views;
     }
 

@@ -326,7 +326,7 @@ public class DisplaySearch implements TableSearchI {
         if ((sortBy == null || sortBy.equalsIgnoreCase("")) && (customSortBy.equalsIgnoreCase(""))) {
             if(XDAT.getBoolSiteConfigurationProperty("defaultToSortedListings",Boolean.TRUE)) {
                 if (dv == null) {
-                    DisplayFieldWrapper dfw = ((DisplayFieldWrapper) this.getFields().getSortedFields().get(0));
+                    DisplayFieldWrapper dfw = ((DisplayFieldWrapper) this.getFields().getSortedFields().getFirst());
                     sortBy = dfw.getId();
                 } else {
                     sortBy = dv.getDefaultOrderBy();
@@ -540,7 +540,7 @@ public class DisplaySearch implements TableSearchI {
         }
 
         if (this.addKeyColumn()) {
-            String keyCol = qo.getFieldAlias(qo.getKeys().get(0), "SEARCH");
+            String keyCol = qo.getFieldAlias(qo.getKeys().getFirst(), "SEARCH");
             select.append(", ");
             select.append(keyCol).append(" AS KEY ");
         }
@@ -1744,9 +1744,9 @@ public class DisplaySearch implements TableSearchI {
                     set.setMethod("AND");
                     for (Object o : this.getCriteria()) {
                         SQLClause c = (SQLClause) o;
-                        if (c instanceof org.nrg.xft.search.CriteriaCollection) {
+                        if (c instanceof org.nrg.xft.search.CriteriaCollection collection) {
                             XdatCriteriaSet subset = new XdatCriteriaSet();
-                            subset.populateCriteria((CriteriaCollection) c);
+                            subset.populateCriteria(collection);
 
                             if (subset.size() > 0) {
                                 set.setChildSet(subset);
@@ -1775,8 +1775,8 @@ public class DisplaySearch implements TableSearchI {
                 xss.setSearchWhere(set);
             }
         } catch (Exception e) {
-            if (e instanceof InvalidSearchException) {
-                throw (InvalidSearchException) e;
+            if (e instanceof InvalidSearchException exception) {
+                throw exception;
             }
             logger.error("", e);
         }

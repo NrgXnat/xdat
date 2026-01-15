@@ -168,8 +168,8 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
 
     @Override
     public void clearCache(UserI user) {
-        if (user instanceof XDATUser) {
-            ((XDATUser) user).clearLocalCache();
+        if (user instanceof XDATUser tUser) {
+            tUser.clearLocalCache();
         }
     }
 
@@ -362,8 +362,7 @@ public class XDATUserMgmtServiceImpl implements UserManagementServiceI {
     private static List<UserI> convertXdatUsers(final List<XdatUser> users) {
         return users.stream()
                     .map(XDATUserMgmtServiceImpl::convertXdatUser)
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
+                    .flatMap(Optional::stream)
                     .collect(Collectors.toList());
     }
 
