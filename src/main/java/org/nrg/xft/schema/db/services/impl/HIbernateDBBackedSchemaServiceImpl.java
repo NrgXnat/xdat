@@ -1,14 +1,5 @@
 /*
- * core: org.nrg.xdat.services.impl.hibernate.HibernateAliasTokenService
- * XNAT http://www.xnat.org
- * Copyright (c) 2005-2017, Washington University School of Medicine and Howard Hughes Medical Institute
- * All Rights Reserved
- *
- * Released under the Simplified BSD.
- */
-
-/*
- * HibernateAliasTokenService
+ * HibernateDBBackedSchemaServiceImpl
  * (C) 2016 Washington University School of Medicine
  * All Rights Reserved
  *
@@ -45,9 +36,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 @Service
-public class HIbernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityService<DBBackedSchema, DBBackedSchemaDAO> implements DBBackedSchemaService {
+public class HibernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityService<DBBackedSchema, DBBackedSchemaDAO> implements DBBackedSchemaService {
     @Autowired
-    public HIbernateDBBackedSchemaServiceImpl(final DBBackedSchemaDAO dao) {
+    public HibernateDBBackedSchemaServiceImpl(final DBBackedSchemaDAO dao) {
         _dao = dao;
     }
 
@@ -107,7 +98,7 @@ public class HIbernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityS
             //safe
         }
 
-        final String xsd = String.format(schemaTemplate,prefix,complexType,prettyPrintName,extended);
+        final String xsd = String.format(SCHEMA_TEMPLATE,prefix,complexType,prettyPrintName,extended);
 
         return registerNewSchema("/custom/".concat(complexType), proposedType, xsd, generateDisplayDoc);
     }
@@ -249,11 +240,11 @@ public class HIbernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityS
         return _dao;
     }
 
-    private static final Log _log = LogFactory.getLog(HIbernateDBBackedSchemaServiceImpl.class);
+    private static final Log _log = LogFactory.getLog(HibernateDBBackedSchemaServiceImpl.class);
 
     private final DBBackedSchemaDAO _dao;
 
-    private final static String schemaTemplate = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private final static String SCHEMA_TEMPLATE = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<xs:schema targetNamespace=\"http://xnat.org/%1$s\" xmlns:%1$s=\"http://xnat.org/%1$s\" xmlns:xnat=\"http://nrg.wustl.edu/xnat\" xmlns:xdat=\"http://nrg.wustl.edu/xdat\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" elementFormDefault=\"qualified\" attributeFormDefault=\"unqualified\">\n" +
             "\t<xs:import namespace=\"http://nrg.wustl.edu/xdat\" schemaLocation=\"../xdat/xdat.xsd\"/>\n" +
             "\t<xs:import namespace=\"http://nrg.wustl.edu/xnat\" schemaLocation=\"../xnat/xnat.xsd\"/>\n" +

@@ -24,13 +24,8 @@ import java.util.Map;
  */
 
 @Service
+@Transactional
 public class HibernateArcDefService extends AbstractHibernateEntityService<DisplayArcDefinitionDB, ArcDefinitionDAO> implements ArcDefService {
-    @Autowired
-    public HibernateArcDefService(final ArcDefinitionDAO dao) {
-        _dao = dao;
-    }
-
-
     /**
      * Finds the SQLObject by name
      *
@@ -39,7 +34,6 @@ public class HibernateArcDefService extends AbstractHibernateEntityService<Displ
      * @return
      */
     @Override
-    @Transactional
     public ArcDefinition findArcDefByName(final String name) {
         final DisplayArcDefinitionDB arcDef= getDao().findByName(name,false);
         return wrapArcDefObject(arcDef);
@@ -62,7 +56,6 @@ public class HibernateArcDefService extends AbstractHibernateEntityService<Displ
     }
 
     @Override
-    @Transactional
     public List<ArcDefinition> findAllArcDefs() {
         final List<ArcDefinition> _return = Lists.newArrayList();
 
@@ -78,7 +71,6 @@ public class HibernateArcDefService extends AbstractHibernateEntityService<Displ
      * @param name The name of the view to deactivate
      */
     @Override
-    @Transactional
     public void deleteByName(String name) {
         final DisplayArcDefinitionDB view = this.getDao().findByName(name,true);
         if (view != null) {
@@ -87,7 +79,6 @@ public class HibernateArcDefService extends AbstractHibernateEntityService<Displ
     }
 
     @Override
-    @Transactional
     public DisplayArcDefinitionDB createArcDef(final ArcDefinition tempAD){
         if(this.getDao().findByName(tempAD.getName(),true)!=null){
             return getDao().findByName(tempAD.getName(),false);
@@ -120,11 +111,4 @@ public class HibernateArcDefService extends AbstractHibernateEntityService<Displ
         return getDao().findByName(arcDefine.getName(),false);
     }
 
-    protected ArcDefinitionDAO getDao() {
-        return _dao;
-    }
-
-    private static final Log _log = LogFactory.getLog(HibernateArcDefService.class);
-
-    private final ArcDefinitionDAO _dao;
 }

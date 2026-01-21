@@ -1,6 +1,7 @@
 package org.nrg.xdat.display.transport.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 
 import javax.persistence.*;
 
@@ -12,7 +13,7 @@ import javax.persistence.*;
 @Entity
 @Table(uniqueConstraints =
     @UniqueConstraint(name = "UniqueNamePerField", columnNames = { "display_field_id", "name" }))
-public class DisplayFieldElementDB {
+public class DisplayFieldElementDB extends AbstractHibernateEntity {
     private long id;
     private String name;
     private String schemaElementName;

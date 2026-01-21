@@ -1,6 +1,7 @@
 package org.nrg.xdat.display.transport.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 
 import javax.persistence.*;
 import java.util.Hashtable;
@@ -14,7 +15,7 @@ import java.util.Map;
 @Entity
 @Table(uniqueConstraints =
     @UniqueConstraint(columnNames = { "display_field_id", "name" }))
-public class DisplayFieldHtmlLinkPropertyDB {
+public class DisplayFieldHtmlLinkPropertyDB extends AbstractHibernateEntity {
     private long id;
     private String name = "";
     private String value = "";

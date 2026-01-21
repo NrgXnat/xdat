@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -63,7 +64,7 @@ public class HibernateDisplayStoredViewService extends AbstractHibernateEntitySe
     @Override
     @Transactional
     public List<SQLView> findSortedViews() {
-        final List<SQLView> _return = Lists.newArrayList();
+        final List<SQLView> _return = new ArrayList<>();
 
         if(getDao()==null){
             _log.error("DAO is NULL!!!!");

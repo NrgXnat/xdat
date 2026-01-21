@@ -185,12 +185,16 @@ public class DisplayManager {
      *
      */
     public ElementDisplay assignDisplays(final StringBuilder buffer, final boolean postInitialization){
-        final InputStream in=new ByteArrayInputStream(buffer.toString().getBytes(StandardCharsets.UTF_8));
-        if (in != null) {
-            final Document doc = XMLUtils.GetDOM(in);
-            return assignDisplays(doc,postInitialization);
+        try(final InputStream in=new ByteArrayInputStream(buffer.toString().getBytes(StandardCharsets.UTF_8))){
+            if (in != null) {
+                final Document doc = XMLUtils.GetDOM(in);
+                return assignDisplays(doc,postInitialization);
+            }
+            return null;
+        } catch (IOException e) {
+            logger.error("Error reading xml",e);
+            return null;
         }
-        return null;
     }
 
     public ElementDisplay registerDisplay(final StringBuilder buffer){

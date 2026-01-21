@@ -8,7 +8,7 @@
  */
 
 /*
- * AliasTokenDAO
+ * DBBackedSchemaDAO
  * (C) 2016 Washington University School of Medicine
  * All Rights Reserved
  *

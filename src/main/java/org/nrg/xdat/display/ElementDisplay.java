@@ -11,7 +11,7 @@
 package org.nrg.xdat.display;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.velocity.app.Velocity;
 import org.nrg.xdat.collections.DisplayFieldCollection;

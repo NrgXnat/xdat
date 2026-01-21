@@ -1,6 +1,7 @@
 package org.nrg.xdat.display.transport.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 
 import javax.persistence.*;
 
@@ -12,7 +13,7 @@ import javax.persistence.*;
 @Entity
 @Table(uniqueConstraints =
     @UniqueConstraint(columnNames = { "arc_def_id", "filterType","filterKey" }))
-public class DisplayArcDefFiltersDB {
+public class DisplayArcDefFiltersDB extends AbstractHibernateEntity {
     private long id;
     private String filterType;
     private String filterKey;
