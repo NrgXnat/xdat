@@ -577,48 +577,50 @@ public class DisplayManager {
     }
 
     public void init(String location) {
-            List<String> loaded                 = Lists.newArrayList();
-            final Map<String, Exception> errors = Maps.newHashMap();
+        List<String> loaded                 = Lists.newArrayList();
+        final Map<String, Exception> errors = Maps.newHashMap();
 
-            loadDisplayDocumentsFromLocation("classpath*:schemas/*/display/*_display.xml", errors, loaded, false);
+        loadDisplayDocumentsFromLocation("classpath*:schemas/*/display/*_display.xml", errors, loaded, false);
 
-            if(!StringUtils.isEmpty(location)) {
+        if(!StringUtils.isEmpty(location)) {
+            try {
+                ArrayList<String> buildPathDisplayXml = new ArrayList<>();
                 try {
-                    ArrayList<String> buildPathDisplayXml = new ArrayList<>();
-                    try {
-                        DirectoryScanner scanner = new DirectoryScanner();
-                        scanner.setBasedir(location);
-                        scanner.setIncludes(new String[]{"*/display/*_display.xml"});
-                        scanner.setCaseSensitive(false);
-                        scanner.scan();
-                        String[] displayFilePaths = scanner.getIncludedFiles();
-                        for (String displayFilePath : displayFilePaths) {
-                            buildPathDisplayXml.add(String.valueOf(Path.of(location, displayFilePath)));
-                        }
-                    } catch (Throwable e) {
-                        logger.error("Unable to locate display xml files in build location.", e);
+                    DirectoryScanner scanner = new DirectoryScanner();
+                    scanner.setBasedir(location);
+                    scanner.setIncludes(new String[]{"*/display/*_display.xml"});
+                    scanner.setCaseSensitive(false);
+                    scanner.scan();
+                    String[] displayFilePaths = scanner.getIncludedFiles();
+                    for (String displayFilePath : displayFilePaths) {
+                        buildPathDisplayXml.add(String.valueOf(Path.of(location, displayFilePath)));
                     }
-
-                    for (final String displayXmlFilePath : buildPathDisplayXml) {
-                        File displayXmlFile = new File(displayXmlFilePath);
-                        if (!loaded.contains(displayXmlFile.getName())) {
-                            try {
-                                Document doc = XMLUtils.GetDOM(displayXmlFile);
-                                ElementDisplay ed = assignDisplays(doc, false);
-                                loaded.add(displayXmlFile.getName());
-                            } catch (RuntimeException e) {
-                                //noinspection ThrowableResultOfMethodCallIgnored
-                                errors.put(displayXmlFile.getPath(), e);
-                            }
-                        }
-                    }
-
-                } catch (Throwable e1) {
-                    logger.error("Unable to discover display.xml's from build path.",e1);
+                } catch (Throwable e) {
+                    logger.error("Unable to locate display xml files in build location.", e);
                 }
-            }
 
-            List<ElementDisplay> eds=this.getElementDisplayService().findAllActive();
+                for (final String displayXmlFilePath : buildPathDisplayXml) {
+                    File displayXmlFile = new File(displayXmlFilePath);
+                    if (!loaded.contains(displayXmlFile.getName())) {
+                        try {
+                            Document doc = XMLUtils.GetDOM(displayXmlFile);
+                            ElementDisplay ed = assignDisplays(doc, false);
+                            loaded.add(displayXmlFile.getName());
+                        } catch (RuntimeException e) {
+                            //noinspection ThrowableResultOfMethodCallIgnored
+                            errors.put(displayXmlFile.getPath(), e);
+                        }
+                    }
+                }
+
+            } catch (Throwable e1) {
+                logger.error("Unable to discover display.xml's from build path.",e1);
+            }
+        }
+
+        final ElementDisplayStorageService displayService = this.getElementDisplayService();
+        if(displayService != null){
+            List<ElementDisplay> eds=displayService.findAllActive();
             for(ElementDisplay ed: eds){
                 ElementDisplay existing= DisplayManager.GetElementDisplay(ed.getElementName());
                 if(existing!=null){
@@ -627,10 +629,11 @@ public class DisplayManager {
                     addElement(ed);
                 }
             }
+        }
 
-            //check for missing display docs
-            final DBBackedSchemaService dbService=XFTManager.getDBBackedSchemaService();
-
+        //check for missing display docs
+        final DBBackedSchemaService dbService=XFTManager.getDBBackedSchemaService();
+        if(dbService != null){
             for (final DBBackedSchema schema: dbService.getAll()) {
                 for (final String xsiType : dbService.getElementNames(schema)) {
                     if(!this.getElements().containsKey(xsiType)) {//isn't there already
@@ -653,18 +656,25 @@ public class DisplayManager {
                     }
                 }
             }
+        }
 
-            for(SQLObjectI sqlObj: this.getDisplayStoredViewervice().findAllSQLObjects()){
-                if(sqlObj instanceof SQLView){
+        final DisplayStoredViewService viewService = getDisplayStoredViewervice();
+        if(viewService != null) {
+            for (SQLObjectI sqlObj : viewService.findAllSQLObjects()) {
+                if (sqlObj instanceof SQLView) {
                     AddSqlView((SQLView) sqlObj);
-                }else{
+                } else {
                     AddSqlFunction((SQLFunction) sqlObj);
                 }
             }
+        }
 
-            for(ArcDefinition arcDef: this.getArcDefService().findAllArcDefs()){
+        final ArcDefService arcDefService = getArcDefService();
+        if(arcDefService != null) {
+            for(ArcDefinition arcDef: arcDefService.findAllArcDefs()){
                 addArcDefinition(arcDef);
             }
+        }
 
         if (errors.size() > 0) {
             logger.error("{} errors occurred while processing the following display documents:", errors.size());
