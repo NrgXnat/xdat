@@ -187,7 +187,22 @@ public class XFT {
                         final String path = s.getDataModel().getResource().getFile().getPath();
                         sb.append(path);
                     } catch (FileNotFoundException e) {
-                        sb.append(s.getDataModel().getResource().getURI().toString());
+                        try {
+                            sb.append(s.getDataModel().getResource().getURI().toString());
+                        } catch (Exception ex) {
+                            // ByteArrayResource or other in-memory resources don't support getFile() or getURI()
+                            // Try using site URL like when location != null
+                            try {
+                                sb.append(XDAT.getSiteConfigPreferences().getSiteUrl())
+                                  .append("/schemas/")
+                                  .append(s.getDataModel().getFileName());
+                            } catch (Exception siteEx) {
+                                // If site URL is not available, just use filename
+                                logger.warn("Could not resolve schema location for " +
+                                            s.getTargetNamespaceURI() + ": " + ex.getMessage());
+                                sb.append(s.getDataModel().getFileName());
+                            }
+                        }
                     }
                 }else{
 				    sb.append(s.getTargetNamespaceURI()).append(" ").append(XDAT.getSiteConfigPreferences().getSiteUrl()).append("/schemas/").append(s.getDataModel().getFileName());
