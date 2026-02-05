@@ -40,9 +40,7 @@ public class SaveItemHelper {
 
 	@EventServiceTrigger
 	public void save(ItemI i,UserI user, boolean overrideSecurity, boolean quarantine, boolean overrideQuarantine, boolean allowItemRemoval,EventMetaI c) throws Exception {
-		System.out.println(">>> SaveItemHelper.save(void) called for item type: " + (i != null ? i.getXSIType() : "null"));
 		if(StringUtils.isNotBlank(i.getItem().getGenericSchemaElement().getAddin())){
-			System.out.println(">>> SaveItemHelper.save(void): taking ADDIN path for item type: " + i.getXSIType());
 			i.save(user,overrideSecurity,quarantine,overrideQuarantine,allowItemRemoval,c);
 		}else{
 			ItemWrapper temp;
@@ -53,7 +51,6 @@ public class SaveItemHelper {
 					temp=(ItemWrapper)i;
 				}
 			} catch (Exception e) {
-				System.out.println(">>> SaveItemHelper.save(void): EXCEPTION in BaseElement.GetGeneratedItem for item type: " + i.getXSIType() + ", error: " + e.getMessage());
 				logger.error("",e);
 				i.save(user,overrideSecurity,quarantine,overrideQuarantine,allowItemRemoval,c);
 				return;
@@ -68,9 +65,7 @@ public class SaveItemHelper {
 
 	@EventServiceTrigger
 	public boolean save(ItemI i,UserI user, boolean overrideSecurity, boolean allowItemRemoval,EventMetaI c) throws Exception {
-		System.out.println(">>> SaveItemHelper.save(boolean) called for item type: " + (i != null ? i.getXSIType() : "null"));
 		if(StringUtils.isNotBlank(i.getItem().getGenericSchemaElement().getAddin())){
-			System.out.println(">>> SaveItemHelper.save(boolean): taking ADDIN path for item type: " + i.getXSIType());
 			return i.save(user, overrideSecurity, allowItemRemoval,c);
 		}else{
 			ItemWrapper temp;
@@ -81,7 +76,6 @@ public class SaveItemHelper {
 					temp=(ItemWrapper)i;
 				}
 			} catch (Throwable e) {
-				System.out.println(">>> SaveItemHelper.save(boolean): EXCEPTION in BaseElement.GetGeneratedItem for item type: " + i.getXSIType() + ", error: " + e.getMessage());
 				logger.error("",e);
 				return i.save(user,overrideSecurity,allowItemRemoval,c);				
 			}
