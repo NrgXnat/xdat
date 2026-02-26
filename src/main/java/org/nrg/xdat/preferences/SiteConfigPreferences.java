@@ -591,6 +591,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "false")
+    public boolean getEnableNativeDicomPreCompression() {
+        return getBooleanValue("enableNativeDicomPreCompression");
+    }
+
+    public void setEnableNativeDicomPreCompression(final boolean enableNativeDicomPreCompression) {
+        try {
+            setBooleanValue(enableNativeDicomPreCompression, "enableNativeDicomPreCompression");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'enableNativeDicomPreCompression': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "true")
     public boolean getEnableSitewideAnonymizationScript() {
         return getBooleanValue("enableSitewideAnonymizationScript");
