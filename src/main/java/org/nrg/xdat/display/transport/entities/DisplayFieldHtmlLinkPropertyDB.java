@@ -68,7 +68,7 @@ public class DisplayFieldHtmlLinkPropertyDB extends AbstractHibernateEntity {
         this.displayField = displayField;
     }
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @MapKeyColumn(name = "insert_key")
     @Column(name = "insert_value")
     public Map<String, String> getInsertedValues() {

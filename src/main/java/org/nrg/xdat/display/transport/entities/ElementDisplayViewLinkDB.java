@@ -49,7 +49,7 @@ public class ElementDisplayViewLinkDB extends AbstractHibernateEntity {
         this.alias = alias;
     }
 
-    @OneToMany(mappedBy="viewLink", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="viewLink", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     public List<ElementDisplayViewLinkMappingColumnDB> getColumns() {
         return columns;
     }

@@ -9,6 +9,8 @@ package org.nrg.xdat.display.transport.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Lists;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 
 import javax.persistence.*;
@@ -120,7 +122,8 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
         this.description = description;
     }
 
-    @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     @OrderBy
     public List<DisplayFieldElementDB> getElements() {
         return elements;
@@ -140,7 +143,7 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
         this.elements = elements;
     }
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "DisplayFieldContent",
             joinColumns = {@JoinColumn(name = "df_id", referencedColumnName = "id")})
     @MapKeyColumn(name = "format")
@@ -169,7 +172,8 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
         this.htmlLinkSecureLinkTo = htmlLinkSecureLinkTo;
     }
 
-    @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     public List<DisplayFieldHtmlLinkPropertyDB> getHtmlLinkProperties() {
         return htmlLinkProperties;
     }
@@ -187,7 +191,7 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
         this.htmlLinkProperties.add(storedProp);
     }
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "DisplayFieldSecureProps",
             joinColumns = {@JoinColumn(name = "df_id", referencedColumnName = "id")})
     @MapKeyColumn(name = "field_id")
@@ -296,7 +300,8 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
         this.subQueryValue = subQueryValue;
     }
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     @CollectionTable(joinColumns=@JoinColumn(name="df_id"))
     @Column(name="possibleValue")
     public List<String> getPossibleValues() {
@@ -327,7 +332,8 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
         this.subQuery = subQuery;
     }
 
-    @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     public List<SubQueryMappingColumnDB> getMappingColumns() {
         return mappingColumns;
     }

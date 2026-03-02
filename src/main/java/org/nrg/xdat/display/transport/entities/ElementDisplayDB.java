@@ -11,6 +11,9 @@ import org.apache.commons.lang.StringUtils;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 import org.python.apache.commons.compress.utils.Lists;
 
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
+
 import javax.persistence.*;
 import java.util.List;
 
@@ -111,7 +114,8 @@ public class ElementDisplayDB extends AbstractHibernateEntity  {
         this.sortOrder = sortOrder;
     }
 
-    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     public List<DisplayFieldDB> getDisplayFields() {
         if(displayFields==null){
             displayFields= Lists.newArrayList();
@@ -123,7 +127,8 @@ public class ElementDisplayDB extends AbstractHibernateEntity  {
         this.displayFields = displayFields;
     }
 
-    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     public List<ElementDisplayArc> getArcs() {
         if(arcs==null){
             arcs=Lists.newArrayList();
@@ -151,7 +156,8 @@ public class ElementDisplayDB extends AbstractHibernateEntity  {
         return null;
     }
 
-    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     public List<DisplayVersionDB> getDisplayVersions() {
         if(displayVersions==null){
             displayVersions=Lists.newArrayList();
@@ -163,7 +169,8 @@ public class ElementDisplayDB extends AbstractHibernateEntity  {
         this.displayVersions = displayVersions;
     }
 
-    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="elementDisplay", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     public List<ElementDisplayViewLinkDB> getViewLinks() {
         if(viewLinks==null){
             viewLinks=Lists.newArrayList();

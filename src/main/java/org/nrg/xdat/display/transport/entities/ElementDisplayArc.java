@@ -38,7 +38,7 @@ public class ElementDisplayArc extends AbstractHibernateEntity{
         this.name = name;
     }
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @MapKeyColumn(name = "common_field")
     @Column(name="field_id")
     public Map<String,String> getCommonFields() {

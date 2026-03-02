@@ -140,7 +140,7 @@ public class DisplayVersionDB extends AbstractHibernateEntity {
         this.htmlCellServerLink = htmlCellServerLink;
     }
 
-    @OneToMany(mappedBy="displayVersion", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy="displayVersion", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     public List<DisplayFieldRefDB> getFields() {
         if(fields==null){
             fields=Lists.newArrayList();
