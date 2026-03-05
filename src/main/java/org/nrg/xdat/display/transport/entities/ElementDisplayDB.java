@@ -195,7 +195,7 @@ public class ElementDisplayDB extends AbstractHibernateEntity  {
 
     public void addViewLink(final ElementDisplayViewLinkDB viewLink){
         viewLink.setElementDisplay(this);
-        this.viewLinks.add(viewLink);
+        this.getViewLinks().add(viewLink);
     }
 
     @Transient

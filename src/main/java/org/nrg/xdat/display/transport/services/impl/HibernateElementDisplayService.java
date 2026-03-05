@@ -254,6 +254,7 @@ public class HibernateElementDisplayService extends AbstractHibernateEntityServi
 
     private org.nrg.xdat.display.DisplayVersion renderDisplayVersion(DisplayVersionDB storedDV, org.nrg.xdat.display.ElementDisplay ed) {
         final org.nrg.xdat.display.DisplayVersion dv = new org.nrg.xdat.display.DisplayVersion();
+        dv.setParentElementDisplay(ed);
 
         dv.setVersionName(storedDV.getVersionName());
         dv.setDefaultOrderBy(storedDV.getDefaultOrderBy());
@@ -641,7 +642,7 @@ public class HibernateElementDisplayService extends AbstractHibernateEntityServi
         if(storedDV==null){
             storedDV = new DisplayVersionDB();
             storedDV.copyFrom(dv);
-            storedDisplay.addDisplayVersion(dv);
+            storedDisplay.addDisplayVersion(storedDV);
         }else{
             storedDV.copyFrom(dv);
         }

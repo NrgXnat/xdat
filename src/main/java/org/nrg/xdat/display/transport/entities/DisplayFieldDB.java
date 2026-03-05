@@ -126,6 +126,9 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
     @Fetch(FetchMode.SUBSELECT)
     @OrderBy
     public List<DisplayFieldElementDB> getElements() {
+        if(elements==null){
+            elements=Lists.newArrayList();
+        }
         return elements;
     }
 
@@ -149,6 +152,9 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
     @MapKeyColumn(name = "format")
     @Column(name = "content",columnDefinition="TEXT")
     public Map<String, String> getContent() {
+        if(content==null){
+            content=new HashMap<>();
+        }
         return content;
     }
 
@@ -175,6 +181,9 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
     @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Fetch(FetchMode.SUBSELECT)
     public List<DisplayFieldHtmlLinkPropertyDB> getHtmlLinkProperties() {
+        if(htmlLinkProperties==null){
+            htmlLinkProperties=Lists.newArrayList();
+        }
         return htmlLinkProperties;
     }
 
@@ -197,6 +206,9 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
     @MapKeyColumn(name = "field_id")
     @Column(name = "schema_element_map",columnDefinition="TEXT")
     public Map<String, String> getHtmlLinkSecureProps() {
+        if(htmlLinkSecureProps==null){
+            htmlLinkSecureProps=new HashMap<>();
+        }
         return htmlLinkSecureProps;
     }
 
@@ -335,6 +347,9 @@ public class DisplayFieldDB extends AbstractHibernateEntity {
     @OneToMany(mappedBy="displayField", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Fetch(FetchMode.SUBSELECT)
     public List<SubQueryMappingColumnDB> getMappingColumns() {
+        if(mappingColumns==null){
+            mappingColumns=Lists.newArrayList();
+        }
         return mappingColumns;
     }
 
