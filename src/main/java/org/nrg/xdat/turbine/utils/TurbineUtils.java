@@ -699,13 +699,13 @@ public class TurbineUtils {
     }
 
     public static ItemI getDataItem(RunData data) {
-        final ItemI item = (ItemI) data.getSession().getAttribute("data_item");
-        data.getSession().removeAttribute("data_item");
+        final ItemI item = (ItemI) data.getRequest().getAttribute("data_item");
+        data.getRequest().removeAttribute("data_item");
         return item;
     }
 
     public static RunData setDataItem(RunData data, ItemI item) {
-        data.getSession().setAttribute("data_item", item);
+        data.getRequest().setAttribute("data_item", item);
         return data;
     }
 
