@@ -73,7 +73,10 @@ public class XFTMetaManager {
                     if (meta.getCode() != null) {
                         codeHash.put(meta.getCode().toLowerCase(), meta);
                     }
-                    elementNames.add(e.getType().getFullLocalType().toLowerCase());
+                    final String fullLocalType = e.getType().getFullLocalType().toLowerCase();
+                    if (!elementNames.contains(fullLocalType)) {
+                        elementNames.add(fullLocalType);
+                    }
                 }
             }
         }
