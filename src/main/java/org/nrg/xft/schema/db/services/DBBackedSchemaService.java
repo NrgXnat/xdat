@@ -20,6 +20,9 @@ public interface DBBackedSchemaService extends BaseHibernateService<DBBackedSche
     DBBackedSchema findConfigByPath(String path);
 
     @Transactional
+    DBBackedSchema findConfigByName(String name);
+
+    @Transactional
     DBBackedSchema createConfig(String path, String name, String content) throws Exception;
 
     XFTDataModel initializeSchema(DBBackedSchema schema) throws Exception;

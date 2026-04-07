@@ -57,6 +57,12 @@ public class HibernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityS
 
     @Override
     @Transactional
+    public DBBackedSchema findConfigByName(String name) {
+        return getDao().findByName(name,false);
+    }
+
+    @Override
+    @Transactional
     public DBBackedSchema createConfig(String path, String name, String content) throws Exception{
         DBBackedSchema config = new DBBackedSchema();
         config.setContent(content);

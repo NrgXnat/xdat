@@ -27,4 +27,16 @@ public class DBBackedSchemaDAO extends AbstractHibernateDAO<DBBackedSchema> {
         }
         return (DBBackedSchema) criteria.list().get(0);
     }
+
+    public DBBackedSchema findByName(String name, boolean includeDisabled) {
+        Criteria criteria = getCriteriaForType();
+        criteria.add(Restrictions.eq("name", name));
+        if (!includeDisabled) {
+            criteria.add(Restrictions.eq("enabled", true));
+        }
+        if (criteria.list().size() == 0) {
+            return null;
+        }
+        return (DBBackedSchema) criteria.list().get(0);
+    }
 }
