@@ -1335,6 +1335,19 @@ public class SiteConfigPreferences extends EventTriggeringAbstractPreferenceBean
         }
     }
 
+    @NrgPreference(defaultValue = "false")
+    public boolean getEnableDirectArchiveAppend() {
+        return getBooleanValue("enableDirectArchiveAppend");
+    }
+
+    public void setEnableDirectArchiveAppend(final boolean enableDirectArchiveAppend) {
+        try {
+            setBooleanValue(enableDirectArchiveAppend, "enableDirectArchiveAppend");
+        } catch (InvalidPreferenceName e) {
+            log.error("Invalid preference name 'enableDirectArchiveAppend': something is very wrong here.", e);
+        }
+    }
+
     @NrgPreference(defaultValue = "true", aliases = "project.allow-auto-archive")
     public boolean getProjectAllowAutoArchive() {
         return getBooleanValue("projectAllowAutoArchive");
