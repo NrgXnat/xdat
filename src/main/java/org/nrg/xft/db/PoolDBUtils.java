@@ -630,7 +630,15 @@ public class PoolDBUtils {
 							PoolDBUtils.ExecuteNonSelectQuery(QUERY_ITEM_CACHE_ADD_ID, dbName, login);
 						}
 						if (!(boolean) PoolDBUtils.ReturnStatisticQuery(QUERY_ITEM_CACHE_HAS_INDEX, "cache_has_index", dbName, login)) {
+							// Check for duplicate (elementName, ids) rows that would block UNIQUE index creation.
+							// xs_item_cache is a pure cache table — contents rebuild automatically on next access.
+							// This runs only once: after the index is created, the HAS_INDEX check skips this block.
+							if ((boolean) PoolDBUtils.ReturnStatisticQuery(QUERY_ITEM_CACHE_HAS_DUPS, "has_dups", dbName, login)) {
+								logger.info("xs_item_cache has duplicate rows. Clearing cache table before creating unique index (cache will rebuild on next access)...");
+								PoolDBUtils.ExecuteNonSelectQuery(QUERY_ITEM_CACHE_CLEAR, dbName, login);
+							}
 							PoolDBUtils.ExecuteNonSelectQuery(QUERY_ITEM_CACHE_ADD_INDEX, dbName, login);
+							logger.info("xs_item_cache unique index created successfully.");
 						}
 					} else {
 						PoolDBUtils.ExecuteNonSelectQuery(QUERY_CREATE_ITEM_CACHE, dbName, login);
@@ -1183,6 +1191,8 @@ public class PoolDBUtils {
 	private static final String  QUERY_ITEM_CACHE_EXISTS    = "SELECT EXISTS(SELECT relname FROM pg_catalog.pg_class WHERE relname = LOWER('xs_item_cache')) AS cache_exists";
 	private static final String  QUERY_ITEM_CACHE_HAS_ID    = "SELECT EXISTS(SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'xs_item_cache' AND column_name = 'id') AS cache_has_id";
 	private static final String  QUERY_ITEM_CACHE_HAS_INDEX = "SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE tablename = 'xs_item_cache' AND indexname = 'idx_xs_item_cache_lookup') AS cache_has_index";
+	private static final String  QUERY_ITEM_CACHE_HAS_DUPS  = "SELECT EXISTS(SELECT 1 FROM xs_item_cache GROUP BY elementname, ids HAVING COUNT(*) > 1) AS has_dups";
+	private static final String  QUERY_ITEM_CACHE_CLEAR     = "DELETE FROM xs_item_cache";
 	private static final String  QUERY_ITEM_CACHE_ADD_INDEX = "CREATE UNIQUE INDEX IF NOT EXISTS idx_xs_item_cache_lookup ON xs_item_cache(elementName, ids)";
 	private static final String  QUERY_CREATE_ITEM_CACHE    = """
                                                               CREATE TABLE xs_item_cache
