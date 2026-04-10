@@ -13,11 +13,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntityService;
+import org.nrg.xapi.exceptions.NotFoundException;
 import org.nrg.xdat.display.DisplayManager;
 import org.nrg.xdat.display.ElementDisplay;
 import org.nrg.xdat.display.SQLView;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xft.db.PoolDBUtils;
+import org.nrg.xft.exception.ElementNotFoundException;
+import org.nrg.xft.exception.XFTInitException;
 import org.nrg.xft.generators.JavaFileGenerator;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperElement;
 import org.nrg.xft.schema.Wrappers.GenericWrapper.GenericWrapperFactory;
@@ -29,7 +32,6 @@ import org.nrg.xft.schema.XFTSchema;
 import org.nrg.xft.schema.db.entities.DBBackedSchema;
 import org.nrg.xft.schema.db.services.DBBackedSchemaService;
 import org.nrg.xft.schema.db.dao.DBBackedSchemaDAO;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,11 +39,6 @@ import java.util.*;
 
 @Service
 public class HibernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityService<DBBackedSchema, DBBackedSchemaDAO> implements DBBackedSchemaService {
-    @Autowired
-    public HibernateDBBackedSchemaServiceImpl(final DBBackedSchemaDAO dao) {
-        _dao = dao;
-    }
-
     /**
      * Finds the DBBackedSchemaDAO by path
      *
@@ -234,21 +231,57 @@ public class HibernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityS
 
     }
 
-
     @Override
     @Transactional
     public List<DBBackedSchema> findAllSchema() {
         return getDao().findAll();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    protected DBBackedSchemaDAO getDao() {
-        return _dao;
+    @Transactional
+    public boolean isSchemaLoaded(final long id) throws NotFoundException {
+        try {
+            final DBBackedSchema schema = get(id);
+            return isSchemaLoaded(schema);
+        } catch (org.nrg.framework.exceptions.NotFoundException e) {
+            throw new NotFoundException(DBBackedSchema.class.toString(), id);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public boolean isSchemaLoaded(final DBBackedSchema schema) {
+        // Get element names from the schema
+        List<String> elementNames = getElementNames(schema);
+        if (_log.isDebugEnabled()) {
+            _log.debug("Schema " + schema.getName() + " contains " + elementNames.size() + " elements: " + String.join(", ", elementNames));
+        }
+
+        // Check if any element from this schema is already loaded
+        for (final String elementName : elementNames) {
+            try {
+                final SchemaElement schemaElement = SchemaElement.GetElement(elementName);
+                _log.info("Element " + elementName + " is already loaded in the system, returning true");
+                return true;
+            } catch (XFTInitException e) {
+                _log.error("XFT initialization error checking for element: " + elementName, e);
+            } catch (ElementNotFoundException e) {
+                // Ignore this, it just means that the element hasn't been defined, which
+                // means we do need to load this schema.
+            }
+        }
+
+        // If we made it here, no elements from the schema are loaded, so return false;
+        return false;
     }
 
     private static final Log _log = LogFactory.getLog(HibernateDBBackedSchemaServiceImpl.class);
-
-    private final DBBackedSchemaDAO _dao;
 
     private final static String SCHEMA_TEMPLATE = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<xs:schema targetNamespace=\"http://xnat.org/%1$s\" xmlns:%1$s=\"http://xnat.org/%1$s\" xmlns:xnat=\"http://nrg.wustl.edu/xnat\" xmlns:xdat=\"http://nrg.wustl.edu/xdat\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" elementFormDefault=\"qualified\" attributeFormDefault=\"unqualified\">\n" +

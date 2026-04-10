@@ -8,6 +8,7 @@
 package org.nrg.xft.schema.db.services;
 
 import org.nrg.framework.orm.hibernate.BaseHibernateService;
+import org.nrg.xapi.exceptions.NotFoundException;
 import org.nrg.xdat.schema.SchemaElement;
 import org.nrg.xft.schema.XFTDataModel;
 import org.nrg.xft.schema.db.entities.DBBackedSchema;
@@ -37,4 +38,27 @@ public interface DBBackedSchemaService extends BaseHibernateService<DBBackedSche
 
     @Transactional
     List<DBBackedSchema> findAllSchema();
+
+    /**
+     * Checks whether the elements of the specified schema are already loaded. This
+     * allows you to check whether the schema is already loaded before trying to
+     * load it again.
+     *
+     * @param id The ID of the {@link DBBackedSchema schema} to check
+     *
+     * @return Returns <pre>true</pre> if the schema is loaded, <pre>false</pre> otherwise.
+     * @throws NotFoundException If no schema exists with the specified ID
+     */
+    boolean isSchemaLoaded(long id) throws NotFoundException;
+
+    /**
+     * Checks whether the elements of the specified schema are already loaded. This
+     * allows you to check whether the schema is already loaded before trying to
+     * load it again.
+     *
+     * @param schema The {@link DBBackedSchema schema} to check
+     *
+     * @return Returns <pre>true</pre> if the schema is loaded, <pre>false</pre> otherwise.
+     */
+    boolean isSchemaLoaded(DBBackedSchema schema);
 }

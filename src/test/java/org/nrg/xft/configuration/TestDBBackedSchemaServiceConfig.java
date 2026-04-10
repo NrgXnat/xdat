@@ -33,6 +33,6 @@ public class TestDBBackedSchemaServiceConfig {
 
     @Bean
     public DBBackedSchemaService dbBackedSchemaService(final DBBackedSchemaDAO dbBackedSchemaDAO) {
-        return new HibernateDBBackedSchemaServiceImpl(dbBackedSchemaDAO);
+        return new HibernateDBBackedSchemaServiceImpl();
     }
 }
