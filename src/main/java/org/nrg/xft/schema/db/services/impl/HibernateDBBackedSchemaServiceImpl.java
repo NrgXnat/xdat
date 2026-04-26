@@ -73,6 +73,7 @@ public class HibernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityS
 
     @Override
     public XFTDataModel initializeSchema(DBBackedSchema schema) throws Exception{
+        elementsPerConfig.remove(schema.getName());
         return XFTManager.GetInstance().addSchema(schema.getName(), schema.getContent());
     }
 
@@ -183,22 +184,25 @@ public class HibernateDBBackedSchemaServiceImpl extends AbstractHibernateEntityS
 
     @Override
     public List<String> getElementNames(DBBackedSchema config) {
-        if(!elementsPerConfig.containsKey(config.getName())){
-            elementsPerConfig.put(config.getName(), Lists.newArrayList());
+        final List<String> cached = elementsPerConfig.get(config.getName());
+        if (cached != null) {
+            return cached;
+        }
 
-            //iterate active schema to identify elements for this schema
-            for (final XFTSchema s : XFTManager.GetSchemas()) {
-                if (StringUtils.equals(config.getName(), s.getDataModel().getFileName())) {
-                    for (final Object o : s.getSortedElements()) {
-                        final XFTElement e = (XFTElement) o;
-                        final String xsiType= e.getType().getFullForeignType();
-                        elementsPerConfig.get(config.getName()).add(xsiType);
-                    }
+        final List<String> names = Lists.newArrayList();
+        for (final XFTSchema s : XFTManager.GetSchemas()) {
+            if (StringUtils.equals(config.getName(), s.getDataModel().getFileName())) {
+                for (final Object o : s.getSortedElements()) {
+                    final XFTElement e = (XFTElement) o;
+                    names.add(e.getType().getFullForeignType());
                 }
             }
         }
 
-        return elementsPerConfig.get(config.getName());
+        if (!names.isEmpty()) {
+            elementsPerConfig.put(config.getName(), names);
+        }
+        return names;
     }
 
     private void generateSql(GenericWrapperElement gwe, List<String> create, List<String> alter, final List<String> functions) throws Exception {
